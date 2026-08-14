@@ -81,6 +81,14 @@ data_plot <- bind_rows(rows) %>%
   arrange(match(treatment, c("placebo", plot_treatments))) %>%
   mutate(Label = paste0(round(mean, 1), " (", round(val2.5pc, 1), ", ", round(val97.5pc, 1), ")"))
 
+range_span <- max(data_plot$val97.5pc, na.rm = TRUE) - min(data_plot$val2.5pc, na.rm = TRUE)
+# The leading "-" of a left-aligned label starting too close to the panel's
+# own clip boundary gets sliced off (visible as a missing minus sign on the
+# mean, while the CI numbers further right in the same string render fine) --
+# 0.04 wasn't enough clearance; push the column further inside the panel.
+data_plot$label_x <- max(data_plot$val97.5pc, na.rm = TRUE) + 0.12 * range_span
+label_margin <- range_span * (0.12 + 0.018 * max(nchar(data_plot$Label)))
+
 trt_order <- unique(data_plot$treatment)
 
 ylab_text <- if (args$effect == "relative") {
@@ -113,7 +121,17 @@ pforest <- ggplot(
 ) +
   geom_pointrange(aes(col = compound), size = 0.5) +
   geom_hline(yintercept = 0, size = 1, linetype = 2) +
-  geom_text(aes(label = Label), position = position_dodge(width = 1), show.legend = FALSE, vjust = 1.6, size = 5) +
+  # A single fixed label column (all labels start at the same y, just past
+  # the widest upper CI in the whole plot) rather than positioning each
+  # label relative to its own point/CI -- anchoring per-row breaks down as
+  # soon as one row is the most extreme in the plot (its label has nowhere
+  # to go on that side) or has a very wide CI (the label ends up floating
+  # far from its own point). A fixed column is what forest plots normally
+  # use for exactly this reason.
+  geom_text(
+    aes(y = label_x, label = Label), hjust = 0, vjust = 0.5, size = 5, show.legend = FALSE
+  ) +
+  scale_y_continuous(expand = expansion(mult = c(0.08, 0.05), add = c(0, label_margin))) +
   coord_flip() +
   xlab("") +
   ylab(ylab_text) +
@@ -130,6 +148,14 @@ pforest <- ggplot(
   )
 
 plot_height <- max(4, 0.6 * length(trt_order)) + 0.22 * length(footnote_lines)
-ggsave(args$out, plot = pforest, width = 12, height = plot_height, dpi = 150)
+# Width must fit four things side by side: row labels, the panel itself, the
+# fixed label column, and the compound legend -- a fixed width broke down as
+# soon as there were ~20 compounds in a 2-column legend, which visibly eats
+# into the space the label column needs. Scale with both drivers rather than
+# guessing one constant that only works for whatever dataset was tested last.
+n_compounds <- length(unique(data_plot$compound))
+max_label_chars <- max(nchar(data_plot$Label))
+plot_width <- 10 + 0.15 * max_label_chars + 0.25 * n_compounds
+ggsave(args$out, plot = pforest, width = plot_width, height = plot_height, dpi = 150)
 cat("Forest plot saved to:", args$out, "\n")
 cat("Footnote:\n", footnote_text, "\n")

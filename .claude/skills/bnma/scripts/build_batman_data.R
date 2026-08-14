@@ -53,6 +53,78 @@ if (length(dropped_unusable) > 0) {
   )
 }
 
+# Row-level exclusions (e.g. a single anomalous/likely-erroneous row within an
+# otherwise-included study) -- a study-level include/exclude decision can't
+# express this, so the manifest supports an optional `row_exclusions` list.
+# Every entry must actually match a row still present at this point, or the
+# script stops -- silently matching zero rows (e.g. a stale exclusion after
+# the underlying data changed) is exactly the kind of quiet drift this skill
+# exists to prevent. An optional `n` field disambiguates two literal duplicate
+# rows sharing the same (study_name, treatment) -- found via testing against
+# real data (solstice's elecoglipron 75mg qd had two identical-looking rows
+# differing only in n and the reported value). Without `n`, an entry matching
+# more than one row is ALSO an error -- ambiguous exclusions are exactly as
+# unsafe as ones matching zero.
+#
+# MANIFEST AUTHORING GOTCHA: write the key as quoted `"n": 37`, not bare
+# `n: 37` -- YAML 1.1 (which the `yaml` package follows) parses a bare `n`
+# (also `y`/`yes`/`no`/`on`/`off`) as the boolean FALSE, not the string "n",
+# so an unquoted key silently vanishes and this block never disambiguates
+# anything. Hit this exact bug once already; quoting the key is what fixes it.
+if (!is.null(manifest$row_exclusions)) {
+  for (ex in manifest$row_exclusions) {
+    match_idx <- which(usable$study_name == ex$study_name & usable$treatment == ex$treatment)
+    if (!is.null(ex$n)) {
+      match_idx <- match_idx[usable$n[match_idx] == ex$n]
+    }
+    if (length(match_idx) == 0) {
+      stop(
+        "row_exclusions entry matched no rows: study_name='", ex$study_name,
+        "', treatment='", ex$treatment, "'",
+        if (!is.null(ex$n)) paste0(", n=", ex$n) else "",
+        " -- check the manifest against the current data (it may have ",
+        "changed since this exclusion was written)."
+      )
+    }
+    if (length(match_idx) > 1) {
+      stop(
+        "row_exclusions entry matched ", length(match_idx), " rows (ambiguous): ",
+        "study_name='", ex$study_name, "', treatment='", ex$treatment, "' -- add ",
+        "an `n` field (or another discriminator) to pick exactly one row."
+      )
+    }
+    cat(
+      "Excluding", length(match_idx), "row(s): study='", ex$study_name,
+      "' treatment='", ex$treatment, "' -- reason:", ex$reason %||% "(none given)", "\n"
+    )
+    usable <- usable[-match_idx, ]
+  }
+}
+
+
+# Compound relabels -- for a naming-QA flag resolved as "these rows were
+# mislabeled, merge into the canonical spelling" (as opposed to "these are
+# genuinely different compounds, just noted"). Applied globally by compound
+# string, since that's what the naming-QA gate flags on. Same
+# match-or-stop-loudly guarantee as row_exclusions above.
+if (!is.null(manifest$compound_relabels)) {
+  for (rl in manifest$compound_relabels) {
+    match_idx <- which(usable$compound == rl$from)
+    if (length(match_idx) == 0) {
+      stop(
+        "compound_relabels entry matched no rows: from='", rl$from, "' -- check ",
+        "the manifest against the current data (it may have changed since this ",
+        "relabel was written)."
+      )
+    }
+    cat(
+      "Relabeling", length(match_idx), "row(s): compound '", rl$from, "' -> '",
+      rl$to, "' -- reason:", rl$reason %||% "(none given)", "\n"
+    )
+    usable$compound[match_idx] <- rl$to
+  }
+}
+
 studies_in_data <- unique(usable$study_name)
 studies_in_manifest <- vapply(manifest$studies, function(s) s$study_name, character(1))
 
@@ -89,6 +161,31 @@ if (nrow(data_sel) == 0) {
 
 data_sel <- data_sel %>%
   rename(study = study_name, treat = treatment)
+
+# Disambiguate study identity when a single study_name internally collides on
+# (study, treat) -- e.g. a study whose own observed rows and own prediction
+# rows are both kept (per the manifest), and both happen to include the same
+# treatment string (typically "placebo") at a different duration. BATMAN
+# requires exactly one row per treatment per "study" -- this is the same
+# distinction that already exists naturally between e.g. retatrutide_ph2_gzbf
+# and retatrutide_gzbf (which just happen to have different study_names);
+# here it's the same study_name internally, so split by source_sheet instead.
+# Only colliding studies get the [sheet] suffix, so the common case (no
+# internal observed+prediction mix) is untouched.
+colliding_studies <- data_sel %>%
+  count(study, treat) %>%
+  filter(n > 1) %>%
+  pull(study) %>%
+  unique()
+
+if (length(colliding_studies) > 0) {
+  cat(
+    "Disambiguating studies with an internal same-treatment collision by ",
+    "data source (observed vs. prediction): ", paste(colliding_studies, collapse = ", "), "\n"
+  )
+  data_sel <- data_sel %>%
+    mutate(study = if_else(study %in% colliding_studies, paste0(study, " [", source_sheet, "]"), study))
+}
 
 study_list <- unique(data_sel$study)
 treatment_list <- unique(data_sel$treat)
@@ -153,6 +250,13 @@ saveRDS(batman_data, args$batman_out)
 arm_info <- data_recon %>%
   mutate(node = paste0("d[", arm_ind, "]")) %>%
   select(node, arm_ind, treatment = treat, compound) %>%
+  # A placebo row's compound is always "placebo" by construction, regardless
+  # of what the raw data says -- found via testing against real PRD data,
+  # where a placebo arm occasionally carried the study's active-drug compound
+  # (a data-entry error; see check_naming_pooling.R's placebo_mistag flag,
+  # which surfaces this for a curator to fix at the source). Forcing it here
+  # means the forest plot's placebo arm is never mislabeled by that error.
+  mutate(compound = if_else(treatment == "placebo", "placebo", compound)) %>%
   distinct() %>%
   # Phantom BATMAN placebo rows have compound = NA and can duplicate a real
   # row's arm_ind (same node/treatment, no compound) -- prefer the row that

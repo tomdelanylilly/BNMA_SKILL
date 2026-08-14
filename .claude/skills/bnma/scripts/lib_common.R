@@ -2,6 +2,13 @@
 
 `%||%` <- function(a, b) if (is.null(a)) b else a
 
+#' Collapse repeated internal whitespace and trim ends. trimws() alone
+#' misses internal double-spaces (e.g. "semaglutide 2.4mg  qw" vs
+#' "semaglutide 2.4mg qw"), which otherwise silently fragments one dose into
+#' two separate treatment arms in the BNMA -- found by testing against real
+#' PRD data, not hypothetical.
+squish_ws <- function(x) gsub("[[:space:]]+", " ", trimws(x))
+
 #' Parse simple `--flag value` command-line arguments into a named list.
 #' Flags may be written with hyphens (`--batman-out`) even though the spec's
 #' keys use underscores (`batman_out`) -- normalized here so call sites can

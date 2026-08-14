@@ -181,14 +181,45 @@ if (has_aom) {
   }
 }
 
+# ---------------------------------------------------------------------------
+# Check 3: placebo rows mistagged with an active-drug compound
+# ---------------------------------------------------------------------------
+# Neither a naming-similarity nor a route-pooling issue -- a distinct data-
+# entry integrity check. Found via testing against real PRD data: a placebo
+# arm (treatment == "placebo") occasionally carries the study's active-drug
+# compound in the `compound` column instead of "placebo"/NA. build_batman_data.R
+# hardens against this (arm_ind 1's compound is always forced to "placebo"
+# regardless of what's in the raw data), but it's still flagged here so a
+# curator can fix it at the source.
+integrity_flags <- list()
+mistagged <- merged %>% filter(treatment == "placebo", !is.na(compound), compound != "placebo")
+if (nrow(mistagged) > 0) {
+  for (i in seq_len(nrow(mistagged))) {
+    integrity_flags[[length(integrity_flags) + 1]] <- list(
+      kind = "placebo_mistag",
+      study_name = mistagged$study_name[i],
+      compound = mistagged$compound[i],
+      message = paste0(
+        "Study '", mistagged$study_name[i], "' has a treatment == 'placebo' row ",
+        "tagged with compound = '", mistagged$compound[i], "' instead of 'placebo' ",
+        "-- likely a data-entry error. The BNMA model itself keys off the treatment ",
+        "string (not compound), so this shouldn't corrupt the fit, but it can mislabel ",
+        "the placebo arm's color/legend in the forest plot unless corrected at the source."
+      )
+    )
+  }
+}
+
 report <- list(
   compound_flags = compound_flags,
   pooling_flags = pooling_flags,
+  integrity_flags = integrity_flags,
   summary = list(
     n_compounds_checked = length(compounds),
     n_compound_flags = length(compound_flags),
     n_compound_flags_active = sum(vapply(compound_flags, function(f) !f$suppressed, logical(1))),
-    n_pooling_flags = length(pooling_flags)
+    n_pooling_flags = length(pooling_flags),
+    n_integrity_flags = length(integrity_flags)
   )
 )
 
@@ -200,5 +231,6 @@ cat(
   "  Compound flags:", report$summary$n_compound_flags,
   "(", report$summary$n_compound_flags_active, "active,",
   report$summary$n_compound_flags - report$summary$n_compound_flags_active, "suppressed )\n",
-  "  Pooling flags:", report$summary$n_pooling_flags, "\n"
+  "  Pooling flags:", report$summary$n_pooling_flags, "\n",
+  "  Integrity flags (placebo mistagging):", report$summary$n_integrity_flags, "\n"
 )

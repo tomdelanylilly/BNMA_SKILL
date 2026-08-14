@@ -34,7 +34,7 @@ promoted. Do not guess a path — ask, or use exactly what the user gives you.
 ## Step 1 — Load & merge
 
 ```bash
-/opt/R/4.1.2/bin/Rscript scripts/load_merge_data.R \
+scripts/run_r.sh scripts/load_merge_data.R \
   --prd <prd_path.xlsx> [--qa <qa_path.xlsx>] --out /tmp/bnma_merged.rds
 ```
 
@@ -44,7 +44,7 @@ they know what's actually in scope before the QA gate runs.
 ## Step 2 — Naming/pooling QA gate
 
 ```bash
-/opt/R/4.1.2/bin/Rscript scripts/check_naming_pooling.R \
+scripts/run_r.sh scripts/check_naming_pooling.R \
   --data /tmp/bnma_merged.rds --out /tmp/bnma_naming_report.json
 ```
 
@@ -116,12 +116,27 @@ studies:
     data_type: observed
     include: false
     reason: "Phase 2 only, excluded per analyst decision"
+compound_relabels:
+  - from: "exenatide qw"
+    to: exenatide
+    reason: "Inconsistently labeled subset of rows -- see naming_pooling_resolutions above for why."
+row_exclusions:
+  - study_name: some-study
+    treatment: "some treatment 5mg qd"
+    "n": 37 # quote this key -- bare `n:` parses as boolean FALSE in YAML 1.1, not the string "n", and the exclusion silently stops disambiguating (hit this for real once)
+    reason: "Duplicate row sharing (study_name, treatment) with another row -- n disambiguates which one to drop."
 plot_treatments:
   - tirzepatide 5mg qw
   - tirzepatide 10mg qw
   - tirzepatide 15mg qw
 effect_type: relative
 ```
+
+`compound_relabels` is for a naming-QA flag resolved as "these rows were
+mislabeled, merge into the canonical spelling" -- applied globally by
+compound string. `row_exclusions` is for a single anomalous or duplicate row
+within an otherwise-included study; add `"n"` (quoted) when two rows share
+the same `(study_name, treatment)` and need a third field to tell them apart.
 
 Save it under the dated `programs/YYYYMMDD_.../` folder for this run (ask the
 user for that folder if it's not obvious), e.g. `study_selection_manifest.yaml`.
@@ -133,7 +148,7 @@ otherwise — that's intentional, not a bug to work around.
 ## Step 5 — Build BATMAN data, fit the model
 
 ```bash
-/opt/R/4.1.2/bin/Rscript scripts/build_batman_data.R \
+scripts/run_r.sh scripts/build_batman_data.R \
   --data /tmp/bnma_merged.rds --manifest <manifest.yaml> \
   --batman-out /tmp/bnma_batman.rds --arm-info-out /tmp/bnma_arm_info.rds \
   --study-info-out /tmp/bnma_study_info.rds
@@ -158,7 +173,7 @@ reuse another run's cache path.
 ## Step 6 — Forest plot + footnote
 
 ```bash
-/opt/R/4.1.2/bin/Rscript scripts/make_forest_plot.R \
+scripts/run_r.sh scripts/make_forest_plot.R \
   --samples <cache.rds> --arm-info /tmp/bnma_arm_info.rds \
   --study-info /tmp/bnma_study_info.rds --manifest <manifest.yaml> \
   --effect relative --out <output_folder>/forest_plot.png

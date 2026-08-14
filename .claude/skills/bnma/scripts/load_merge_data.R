@@ -71,11 +71,21 @@ if (is.null(qa_data)) {
   )
 }
 
+# Some QA workbooks carry leftover derived columns from a prior analysis run
+# (study_ind, arm_ind, treat) that were never supposed to persist in the
+# source file (GUIDE_README.md: "study_ind, arm_ind (re-derived at analysis
+# time, not stored)") -- found via testing against a real T2D QA file whose
+# Prediction sheet already had a `treat` column, colliding with this script's
+# own rename() step downstream. Drop them defensively; this pipeline always
+# recomputes its own indices, so any pre-existing ones can't be trusted
+# anyway (they'd reflect some other, unrelated arm-numbering scheme).
+merged <- merged %>% select(-any_of(c("study_ind", "arm_ind", "treat")))
+
 merged <- merged %>%
   mutate(
-    compound  = tolower(trimws(compound)),
-    treatment = tolower(trimws(treatment)),
-    study_name = tolower(trimws(study_name))
+    compound  = tolower(squish_ws(compound)),
+    treatment = tolower(squish_ws(treatment)),
+    study_name = tolower(squish_ws(study_name))
   ) %>%
   recast_numeric_cols()
 
