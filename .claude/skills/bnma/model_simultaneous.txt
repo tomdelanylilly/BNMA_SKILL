@@ -1,0 +1,50 @@
+model{
+
+    for(i in 1:ns){
+      phi[i] ~ dnorm(m, tau2_m)
+    }
+    m ~ dnorm(0, 1e-04)
+    tau2_m   <- 1 / sigma2_m
+    sigma2_m <- sigma_m * sigma_m
+    sigma_m  ~ dunif(0, 8)
+
+    for(i in 1:ns){
+      for(j in 1:na[i]){
+        y[i,j] ~ dnorm(eta[i,j], 1 / se[i,j]^2)
+        dev[i,j] <- (y[i,j] - eta[i,j])^2 * (1 / se[i,j]^2)
+      }
+      devstudy[i] <- sum(dev[i, 1:na[i]])
+    }
+
+    for(i in 1:ns){
+      eta[i,1] <- phi[i] + delta[i,1]
+      for(j in 2:na[i]){
+        eta[i,j] <- phi[i] + delta[i,j]
+      }
+    }
+
+    for(i in 1:ns){
+      w[i,1]     <- 0
+      delta[i,1] <- 0
+      for(j in 2:na[i]){
+        delta[i,j] ~ dnorm((d[trt[i,j]] - d[trt[i,1]]) + sw[i,j], tau2d[i,j])
+        tau2d[i,j] <- tau2 * 2 * (j-1) / j
+        w[i,j]     <- delta[i,j] - d[trt[i,j]] + d[trt[i,1]]
+        sw[i,j]    <- sum(w[i, 1:(j-1)]) / (j-1)
+      }
+    }
+
+    Dbar <- sum(devstudy[])
+
+    d[1] <- 0
+    for(k in 2:M){
+      d[k] ~ dnorm(0, 1e-04)
+    }
+
+    sigma  ~ dunif(0, 100)
+    sigma2 <- sigma * sigma
+    tau2   <- 1 / sigma2
+
+    mu_new ~ dnorm(m, 1 / sigma_m^2)
+
+}

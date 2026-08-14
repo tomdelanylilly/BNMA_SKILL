@@ -1,0 +1,41 @@
+# Persisted decisions for the /bnma skill's naming/pooling QA gate.
+# check_naming_pooling.R reads this file to avoid re-flagging pairs a curator
+# has already resolved. When you resolve a new flag during a /bnma run,
+# append it here (as a resolved_pairs entry) so future runs don't ask again.
+#
+# known_compounds: canonical spellings seen in the data so far. Not required
+# for the check to work (it derives distinct compounds from the data itself
+# each run) -- this list exists so the skill's forced-selection step can
+# show "known vs. new" compounds without recomputing history.
+#
+# resolved_pairs: compound-name pairs a human has already reviewed. `decision`
+# is "same" (they're aliases -- the checker will note this but not block on
+# it) or "different" (confirmed distinct compounds -- never flag this pair
+# again).
+
+known_compounds:
+  - semaglutide
+  - tirzepatide
+  - retatrutide
+  - orforglipron
+  - survodutide
+  - cagrilintide
+  - danuglipron
+  - brenipatide
+  - berobenatide
+  - maritide
+  - vk2735
+  - petrelintide
+  - pemvidutide
+  - cagrisema
+  - eloralintide
+
+resolved_pairs:
+  - a: met-097
+    b: berobenatide
+    decision: same
+    note: >
+      met-097 is a legacy internal code name for berobenatide. Still appears
+      as a distinct `compound` value in some PRD rows as of 2026-08 --
+      bnma-nonadj-11AUG2026.R patches this at read-time rather than the
+      source data being corrected yet.

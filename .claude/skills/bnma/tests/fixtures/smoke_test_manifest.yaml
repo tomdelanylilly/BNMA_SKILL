@@ -1,0 +1,87 @@
+created_at: "2026-08-14"
+source_data:
+  prd: tests/fixtures/prd_fixture.xlsx
+  qa: null
+source_program: "smoke-test manifest -- not a real analyst decision"
+naming_pooling_resolutions:
+  - kind: compound_flag
+    compound_a: canaflig
+    compound_b: canafligizon
+    decision: different
+    note: "smoke test: treated as distinct for pipeline testing purposes"
+  - kind: pooling_flag
+    compound: orforglipron
+    treatment: "orforglipron 3mg"
+    decision: acknowledged_kept_pooled
+    note: "smoke test: intentionally left pooled to exercise the flag path, not a real decision"
+studies:
+  - study_name: canaflig-1
+    phase: "phase 3"
+    data_type: observed
+    include: true
+  - study_name: canafligizon-1
+    phase: "phase 3"
+    data_type: observed
+    include: true
+  - study_name: head2head-1
+    phase: "phase 3"
+    data_type: observed
+    include: true
+  - study_name: oral-study-1
+    phase: "phase 3"
+    data_type: observed
+    include: true
+  - study_name: inject-study-1
+    phase: "phase 3"
+    data_type: observed
+    include: true
+  - study_name: vk-oral-1
+    phase: "phase 3"
+    data_type: observed
+    include: true
+  - study_name: vk-inj-1
+    phase: "phase 3"
+    data_type: observed
+    include: true
+  - study_name: missing-route-1
+    phase: "phase 3"
+    data_type: observed
+    include: true
+  - study_name: missing-route-2
+    phase: "phase 3"
+    data_type: observed
+    include: true
+  - study_name: legacy-code-1
+    phase: "phase 2"
+    data_type: observed
+    include: false
+    reason: "Phase 2 only, excluded per analyst decision (this is the case /bnma exists to force a decision on)"
+  - study_name: bero-1
+    phase: "phase 3"
+    data_type: observed
+    include: true
+  - study_name: ph2-study-1
+    phase: "phase 2"
+    data_type: observed
+    include: false
+    reason: "Phase 2 only, excluded per analyst decision"
+  - study_name: no-placebo-1
+    phase: "phase 3"
+    data_type: observed
+    include: true
+  - study_name: vk2735-itp
+    phase: "phase 2"
+    data_type: prediction
+    include: true
+    reason: "prediction row explicitly included to exercise the observed+prediction mix"
+plot_treatments:
+  - canaflig 10mg qw
+  - canafligizon 10mg qw
+  - drugalpha 5mg qw
+  - drugalphax 5mg qw
+  - vk2735 10mg oral
+  - vk2735 10mg qw
+  - vk2735 15mg qw
+  - berobenatide 4.8mg qm
+  - tirzepatide 10mg qw
+effect_type: relative
