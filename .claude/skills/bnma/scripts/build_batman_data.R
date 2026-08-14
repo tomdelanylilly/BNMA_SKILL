@@ -125,6 +125,37 @@ if (!is.null(manifest$compound_relabels)) {
   }
 }
 
+# Route-of-administration and observed/projection pre-filters (Step 2.5 of
+# the skill) -- global scoping choices made once per run, applied before any
+# study-selection review. Both default to "both" (no filtering) when absent,
+# so every manifest written before these fields existed keeps working
+# unchanged.
+route_filter <- manifest$route_filter %||% "both"
+if (!route_filter %in% c("oral", "injectable", "both")) {
+  stop("route_filter must be 'oral', 'injectable', or 'both', got: ", route_filter)
+}
+if (route_filter != "both") {
+  before_n <- nrow(usable)
+  # Placebo rows are never dropped by route -- a placebo arm's own `aom` tag
+  # reflects its paired active comparator's route, not a property of placebo
+  # itself. A row with missing `aom` is dropped under a specific route filter
+  # (can't confirm it matches what was asked for) -- same "can't rule out
+  # pooling if route isn't recorded" logic as check_naming_pooling.R's
+  # missing_route flag.
+  usable <- usable %>% filter(compound == "placebo" | aom == route_filter)
+  cat("Route filter '", route_filter, "': ", before_n - nrow(usable), " row(s) dropped.\n", sep = "")
+}
+
+evidence_filter <- manifest$evidence_filter %||% "both"
+if (!evidence_filter %in% c("observed", "prediction", "both")) {
+  stop("evidence_filter must be 'observed', 'prediction', or 'both', got: ", evidence_filter)
+}
+if (evidence_filter != "both") {
+  before_n <- nrow(usable)
+  usable <- usable %>% filter(source_sheet == evidence_filter)
+  cat("Evidence filter '", evidence_filter, "': ", before_n - nrow(usable), " row(s) dropped.\n", sep = "")
+}
+
 studies_in_data <- unique(usable$study_name)
 studies_in_manifest <- vapply(manifest$studies, function(s) s$study_name, character(1))
 
@@ -264,6 +295,27 @@ arm_info <- data_recon %>%
   # of the two ties happened to sort first.
   arrange(arm_ind, is.na(compound)) %>%
   distinct(arm_ind, .keep_all = TRUE)
+
+# Per-arm evidence type, for the forest plot's observed/projection marker.
+# Aggregated from source_sheet (the clean observed/prediction tag, not the
+# free-text data_type column) across every surviving row that maps to this
+# arm_ind -- an arm can legitimately be "mixed" (e.g. the shared placebo arm
+# is fed by both observed and prediction studies whenever both are in scope
+# for a run). BATMAN's own synthetic phantom-placebo rows have no
+# source_sheet (they're not from either source) and are excluded here so
+# they can't make a real placebo arm look unevidenced.
+arm_evidence <- data_recon %>%
+  filter(!is.na(source_sheet)) %>%
+  group_by(arm_ind) %>%
+  summarise(
+    evidence_type = if (n_distinct(source_sheet) > 1) {
+      "mixed"
+    } else {
+      unique(source_sheet)
+    },
+    .groups = "drop"
+  )
+arm_info <- arm_info %>% left_join(arm_evidence, by = "arm_ind")
 saveRDS(arm_info, args$arm_info_out)
 
 study_info <- data_recon %>% select(study_ind, study_name = study) %>% distinct() %>% arrange(study_ind)

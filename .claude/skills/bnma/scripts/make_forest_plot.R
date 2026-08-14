@@ -15,6 +15,7 @@ suppressPackageStartupMessages({
   library(ggplot2)
   library(yaml)
   library(coda) # needed so as.matrix() dispatches as.matrix.mcmc.list correctly
+  library(ggtext) # renders the observed/projection superscript markers as real superscripts
 })
 
 script_path <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE)[1])
@@ -70,6 +71,7 @@ rows <- lapply(seq_len(nrow(arm_lookup)), function(i) {
   data.frame(
     treatment = trt_name,
     compound = if (trt_name == "placebo") "placebo" else cmpd,
+    evidence_type = arm_lookup$evidence_type[i],
     mean = mean(post),
     val2.5pc = quantile(post, 0.025),
     val97.5pc = quantile(post, 0.975)
@@ -81,6 +83,22 @@ data_plot <- bind_rows(rows) %>%
   arrange(match(treatment, c("placebo", plot_treatments))) %>%
   mutate(Label = paste0(round(mean, 1), " (", round(val2.5pc, 1), ", ", round(val97.5pc, 1), ")"))
 
+# Observed/projection marker -- a superscript on the axis label itself, so a
+# reviewer QC'ing the PNG doesn't have to cross-reference the manifest to
+# know which arms are real trial data vs. modeled. "mixed" (e.g. the shared
+# placebo arm, fed by both an observed and a prediction study in the same
+# run) shows both letters -- that's the honest answer, not a simplification.
+data_plot <- data_plot %>%
+  mutate(
+    evidence_marker = case_when(
+      evidence_type == "observed"   ~ "^o^",
+      evidence_type == "prediction" ~ "^p^",
+      evidence_type == "mixed"      ~ "^o,p^",
+      TRUE ~ ""
+    ),
+    treatment_label = paste0(treatment, evidence_marker)
+  )
+
 range_span <- max(data_plot$val97.5pc, na.rm = TRUE) - min(data_plot$val2.5pc, na.rm = TRUE)
 # The leading "-" of a left-aligned label starting too close to the panel's
 # own clip boundary gets sliced off (visible as a missing minus sign on the
@@ -89,7 +107,7 @@ range_span <- max(data_plot$val97.5pc, na.rm = TRUE) - min(data_plot$val2.5pc, n
 data_plot$label_x <- max(data_plot$val97.5pc, na.rm = TRUE) + 0.12 * range_span
 label_margin <- range_span * (0.12 + 0.018 * max(nchar(data_plot$Label)))
 
-trt_order <- unique(data_plot$treatment)
+trt_order <- unique(data_plot$treatment_label)
 
 ylab_text <- if (args$effect == "relative") {
   "Mean & 95% CI of Pbo-adj Percent Change in Body Weight (%)"
@@ -101,23 +119,40 @@ title_text <- args$title %||% paste0(
   " Percent Body Weight Change"
 )
 
+# Plot width must be known before the footnote is wrapped -- strwrap()'s
+# `width` is a character count, and a fixed value (e.g. 120) doesn't
+# actually fit the physical plot width once that varies per run (few
+# compounds/short labels -> narrow plot -> 120 chars overflows the panel and
+# gets clipped, not wrapped -- caught by testing, not assumed). ~11
+# characters per inch is a rough estimate for this caption's 9pt font.
+n_compounds <- length(unique(data_plot$compound))
+max_label_chars <- max(nchar(data_plot$Label))
+plot_width <- 10 + 0.15 * max_label_chars + 0.25 * n_compounds
+footnote_wrap_width <- max(40, floor(plot_width * 11))
+
 contributing_studies <- paste(sort(study_info$study_name), collapse = ", ")
 footnote_lines <- c(
-  strwrap(paste0("Contributing studies: ", contributing_studies), width = 120),
+  strwrap(paste0("Contributing studies: ", contributing_studies), width = footnote_wrap_width),
   strwrap(
     paste0(
       "Source data: ", manifest$source_data$prd %||% "(not recorded)",
       if (!is.null(manifest$source_data$qa)) paste0("  +  ", manifest$source_data$qa) else ""
     ),
-    width = 120
+    width = footnote_wrap_width
   ),
-  strwrap(paste0("Source program: ", manifest$source_program %||% "(not recorded)"), width = 120)
+  strwrap(paste0("Source program: ", manifest$source_program %||% "(not recorded)"), width = footnote_wrap_width)
 )
-footnote_text <- paste(footnote_lines, collapse = "\n")
+footnote_lines <- c(footnote_lines, "^o^ = observed, ^p^ = projection")
+# ggtext's markdown parser (needed for the axis superscripts) treats a bare
+# "\n" as a soft wrap, not a forced line break -- confirmed by testing: with
+# "\n" the whole caption collapsed onto one line and got clipped by the
+# panel edge rather than wrapping. "<br>" is the actual forced-break syntax
+# it respects.
+footnote_text <- paste(footnote_lines, collapse = "<br>")
 
 pforest <- ggplot(
   data_plot,
-  aes(x = factor(treatment, levels = rev(trt_order)), y = mean, ymin = val2.5pc, ymax = val97.5pc)
+  aes(x = factor(treatment_label, levels = rev(trt_order)), y = mean, ymin = val2.5pc, ymax = val97.5pc)
 ) +
   geom_pointrange(aes(col = compound), size = 0.5) +
   geom_hline(yintercept = 0, size = 1, linetype = 2) +
@@ -140,22 +175,23 @@ pforest <- ggplot(
   theme_bw() +
   theme(
     axis.title = element_text(size = 16),
-    axis.text = element_text(size = 14),
+    # Empirically (tested, not assumed): after coord_flip(), axis.text.y is
+    # what actually styles the categorical treatment_label axis (rendered on
+    # the left) -- axis.text.x styling the same aes was tried first and
+    # silently did nothing, so don't "simplify" this back on a hunch.
+    # element_markdown() is what renders "^o^"/"^p^" as real superscripts
+    # instead of literal caret text.
+    axis.text.y = ggtext::element_markdown(size = 14),
+    axis.text.x = element_text(size = 14),
     plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
-    plot.caption = element_text(size = 9, hjust = 0, face = "italic"),
+    plot.caption = ggtext::element_markdown(size = 9, hjust = 0, face = "italic"),
     legend.text = element_text(size = 13),
     legend.title = element_text(size = 13)
   )
 
 plot_height <- max(4, 0.6 * length(trt_order)) + 0.22 * length(footnote_lines)
-# Width must fit four things side by side: row labels, the panel itself, the
-# fixed label column, and the compound legend -- a fixed width broke down as
-# soon as there were ~20 compounds in a 2-column legend, which visibly eats
-# into the space the label column needs. Scale with both drivers rather than
-# guessing one constant that only works for whatever dataset was tested last.
-n_compounds <- length(unique(data_plot$compound))
-max_label_chars <- max(nchar(data_plot$Label))
-plot_width <- 10 + 0.15 * max_label_chars + 0.25 * n_compounds
+# n_compounds/max_label_chars/plot_width already computed above (needed
+# earlier to size the footnote's wrap width) -- reused here, not recomputed.
 ggsave(args$out, plot = pforest, width = plot_width, height = plot_height, dpi = 150)
 cat("Forest plot saved to:", args$out, "\n")
 cat("Footnote:\n", footnote_text, "\n")

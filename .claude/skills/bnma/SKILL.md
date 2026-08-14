@@ -68,6 +68,29 @@ entry and every `pooling_flags` entry:
 
 Do not proceed to step 3 until every active flag has an explicit resolution.
 
+## Step 2.5 — Scope filters (route of administration, observed vs. projection)
+
+Before enumerating individual studies, ask two blanket scoping questions —
+these are the two filters a statistician typically already knows the answer
+to before opening the data (per a specific compound-launch or route
+comparison request), so ask them up front rather than making the user
+discover route/evidence mixing one flagged row at a time later:
+
+- **Route of administration**: oral only, injectable only, or both (default
+  both).
+- **Evidence type**: observed only, projection only, or both (default both).
+
+Record the answers as two new top-level manifest fields, `route_filter` and
+`evidence_filter` (see step 4's example). Leave a field out entirely (or set
+it to `both`) if the user wants no filtering on that axis — `build_batman_data.R`
+treats a missing field as `both`, so manifests written before this step
+existed keep working unchanged.
+
+Note for the route filter: placebo rows are never dropped by it, regardless
+of which route is chosen — a placebo arm's `aom` tag reflects its paired
+active comparator's route, not a property of placebo itself, so filtering it
+out would just remove a study's reference arm for no reason.
+
 ## Step 3 — Study/treatment selection
 
 From the merged data (after step 2's resolutions), enumerate every distinct
@@ -95,6 +118,8 @@ source_data:
   prd: /lillyce/prd/diabetes/bnma/obesity/data/shared/weight/cwm_wl_nont2d_prd_20260805.xlsx
   qa: null
 source_program: <path to whatever script/session produced this run>
+route_filter: both # oral | injectable | both -- from step 2.5; omit or "both" = no route filtering
+evidence_filter: both # observed | prediction | both -- from step 2.5; omit or "both" = no evidence filtering
 naming_pooling_resolutions:
   - kind: compound_flag
     compound_a: canaflig
@@ -184,6 +209,68 @@ path(s), source program) it embedded in the plot — surface that back to the
 user so they can confirm it's traceable, per the workflow doc's footnote
 requirement. Save the plot into the matching dated `output/shared/YYYYMMDD_.../`
 folder, not next to the manifest in `programs/`.
+
+Every plotted treatment label carries a superscript marking its evidence
+type — `°` for observed, `ᵖ` for projection, `°ᵖ` for an arm fed by both
+(e.g. a shared placebo arm) — so a reviewer QC'ing the PNG can tell which
+arms are real trial data vs. modeled without cross-referencing the manifest.
+A one-line legend ("° = observed, ᵖ = projection") is appended to the
+footnote automatically.
+
+## Step 7 — Generate the driver script
+
+Once the manifest-driven run is finished (BATMAN built, model fit, plot(s)
+rendered) and the user is happy with the plot, write a thin driver script
+into the same dated `programs/YYYYMMDD_.../` folder, e.g. `run_bnma_<slug>.R`,
+that reproduces the run from scratch by calling this skill's own tested
+scripts — not a flattened rewrite of their logic. Its header comments
+should point at (not duplicate) the manifest, since that's where the actual
+decisions and reasons live:
+
+```r
+#!/usr/bin/env Rscript
+# Driver script for the <slug> BNMA run.
+# Manifest (full decision record incl. route/evidence filters): <path to manifest.yaml>
+# Source data: <prd path> [+ <qa path>]
+# Re-running this script from scratch reproduces the same plot. The JAGS step
+# will just reload the cached samples unless <cache.rds> is deleted (or
+# --force is passed to fit_bnma_model.R, if this run used it).
+
+skill_dir <- "<path to .claude/skills/bnma>"
+# system2() joins `args` with spaces and runs it through the shell -- it does
+# NOT shell-quote elements for you, so any arg containing a space (the plot
+# --title, almost always) gets word-split by the shell into multiple argv
+# tokens unless explicitly shQuote()'d. Confirmed by testing: an unquoted
+# multi-word --title really did break argument parsing downstream --
+# shQuote() every element, not just the ones that look risky.
+sys2 <- function(command, args) system2(command, shQuote(args))
+
+sys2(file.path(skill_dir, "scripts/run_r.sh"), c(
+  file.path(skill_dir, "scripts/load_merge_data.R"),
+  "--prd", "<prd_path.xlsx>", "--qa", "<qa_path.xlsx>", "--out", "<merged.rds>"
+))
+sys2(file.path(skill_dir, "scripts/run_r.sh"), c(
+  file.path(skill_dir, "scripts/build_batman_data.R"),
+  "--data", "<merged.rds>", "--manifest", "<manifest.yaml>",
+  "--batman-out", "<batman.rds>", "--arm-info-out", "<arm_info.rds>",
+  "--study-info-out", "<study_info.rds>"
+))
+sys2(file.path(skill_dir, "scripts/run_with_jags.sh"), c(
+  file.path(skill_dir, "scripts/fit_bnma_model.R"),
+  "--batman", "<batman.rds>", "--model", file.path(skill_dir, "model_simultaneous.txt"),
+  "--cache", "<samples_<run_name>.rds>"
+))
+sys2(file.path(skill_dir, "scripts/run_r.sh"), c(
+  file.path(skill_dir, "scripts/make_forest_plot.R"),
+  "--samples", "<samples_<run_name>.rds>", "--arm-info", "<arm_info.rds>",
+  "--study-info", "<study_info.rds>", "--manifest", "<manifest.yaml>",
+  "--effect", "relative", "--out", "<forest_plot.png>", "--title", "<title>"
+))
+```
+
+Fill in every `<...>` placeholder with this run's literal paths/args before
+writing the file — it must be directly `Rscript run_bnma_<slug>.R`-runnable
+with no further editing.
 
 ## Non-goals
 
