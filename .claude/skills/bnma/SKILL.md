@@ -230,6 +230,18 @@ injecting the phantom arm's extra uncertainty (SE=1, no real data) entirely,
 which otherwise inflates every treatment's credible interval it touches, not
 just the bridged study's own arms.
 
+**Reproducing a historical/reference run that used the old, unconditional
+bridging behavior** (bridge any study lacking a literal placebo row,
+regardless of whether it's already connected via shared arms) is the one
+legitimate reason to bypass the connectivity check: set
+`legacy_naive_phantom_bridging: true` at the manifest's top level. Every
+study this flips into "needs a bridge" still requires its own
+`phantom_placebo_approved` entry — the flag changes which studies trigger
+the requirement (literal-placebo-absence instead of true disconnection), not
+the "no silent default" guarantee itself. Never use this for a new/normal
+run — it will bridge studies that don't actually need it, injecting
+avoidable extra uncertainty into their credible intervals.
+
 Save it under the dated `programs/YYYYMMDD_.../` folder for this run (ask the
 user for that folder if it's not obvious), e.g. `study_selection_manifest.yaml`.
 

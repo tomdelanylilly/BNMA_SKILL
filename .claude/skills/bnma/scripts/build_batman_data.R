@@ -321,6 +321,19 @@ study_roots <- data_recon %>%
 
 disconnected_studies <- study_roots %>% filter(!connected_to_placebo) %>% pull(study)
 
+# legacy_naive_phantom_bridging: true opts into the OLD, pre-connectivity-fix
+# behavior (bridge any study lacking a literal placebo row, regardless of
+# whether it's already connected via shared arms) -- exists ONLY to
+# reproduce/compare against a specific historical run that used that
+# behavior (e.g. validating against an existing team script). Not intended
+# for normal use: it will bridge studies that don't actually need it,
+# injecting avoidable extra uncertainty -- the default (connectivity-aware)
+# behavior above is the statistically correct one for everyday runs.
+if (isTRUE(manifest$legacy_naive_phantom_bridging)) {
+  literal_placebo_studies <- data_recon %>% filter(treat == "placebo") %>% pull(study) %>% unique()
+  disconnected_studies <- setdiff(unique(data_recon$study), literal_placebo_studies)
+}
+
 # Injecting a phantom placebo (SE=1, y=NA) assumes this study's true placebo
 # response is exchangeable with the network's real placebo-controlled
 # studies -- reasonable for some genuinely isolated trials, not automatically
