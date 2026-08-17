@@ -15,7 +15,12 @@
 #     every row back to where it came from.
 #
 # Usage:
-#   Rscript load_merge_data.R --prd <path.xlsx> [--qa <path.xlsx>] --out <merged.rds>
+#   Rscript load_merge_data.R [--prd <path.xlsx>] [--qa <path.xlsx>] --out <merged.rds>
+#
+# At least one of --prd/--qa must be given. Both are optional individually
+# (not just --qa) so a QA-only run -- e.g. no cumulative PRD file has been
+# copied in for this dataset -- tags its rows source_tier="qa" correctly,
+# rather than being forced through --prd and mislabeled "prd".
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -26,10 +31,14 @@ script_path <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = 
 source(file.path(dirname(normalizePath(script_path)), "lib_common.R"))
 
 args <- parse_args(list(
-  prd = list(required = TRUE),
+  prd = list(default = NULL),
   qa  = list(default = NULL),
   out = list(required = TRUE)
 ))
+
+if (is.null(args$prd) && is.null(args$qa)) {
+  stop("At least one of --prd or --qa must be given.")
+}
 
 load_tier <- function(path, tier_label) {
   if (is.null(path)) return(NULL)
@@ -56,7 +65,9 @@ load_tier <- function(path, tier_label) {
 prd_data <- load_tier(args$prd, "prd")
 qa_data  <- load_tier(args$qa, "qa")
 
-if (is.null(qa_data)) {
+if (is.null(prd_data)) {
+  merged <- qa_data
+} else if (is.null(qa_data)) {
   merged <- prd_data
 } else {
   # QA rows matching an existing PRD (study_name, treatment) pair are updates

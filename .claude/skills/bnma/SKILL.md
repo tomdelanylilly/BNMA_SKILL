@@ -68,7 +68,7 @@ entry and every `pooling_flags` entry:
 
 Do not proceed to step 3 until every active flag has an explicit resolution.
 
-## Step 2.5 — Scope filters (route of administration, observed vs. projection)
+## Step 2.5 — Scope filters (route of administration, observed vs. projection, compound)
 
 Before enumerating individual studies, ask two blanket scoping questions —
 these are the two filters a statistician typically already knows the answer
@@ -90,6 +90,42 @@ Note for the route filter: placebo rows are never dropped by it, regardless
 of which route is chosen — a placebo arm's `aom` tag reflects its paired
 active comparator's route, not a property of placebo itself, so filtering it
 out would just remove a study's reference arm for no reason.
+
+### Compound-first entry point
+
+A run can also start from a user-supplied list of specific
+compounds/treatments rather than a full unscoped study review (e.g. "I need
+these 21 treatments in the analysis"). This is a legitimate alternate entry
+point, not a shortcut around the naming/pooling gate — still run step 2 on
+the *full* merged dataset first, so a typo'd or aliased spelling of a
+requested compound gets caught rather than silently falling outside the
+list just because it doesn't match verbatim. Then:
+
+1. Match each requested treatment string against the merged data's actual
+   `treatment` values. Report exact matches plainly; for anything without an
+   exact match, use edit-distance/substring candidates (same mechanism as
+   step 2's compound check) and confirm the resolution with the user rather
+   than guessing — a missing dose suffix (e.g. "Tirzepatide 5mg" vs.
+   "tirzepatide 5mg qw") is usually unambiguous, but a request like "X
+   Pooled" that doesn't correspond to any single row in the source data
+   needs an explicit decision (which single arm to use, or whether to
+   compute a genuinely new derived value — never invent one silently).
+2. Derive the distinct compound list from the resolved treatments and record
+   it as `compound_filter` in the manifest — a list of compound names.
+   `build_batman_data.R` applies this as a **row-level** filter (drop any row
+   whose `compound` isn't in the list), not a study-level one: a study that
+   mixes a wanted compound with an unwanted one (e.g. a trial with a
+   semaglutide arm and a separate bimagrumab arm) keeps its wanted-compound
+   rows and drops the rest, rather than pulling in compounds nobody asked
+   for just because they share a study. Placebo rows are always exempt, same
+   as the route filter.
+3. **Still enumerate every study for an explicit decision, same as step 3.**
+   Row-level compound filtering does not exempt a study from needing a
+   decision — a study with no requested compound will usually still have
+   its placebo row survive (compound-exempt), so it still appears in
+   `build_batman_data.R`'s required-decision list. Batch-exclude these with
+   a shared reason ("not one of the requested compounds for this run") —
+   this is expected, not a bug to work around.
 
 ## Step 3 — Study/treatment selection
 
@@ -120,6 +156,7 @@ source_data:
 source_program: <path to whatever script/session produced this run>
 route_filter: both # oral | injectable | both -- from step 2.5; omit or "both" = no route filtering
 evidence_filter: both # observed | prediction | both -- from step 2.5; omit or "both" = no evidence filtering
+compound_filter: null # optional list of compound names -- from step 2.5's compound-first entry point; omit/null = no compound filtering
 naming_pooling_resolutions:
   - kind: compound_flag
     compound_a: canaflig

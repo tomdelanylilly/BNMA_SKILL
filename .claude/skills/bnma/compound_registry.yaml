@@ -39,3 +39,16 @@ resolved_pairs:
       as a distinct `compound` value in some PRD rows as of 2026-08 --
       bnma-nonadj-11AUG2026.R patches this at read-time rather than the
       source data being corrected yet.
+  - a: aleniglipron
+    b: elecoglipron
+    decision: different
+    note: >
+      Shared "-glipron" suffix common to oral GLP-1 agonists; no other
+      evidence of a naming duplicate. Confirmed 2026-08-17.
+  - a: oral semaglutide
+    b: semaglutide
+    decision: different
+    note: >
+      Same underlying molecule, different route -- kept as distinct compound
+      entries rather than merged, since route is tracked via the compound
+      string here rather than aom for these two. Confirmed 2026-08-17.

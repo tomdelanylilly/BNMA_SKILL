@@ -156,6 +156,30 @@ if (evidence_filter != "both") {
   cat("Evidence filter '", evidence_filter, "': ", before_n - nrow(usable), " row(s) dropped.\n", sep = "")
 }
 
+# Compound scope filter -- for a "compound-first" run (user supplies a list
+# of wanted compounds/doses up front, per SKILL.md step 0.5, rather than
+# reviewing the full unfiltered study list). Row-level, not study-level: a
+# study that mixes a wanted compound with an unwanted one (e.g. "believe"
+# has semaglutide alongside bimagrumab and a bimagrumab+semaglutide combo
+# arm) keeps its wanted-compound rows and drops the rest, rather than either
+# keeping the whole study (silently pulling in compounds nobody asked for)
+# or dropping the whole study (losing the wanted compound's evidence too).
+# Dropping arms from a multi-arm trial doesn't corrupt the remaining arms'
+# own estimates as long as a shared comparator (placebo, almost always)
+# still connects them -- this is standard NMA subnetwork selection, not a
+# statistical shortcut. Placebo rows are always exempt, same pattern as the
+# route filter above -- placebo is the network's shared reference arm
+# regardless of which compounds are in scope.
+if (!is.null(manifest$compound_filter)) {
+  compound_filter <- unlist(manifest$compound_filter)
+  before_n <- nrow(usable)
+  usable <- usable %>% filter(compound == "placebo" | compound %in% compound_filter)
+  cat(
+    "Compound filter (", length(compound_filter), " compounds): ",
+    before_n - nrow(usable), " row(s) dropped.\n", sep = ""
+  )
+}
+
 studies_in_data <- unique(usable$study_name)
 studies_in_manifest <- vapply(manifest$studies, function(s) s$study_name, character(1))
 
