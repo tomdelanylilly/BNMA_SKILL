@@ -3,13 +3,6 @@ source_data:
   prd: tests/fixtures/prd_fixture.xlsx
   qa: null
 source_program: "smoke-test manifest -- not a real analyst decision"
-phantom_placebo_approved:
-  - study_name: missing-route-2
-    reason: "smoke test: exercises the phantom-bridge path for a genuinely disconnected study"
-  - study_name: no-placebo-1
-    reason: "smoke test: exercises the phantom-bridge path for a genuinely disconnected study"
-  - study_name: vk2735-itp
-    reason: "smoke test: exercises the phantom-bridge path for a genuinely disconnected study"
 naming_pooling_resolutions:
   - kind: compound_flag
     compound_a: canaflig

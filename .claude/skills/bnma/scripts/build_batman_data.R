@@ -126,14 +126,11 @@ if (!is.null(manifest$compound_relabels)) {
 }
 
 # Treatment relabels -- for a naming-QA flag resolved as "these rows use a
-# different label for what is, for network-connection purposes, the same
-# treatment" (e.g. a dose-flexible "or mtd" label vs. the fixed-dose string
-# used everywhere else for the same nominal dose). Applied globally by
-# treatment string, matching the same match-or-stop-loudly guarantee as
-# compound_relabels above. Unlike compound_relabels (identity of the drug),
-# this changes which arm_ind a row maps to -- use it deliberately, since it
-# can connect a study to the rest of the network that would otherwise need a
-# phantom-placebo bridge (or need one at all).
+# different label for what is the same treatment" (e.g. a mislabeled dose
+# string). Applied globally by treatment string, matching the same
+# match-or-stop-loudly guarantee as compound_relabels above. Unlike
+# compound_relabels (identity of the drug), this changes which arm_ind a row
+# maps to -- use it deliberately.
 if (!is.null(manifest$treatment_relabels)) {
   for (rl in manifest$treatment_relabels) {
     match_idx <- which(usable$treatment == rl$from)
@@ -283,87 +280,31 @@ data_recon <- data_sel %>%
   left_join(data.frame(treat = treatment_list, arm_ind = seq_along(treatment_list)), by = "treat")
 
 # ---------------------------------------------------------------------------
-# BATMAN augmentation: phantom placebo arm for genuinely disconnected studies
+# BATMAN augmentation: phantom placebo arm for studies with none
 # ---------------------------------------------------------------------------
-# A study with no literal placebo arm does NOT automatically need bridging --
-# if its own treatment(s) already appear in some other included study that
-# does connect to placebo, it's already part of the network via that shared
-# arm identity (standard indirect comparison), no phantom row required. Only
-# a study whose entire arm set is otherwise isolated from the placebo
-# component is a genuine island. Checked here via union-find over
-# co-occurring arms within each study (an edge = two treatments compared in
-# the same trial) -- this replaces a naive "no literal placebo -> bridge"
-# check, which incorrectly flagged every head-to-head trial even when its
-# own arms already connect elsewhere (e.g. a tirzepatide-vs-X trial when
-# tirzepatide already appears in a placebo-controlled study).
-treat_nodes <- unique(data_recon$treat)
-uf_parent <- setNames(treat_nodes, treat_nodes)
-uf_find <- function(x) { while (uf_parent[[x]] != x) x <- uf_parent[[x]]; x }
-uf_union <- function(a, b) {
-  ra <- uf_find(a); rb <- uf_find(b)
-  if (ra != rb) uf_parent[[ra]] <<- rb
-}
-for (s in unique(data_recon$study)) {
-  ts <- unique(data_recon$treat[data_recon$study == s])
-  if (length(ts) > 1) for (i in 2:length(ts)) uf_union(ts[1], ts[i])
-}
-placebo_root <- if ("placebo" %in% treat_nodes) uf_find("placebo") else NA
+# Matches efficacy_bnma_v3_gzmu_misc5.R's own logic exactly: any included
+# study with no literal placebo row gets one injected (SE=1, y=NA), full
+# stop. A connectivity-aware version of this (only bridge studies that are
+# genuinely isolated from the rest of the network, rather than every study
+# lacking a literal placebo row) was tried and reverted -- it wasn't a
+# documented team methodology (checked: the term never appears in
+# GUIDE_README.md, the workflow guide, or the NMA output review guide, and
+# no original script comments on the rationale either way), so it isn't this
+# skill's place to unilaterally change it. If this behavior needs revisiting,
+# that's a decision for whoever owns BATMAN+/the NMA methodology, not
+# something to bake into the skill without their sign-off.
+studies_with_placebo <- data_recon %>% filter(treat == "placebo") %>% pull(study_ind) %>% unique()
+studies_without_placebo <- setdiff(unique(data_recon$study_ind), studies_with_placebo)
 
-study_roots <- data_recon %>%
-  distinct(study, treat) %>%
-  mutate(root = vapply(treat, uf_find, character(1))) %>%
-  group_by(study) %>%
-  # If there's no real placebo row anywhere in scope (placebo_root is NA --
-  # a fully head-to-head-only selection), every study is disconnected from
-  # it by definition -- `any(root == NA)` would otherwise evaluate to NA and
-  # get silently dropped by the filter below instead of correctly flagged.
-  summarise(connected_to_placebo = if (is.na(placebo_root)) FALSE else any(root == placebo_root), .groups = "drop")
-
-disconnected_studies <- study_roots %>% filter(!connected_to_placebo) %>% pull(study)
-
-# legacy_naive_phantom_bridging: true opts into the OLD, pre-connectivity-fix
-# behavior (bridge any study lacking a literal placebo row, regardless of
-# whether it's already connected via shared arms) -- exists ONLY to
-# reproduce/compare against a specific historical run that used that
-# behavior (e.g. validating against an existing team script). Not intended
-# for normal use: it will bridge studies that don't actually need it,
-# injecting avoidable extra uncertainty -- the default (connectivity-aware)
-# behavior above is the statistically correct one for everyday runs.
-if (isTRUE(manifest$legacy_naive_phantom_bridging)) {
-  literal_placebo_studies <- data_recon %>% filter(treat == "placebo") %>% pull(study) %>% unique()
-  disconnected_studies <- setdiff(unique(data_recon$study), literal_placebo_studies)
-}
-
-# Injecting a phantom placebo (SE=1, y=NA) assumes this study's true placebo
-# response is exchangeable with the network's real placebo-controlled
-# studies -- reasonable for some genuinely isolated trials, not automatically
-# true for all of them (e.g. a very different population/design). This must
-# be an explicit, reviewed decision per study, not a silent default -- a
-# disconnected study that is NOT explicitly approved below causes a hard
-# stop; the analyst must either approve the bridge with a reason, or exclude
-# the study from `studies:` instead.
-if (length(disconnected_studies) > 0) {
-  approved_names <- vapply(manifest$phantom_placebo_approved %||% list(), function(a) a$study_name, character(1))
-  unapproved <- setdiff(disconnected_studies, approved_names)
-  if (length(unapproved) > 0) {
-    stop(
-      "The following included study/ies are disconnected from the placebo ",
-      "component (their arms don't appear in any other included study) and ",
-      "would need a phantom-placebo bridge, but are not approved for it in ",
-      "the manifest:\n  ", paste(unapproved, collapse = ", "),
-      "\nAdd a `phantom_placebo_approved` entry (with study_name + reason) for ",
-      "each one this study's design is genuinely comparable to the network's ",
-      "placebo-controlled studies, or exclude it from `studies:` instead -- ",
-      "phantom bridging is never applied by default."
-    )
-  }
-
+if (length(studies_without_placebo) > 0) {
+  lookup <- data_recon %>% select(study, study_ind) %>% distinct()
   cat(
-    "Disconnected studies bridged with an explicitly-approved phantom placebo arm:\n  ",
-    paste(disconnected_studies, collapse = ", "), "\n"
+    "Studies without a placebo arm (phantom arm injected):\n  ",
+    paste(lookup %>% filter(study_ind %in% studies_without_placebo) %>% pull(study), collapse = ", "),
+    "\n"
   )
   phantom_rows <- data_recon %>%
-    filter(study %in% disconnected_studies) %>%
+    filter(study_ind %in% studies_without_placebo) %>%
     select(study, study_ind) %>%
     distinct() %>%
     mutate(treat = "placebo", arm_ind = 1L, pchg_wl_ee = NA_real_, se_wl_ee = 1, compound = NA_character_)
