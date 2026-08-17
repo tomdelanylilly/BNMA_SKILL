@@ -182,11 +182,18 @@ compound_relabels:
   - from: "exenatide qw"
     to: exenatide
     reason: "Inconsistently labeled subset of rows -- see naming_pooling_resolutions above for why."
+treatment_relabels:
+  - from: "tirzepatide 15mg qw or mtd"
+    to: "tirzepatide 15mg qw"
+    reason: "Dose-flexible label for the same nominal dose used as a fixed dose elsewhere in the network -- relabeling connects this study via genuine shared arm identity instead of needing a phantom-placebo bridge."
 row_exclusions:
   - study_name: some-study
     treatment: "some treatment 5mg qd"
     "n": 37 # quote this key -- bare `n:` parses as boolean FALSE in YAML 1.1, not the string "n", and the exclusion silently stops disambiguating (hit this for real once)
     reason: "Duplicate row sharing (study_name, treatment) with another row -- n disambiguates which one to drop."
+phantom_placebo_approved:
+  - study_name: some-head-to-head-study
+    reason: "Genuinely isolated from the rest of the network (its own arms appear nowhere else) but its population/phase/duration are comparable to the network's placebo-controlled studies -- approved for a phantom-placebo bridge."
 plot_treatments:
   - tirzepatide 5mg qw
   - tirzepatide 10mg qw
@@ -196,9 +203,32 @@ effect_type: relative
 
 `compound_relabels` is for a naming-QA flag resolved as "these rows were
 mislabeled, merge into the canonical spelling" -- applied globally by
-compound string. `row_exclusions` is for a single anomalous or duplicate row
-within an otherwise-included study; add `"n"` (quoted) when two rows share
-the same `(study_name, treatment)` and need a third field to tell them apart.
+compound string. `treatment_relabels` is the same idea but for the
+`treatment` string itself (changes which arm a row maps to, not just which
+compound it's attributed to) -- typically used to connect a study to the
+network via genuine shared arm identity instead of resorting to a phantom
+bridge (see below). `row_exclusions` is for a single anomalous or duplicate
+row within an otherwise-included study; add `"n"` (quoted) when two rows
+share the same `(study_name, treatment)` and need a third field to tell them
+apart.
+
+**Phantom-placebo bridging is never automatic.** `build_batman_data.R`
+checks real network connectivity (do a study's own arms already appear in
+some other included study, directly or transitively linking it to the
+placebo component?) rather than just "does this study literally have a
+placebo row" — a head-to-head trial between two treatments that each
+already connect to placebo elsewhere needs no bridge at all. Only a study
+that is genuinely isolated (none of its arms appear anywhere else in scope)
+needs one, and that requires an explicit `phantom_placebo_approved` entry
+with a reason — the script hard-stops otherwise, naming the disconnected
+study/ies and requiring the analyst to either approve the bridge (population/
+phase/duration comparable to the network's placebo-controlled studies) or
+exclude the study. Before approving, check whether a `treatment_relabels`
+entry would connect it naturally instead (e.g. a dose-flexible label that's
+really the same dose as a fixed-dose string used elsewhere) — that avoids
+injecting the phantom arm's extra uncertainty (SE=1, no real data) entirely,
+which otherwise inflates every treatment's credible interval it touches, not
+just the bridged study's own arms.
 
 Save it under the dated `programs/YYYYMMDD_.../` folder for this run (ask the
 user for that folder if it's not obvious), e.g. `study_selection_manifest.yaml`.
@@ -216,8 +246,10 @@ scripts/run_r.sh scripts/build_batman_data.R \
   --study-info-out /tmp/bnma_study_info.rds
 ```
 
-If this errors because studies are missing from the manifest, that's the
-intended guard — go back to step 3/4 with the user, don't patch around it.
+If this errors because studies are missing from the manifest, or because a
+study is disconnected from the network and needs `phantom_placebo_approved`
+(or a `treatment_relabels` fix instead), that's the intended guard — go back
+to step 3/4 with the user, don't patch around it.
 
 Then fit (or load a cached fit of) the model. **Must go through the JAGS
 wrapper** — plain `Rscript` will fail to load `rjags` in this environment:
