@@ -19,6 +19,9 @@
 #   7. A Phase 2 study and a Prediction-tier row, to exercise the
 #      study-selection listing (step 3) and BATMAN phantom-placebo logic
 #      (a study with no placebo arm).
+#   8. A placebo arm reporting a positive (noise-driven weight-gain) value,
+#      to exercise placebo_clamp -- unclamped by default (regression),
+#      forced to 0 only when the manifest sets placebo_clamp: true.
 #
 # Usage: Rscript tests/make_fixture.R --out tests/fixtures/prd_fixture.xlsx
 
@@ -85,6 +88,12 @@ observed <- rbind(
   row("ph2-study-1", "placebo",              "placebo",     NA,           "phase 2", 1.0, 0,    n = 30),
   row("ph2-study-1", "tirzepatide 5mg qw",   "tirzepatide", "injectable", "phase 2", 0.6, -14.0, n = 30),
   row("no-placebo-1", "tirzepatide 10mg qw", "tirzepatide", "injectable", "phase 3", 0.4, -18.0, n = 100),
+
+  # --- Case 8: placebo arm with a positive (noise-driven weight-gain) value
+  # -> exercises placebo_clamp; unclamped by default (regression), forced to
+  # 0 only when placebo_clamp: true is set in the manifest ---
+  row("clamp-test-1", "placebo",             "placebo",     NA,           "phase 3", 1.0, 1.2,  n = 45),
+  row("clamp-test-1", "semaglutide 2.4mg qw","semaglutide", "injectable", "phase 3", 0.5, -15.0, n = 45),
 
   stringsAsFactors = FALSE
 )

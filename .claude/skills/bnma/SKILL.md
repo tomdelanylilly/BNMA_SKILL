@@ -211,6 +211,8 @@ row_exclusions:
     treatment: "some treatment 5mg qd"
     "n": 37 # quote this key -- bare `n:` parses as boolean FALSE in YAML 1.1, not the string "n", and the exclusion silently stops disambiguating (hit this for real once)
     reason: "Duplicate row sharing (study_name, treatment) with another row -- n disambiguates which one to drop."
+placebo_clamp: false # optional -- set true to force any placebo row's positive (weight-gain) pchg_wl_ee to 0; requires placebo_clamp_reason
+supplementary_data: [] # optional -- literal rows for data not yet in the QA/PRD workbook; see below
 plot_treatments:
   - tirzepatide 5mg qw
   - tirzepatide 10mg qw
@@ -226,6 +228,53 @@ compound it's attributed to). `row_exclusions` is for a single anomalous or
 duplicate row within an otherwise-included study; add `"n"` (quoted) when
 two rows share the same `(study_name, treatment)` and need a third field to
 tell them apart.
+
+**`placebo_clamp`** forces any placebo row reporting a positive (weight-gain)
+`pchg_wl_ee` to 0 before fitting. Found in a real analyst script
+(`bnma-nonadj-11AUG2026.R`, applied unconditionally there with no
+traceability — "Yongming advised setting the placebo effect to zero").
+Opt-in and reasoned here like everything else in this manifest: absent means
+no clamping (today's behavior, unchanged). Setting `placebo_clamp: true`
+without a non-blank `placebo_clamp_reason` is a hard error — this rewrites
+an arbitrary number of rows' values across the whole run, so (unlike a
+single `row_exclusions` entry) it needs a documented reason, not just a
+logged default:
+```yaml
+placebo_clamp: true
+placebo_clamp_reason: "Placebo arms occasionally report a small positive
+  (noise-driven) value; forced to 0 per <analyst>'s guidance on this run,
+  not treated as a real placebo effect."
+```
+
+**`supplementary_data`** is for a small, deliberately-curated addition that
+hasn't been promoted into the QA/PRD workbook yet — e.g. a hand-digitized
+dose-response series pulled from a slide deck, the same situation
+`bnma-nonadj-11AUG2026.R` handles by `bind_rows()`-ing a hand-typed tibble
+straight into its analysis with no traceability at all. This is a stopgap,
+not a permanent home for the data — the row should still get entered as a
+real QA row via the project CLAUDE.md's Flow 1 once it's ready, same
+"QA is the live working copy" principle as everywhere else in this
+workspace. Each entry requires `study_name`, `treatment`, `compound`,
+`pchg_wl_ee`, `se_wl_ee`, and `reason`; `aom`/`region` are optional:
+```yaml
+supplementary_data:
+  - study_name: "GZMD+GZMU"
+    treatment: "brenipatide 8mg q4w"
+    compound: brenipatide
+    pchg_wl_ee: -13.86
+    se_wl_ee: 0.26
+    aom: injectable
+    reason: "Hand-digitized from GZMU_MISC5_Unblinded.pptx (Aug 2026 data
+      cut) -- not yet entered as a QA row."
+```
+These rows flow through the entire normal pipeline (row_exclusions,
+relabels, `placebo_clamp`, `route_filter`/`compound_filter`/`region_filter`
+all apply exactly as they would to any other row) — the only exemption is
+`evidence_filter`, since "supplementary" isn't a meaningful point on the
+observed/prediction axis; these rows always survive regardless of that
+filter's setting. The originating `study_name` still needs its own explicit
+entry under `studies:`, same as any other study — no exemption from the
+completeness check just because the data was hand-added.
 
 **Any study lacking a literal placebo row gets a phantom placebo arm
 (SE=1, y=NA) injected automatically** — matches

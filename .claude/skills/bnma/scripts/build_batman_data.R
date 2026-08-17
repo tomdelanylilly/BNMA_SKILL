@@ -53,6 +53,58 @@ if (length(dropped_unusable) > 0) {
   )
 }
 
+# Supplementary data -- literal rows for data that hasn't been promoted into
+# the QA/PRD workbook yet (e.g. a hand-digitized dose-response series from a
+# slide deck). Found via bnma-nonadj-11AUG2026.R, which bind_rows() a
+# hand-typed brenipatide tibble straight into its analysis with no
+# traceability; this is the same capability, but as an explicit, reasoned
+# manifest entry instead of a silent literal in a script. Bound in here,
+# before row_exclusions/relabels/placebo_clamp/the scope filters, so these
+# rows flow through the entire normal pipeline just like any other row --
+# the only exemption is evidence_filter (see below), since "supplementary"
+# isn't a meaningful point on the observed/prediction axis.
+if (!is.null(manifest$supplementary_data)) {
+  required_fields <- c("study_name", "treatment", "compound", "pchg_wl_ee", "se_wl_ee", "reason")
+  supp_rows <- lapply(seq_along(manifest$supplementary_data), function(i) {
+    entry <- manifest$supplementary_data[[i]]
+    missing_fields <- setdiff(required_fields, names(entry))
+    if (length(missing_fields) > 0) {
+      stop(
+        "supplementary_data entry ", i, " is missing required field(s): ",
+        paste(missing_fields, collapse = ", "), " -- every entry needs ",
+        paste(required_fields, collapse = ", "), "."
+      )
+    }
+    data.frame(
+      # Normalized the same way load_merge_data.R normalizes every other
+      # row (tolower + squish_ws) -- otherwise a supplementary row's
+      # study_name/treatment/compound/aom could silently fail to match the
+      # manifest's studies:/plot_treatments/route_filter comparisons purely
+      # on casing or stray whitespace.
+      study_name = tolower(squish_ws(entry$study_name)),
+      treatment = tolower(squish_ws(entry$treatment)),
+      compound = tolower(squish_ws(entry$compound)),
+      pchg_wl_ee = as.numeric(entry$pchg_wl_ee),
+      se_wl_ee = as.numeric(entry$se_wl_ee),
+      aom = if (is.null(entry$aom)) NA_character_ else tolower(squish_ws(entry$aom)),
+      region = tolower(squish_ws(entry$region %||% "global")),
+      source_tier = "supplementary",
+      source_sheet = "supplementary",
+      stringsAsFactors = FALSE
+    )
+  })
+  supp_df <- bind_rows(supp_rows)
+  cat(
+    "Supplementary data: ", nrow(supp_df), " hand-added row(s) across ",
+    n_distinct(supp_df$study_name), " study/ies:\n"
+  )
+  for (i in seq_along(manifest$supplementary_data)) {
+    entry <- manifest$supplementary_data[[i]]
+    cat("  ", entry$study_name, "/", entry$treatment, " -- reason:", entry$reason, "\n")
+  }
+  usable <- bind_rows(usable, supp_df)
+}
+
 # Row-level exclusions (e.g. a single anomalous/likely-erroneous row within an
 # otherwise-included study) -- a study-level include/exclude decision can't
 # express this, so the manifest supports an optional `row_exclusions` list.
@@ -149,6 +201,34 @@ if (!is.null(manifest$treatment_relabels)) {
   }
 }
 
+# Placebo clamp -- forces any placebo row reporting a positive (weight-GAIN)
+# pchg_wl_ee to 0. Found via bnma-nonadj-11AUG2026.R, which applies this
+# unconditionally with no manifest equivalent ("Yongming advised setting the
+# placebo effect to zero"). Opt-in and reasoned here, same pattern as every
+# other manifest field -- absent means today's behavior (no clamping),
+# unchanged. Requires a reason (hard stop, not just logged) because unlike a
+# single row_exclusions entry, this can silently rewrite an arbitrary number
+# of rows' values across the whole run.
+if (isTRUE(manifest$placebo_clamp)) {
+  if (is.null(manifest$placebo_clamp_reason) || !nzchar(trimws(manifest$placebo_clamp_reason))) {
+    stop(
+      "placebo_clamp is true but placebo_clamp_reason is missing/blank -- ",
+      "this rewrites placebo values across the whole run and needs an ",
+      "explicit, documented reason before it can be applied."
+    )
+  }
+  clamp_idx <- which(usable$compound == "placebo" & suppressWarnings(as.numeric(usable$pchg_wl_ee)) > 0)
+  if (length(clamp_idx) > 0) {
+    cat(
+      "Placebo clamp: ", length(clamp_idx), " placebo row(s) with positive ",
+      "(weight-gain) pchg_wl_ee forced to 0 -- reason:", manifest$placebo_clamp_reason, "\n"
+    )
+    usable$pchg_wl_ee[clamp_idx] <- 0
+  } else {
+    cat("Placebo clamp enabled, but no placebo rows had a positive pchg_wl_ee -- no-op this run.\n")
+  }
+}
+
 # Route-of-administration and observed/projection pre-filters (Step 2.5 of
 # the skill) -- global scoping choices made once per run, applied before any
 # study-selection review. Both default to "both" (no filtering) when absent,
@@ -176,7 +256,11 @@ if (!evidence_filter %in% c("observed", "prediction", "both")) {
 }
 if (evidence_filter != "both") {
   before_n <- nrow(usable)
-  usable <- usable %>% filter(source_sheet == evidence_filter)
+  # supplementary rows are exempt, same pattern as placebo's route exemption
+  # above -- "supplementary" isn't a meaningful point on the observed/
+  # prediction axis, so forcing an evidence_filter choice on it would just
+  # drop deliberately hand-added data for the wrong reason.
+  usable <- usable %>% filter(source_sheet == "supplementary" | source_sheet == evidence_filter)
   cat("Evidence filter '", evidence_filter, "': ", before_n - nrow(usable), " row(s) dropped.\n", sep = "")
 }
 
@@ -377,25 +461,24 @@ arm_info <- data_recon %>%
   arrange(arm_ind, is.na(compound)) %>%
   distinct(arm_ind, .keep_all = TRUE)
 
-# Per-arm evidence type, for the forest plot's observed/projection marker.
-# Aggregated from source_sheet (the clean observed/prediction tag, not the
+# Per-arm evidence type, for the forest plot's observed/projection/
+# supplementary marker. Aggregated from source_sheet (the clean tag, not the
 # free-text data_type column) across every surviving row that maps to this
-# arm_ind -- an arm can legitimately be "mixed" (e.g. the shared placebo arm
-# is fed by both observed and prediction studies whenever both are in scope
-# for a run). BATMAN's own synthetic phantom-placebo rows have no
-# source_sheet (they're not from either source) and are excluded here so
-# they can't make a real placebo arm look unevidenced.
+# arm_ind -- an arm can legitimately be fed by more than one source (e.g. the
+# shared placebo arm fed by both observed and prediction studies, or a
+# supplementary row sharing an arm with a real one). Stored as the sorted,
+# comma-joined set of distinct sources rather than a lossy "mixed" catch-all
+# -- single-source arms keep their existing plain string ("observed",
+# "prediction", "supplementary") unchanged; a genuinely mixed arm stores e.g.
+# "observed,prediction" or "observed,supplementary" so make_forest_plot.R can
+# render the exact combination instead of guessing which two sources mixed.
+# BATMAN's own synthetic phantom-placebo rows have no source_sheet (they're
+# not from any real source) and are excluded here so they can't make a real
+# placebo arm look unevidenced.
 arm_evidence <- data_recon %>%
   filter(!is.na(source_sheet)) %>%
   group_by(arm_ind) %>%
-  summarise(
-    evidence_type = if (n_distinct(source_sheet) > 1) {
-      "mixed"
-    } else {
-      unique(source_sheet)
-    },
-    .groups = "drop"
-  )
+  summarise(evidence_type = paste(sort(unique(source_sheet)), collapse = ","), .groups = "drop")
 arm_info <- arm_info %>% left_join(arm_evidence, by = "arm_ind")
 saveRDS(arm_info, args$arm_info_out)
 

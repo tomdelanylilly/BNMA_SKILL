@@ -83,19 +83,22 @@ data_plot <- bind_rows(rows) %>%
   arrange(match(treatment, c("placebo", plot_treatments))) %>%
   mutate(Label = paste0(round(mean, 1), " (", round(val2.5pc, 1), ", ", round(val97.5pc, 1), ")"))
 
-# Observed/projection marker -- a superscript on the axis label itself, so a
-# reviewer QC'ing the PNG doesn't have to cross-reference the manifest to
-# know which arms are real trial data vs. modeled. "mixed" (e.g. the shared
-# placebo arm, fed by both an observed and a prediction study in the same
-# run) shows both letters -- that's the honest answer, not a simplification.
+# Observed/projection/supplementary marker -- a superscript on the axis
+# label itself, so a reviewer QC'ing the PNG doesn't have to cross-reference
+# the manifest to know which arms are real trial data, modeled, or hand-added
+# (see supplementary_data in SKILL.md). evidence_type is the sorted,
+# comma-joined set of distinct sources feeding this arm (build_batman_data.R)
+# -- map each token through type_code and rejoin, so any combination (not
+# just the observed+prediction pair this used to hardcode) renders correctly,
+# e.g. "observed,supplementary" -> "^o,s^".
+type_code <- c(observed = "o", prediction = "p", supplementary = "s")
 data_plot <- data_plot %>%
   mutate(
-    evidence_marker = case_when(
-      evidence_type == "observed"   ~ "^o^",
-      evidence_type == "prediction" ~ "^p^",
-      evidence_type == "mixed"      ~ "^o,p^",
-      TRUE ~ ""
-    ),
+    evidence_marker = vapply(evidence_type, function(et) {
+      if (is.na(et) || !nzchar(et)) return("")
+      codes <- type_code[strsplit(et, ",")[[1]]]
+      paste0("^", paste(codes, collapse = ","), "^")
+    }, character(1)),
     treatment_label = paste0(treatment, evidence_marker)
   )
 
@@ -142,7 +145,7 @@ footnote_lines <- c(
   ),
   strwrap(paste0("Source program: ", manifest$source_program %||% "(not recorded)"), width = footnote_wrap_width)
 )
-footnote_lines <- c(footnote_lines, "^o^ = observed, ^p^ = projection")
+footnote_lines <- c(footnote_lines, "^o^ = observed, ^p^ = projection, ^s^ = supplementary (hand-added, not yet in QA/PRD)")
 # ggtext's markdown parser (needed for the axis superscripts) treats a bare
 # "\n" as a soft wrap, not a forced line break -- confirmed by testing: with
 # "\n" the whole caption collapsed onto one line and got clipped by the

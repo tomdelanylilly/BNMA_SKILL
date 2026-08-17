@@ -74,6 +74,11 @@ studies:
     data_type: prediction
     include: true
     reason: "prediction row explicitly included to exercise the observed+prediction mix"
+  - study_name: clamp-test-1
+    phase: "phase 3"
+    data_type: observed
+    include: true
+    reason: "exercises placebo_clamp (case 8) -- included here with clamp NOT set, as the regression baseline"
 plot_treatments:
   - canaflig 10mg qw
   - canafligizon 10mg qw
@@ -84,4 +89,5 @@ plot_treatments:
   - vk2735 15mg qw
   - berobenatide 4.8mg qm
   - tirzepatide 10mg qw
+  - semaglutide 2.4mg qw
 effect_type: relative
