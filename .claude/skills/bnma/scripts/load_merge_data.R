@@ -40,22 +40,49 @@ if (is.null(args$prd) && is.null(args$qa)) {
   stop("At least one of --prd or --qa must be given.")
 }
 
+# A workbook's standard "Observed"/"Prediction" sheets are tagged
+# region="global". Some workbooks also carry a region-scoped extra sheet
+# (found in practice: a "China Observed" sheet alongside the standard ones)
+# -- any sheet matching "<Region> Observed" or "<Region> Prediction"
+# (case-insensitive) is read the same way and tagged with that region,
+# lowercased, instead of "global". This is read into every merge
+# unconditionally (same as the standard sheets); `region_filter` in
+# build_batman_data.R is what actually scopes a run to global-only or a
+# specific region -- load time just needs to capture that the rows exist
+# and where they came from.
+region_sheet_pattern <- "^(.*)\\s+(Observed|Prediction)$"
+
 load_tier <- function(path, tier_label) {
   if (is.null(path)) return(NULL)
   if (!file.exists(path)) stop("File not found for --", tier_label, ": ", path)
 
-  observed <- read_sheet_with_fallback(path, "Observed", fallback_index = 2)
-  prediction <- read_sheet_with_fallback(path, "Prediction", fallback_index = 3)
-
+  sheets <- excel_sheets(path)
   parts <- list()
+
+  observed <- read_sheet_with_fallback(path, "Observed", fallback_index = 2)
   if (!is.null(observed)) {
-    parts$observed <- stringify_all(observed) %>%
-      mutate(source_tier = tier_label, source_sheet = "observed")
+    parts[["Observed"]] <- stringify_all(observed) %>%
+      mutate(source_tier = tier_label, source_sheet = "observed", region = "global")
   }
+  prediction <- read_sheet_with_fallback(path, "Prediction", fallback_index = 3)
   if (!is.null(prediction)) {
-    parts$prediction <- stringify_all(prediction) %>%
-      mutate(source_tier = tier_label, source_sheet = "prediction")
+    parts[["Prediction"]] <- stringify_all(prediction) %>%
+      mutate(source_tier = tier_label, source_sheet = "prediction", region = "global")
   }
+
+  extra_sheets <- setdiff(sheets, c("Observed", "Prediction"))
+  for (sheet_name in extra_sheets) {
+    m <- regexec(region_sheet_pattern, sheet_name, ignore.case = TRUE)
+    matched <- regmatches(sheet_name, m)[[1]]
+    if (length(matched) == 3 && nzchar(matched[2])) {
+      region_name <- tolower(squish_ws(matched[2]))
+      sheet_kind <- tolower(matched[3])
+      cat("Found region-scoped sheet '", sheet_name, "' -- tagging region='", region_name, "'.\n", sep = "")
+      parts[[sheet_name]] <- stringify_all(readxl::read_excel(path, sheet = sheet_name)) %>%
+        mutate(source_tier = tier_label, source_sheet = sheet_kind, region = region_name)
+    }
+  }
+
   if (length(parts) == 0) {
     stop("Neither an Observed nor a Prediction sheet was found in ", path)
   }

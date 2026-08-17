@@ -204,6 +204,28 @@ if (!is.null(manifest$compound_filter)) {
   )
 }
 
+# Region scope filter -- for a workbook that carries a region-scoped extra
+# sheet (e.g. "China Observed") alongside the standard global Observed/
+# Prediction sheets (see load_merge_data.R). Defaults to "global" ONLY --
+# unlike route/evidence/compound_filter, which default to "both" -- because
+# region-scoped sheets are read into every merge unconditionally regardless
+# of whether a given run asked for them; defaulting to "both" here would
+# silently pull a newly-added regional dataset into every existing run the
+# moment someone adds that sheet to a workbook. An explicit region_filter is
+# required to include anything beyond "global". No placebo exemption here
+# (unlike route_filter): a regional dataset's own placebo rows are part of
+# that region's scope, not a universal reference shared across regions.
+region_filter <- unlist(manifest$region_filter %||% "global")
+if (!"region" %in% names(usable)) usable$region <- "global"
+before_n <- nrow(usable)
+usable <- usable %>% filter(region %in% region_filter)
+if (before_n - nrow(usable) > 0) {
+  cat(
+    "Region filter (", paste(region_filter, collapse = ", "), "): ",
+    before_n - nrow(usable), " row(s) dropped.\n", sep = ""
+  )
+}
+
 studies_in_data <- unique(usable$study_name)
 studies_in_manifest <- vapply(manifest$studies, function(s) s$study_name, character(1))
 

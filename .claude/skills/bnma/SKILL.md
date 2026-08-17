@@ -91,6 +91,25 @@ of which route is chosen — a placebo arm's `aom` tag reflects its paired
 active comparator's route, not a property of placebo itself, so filtering it
 out would just remove a study's reference arm for no reason.
 
+### Region scope
+
+Some workbooks carry a region-scoped extra sheet alongside the standard
+global `Observed`/`Prediction` sheets — found in practice: a `"China
+Observed"` sheet. `load_merge_data.R` detects any sheet named `"<Region>
+Observed"` or `"<Region> Prediction"` (case-insensitive) and tags its rows
+with that region (lowercased); the standard sheets are tagged `"global"`.
+
+Ask whether this run should include any region-scoped data, and record the
+answer as `region_filter` — a list of regions to include (e.g. `["global",
+"china"]`). **Unlike `route_filter`/`evidence_filter`, this defaults to
+`["global"]` only, not "both"** — a region-scoped sheet is read into every
+merge unconditionally regardless of whether a given run asked for it, so
+defaulting to include-everything would silently pull a newly-added regional
+dataset into every existing run the moment someone adds that sheet to a
+workbook. There's no placebo exemption here either: a region's own placebo
+rows are part of that region's scope, not a universal cross-region
+reference.
+
 ### Compound-first entry point
 
 A run can also start from a user-supplied list of specific
@@ -157,6 +176,7 @@ source_program: <path to whatever script/session produced this run>
 route_filter: both # oral | injectable | both -- from step 2.5; omit or "both" = no route filtering
 evidence_filter: both # observed | prediction | both -- from step 2.5; omit or "both" = no evidence filtering
 compound_filter: null # optional list of compound names -- from step 2.5's compound-first entry point; omit/null = no compound filtering
+region_filter: [global] # list of regions to include -- from step 2.5's region scope; omit = ["global"] only, unlike route/evidence_filter's "both" default
 naming_pooling_resolutions:
   - kind: compound_flag
     compound_a: canaflig
