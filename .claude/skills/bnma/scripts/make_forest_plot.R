@@ -43,6 +43,22 @@ manifest <- yaml::read_yaml(args$manifest)
 
 samples_mat <- as.matrix(samples)
 
+# model_random.txt/model_fixed.txt (the real production models, confirmed
+# 2026-08-17 via BNMA_forest_plot-main.zip) have no pooled baseline -- phi[i]
+# is separate per study, so there's no single "m" to add d[k] to. Only
+# model_simultaneous.txt (legacy hierarchical) has one. Check for it here
+# rather than assuming, so a mismatched --effect absolute request fails
+# loudly instead of erroring obscurely inside the m_samples lookup below.
+if (args$effect == "absolute" && !("m" %in% colnames(samples_mat))) {
+  stop(
+    "--effect absolute needs a pooled baseline 'm' node, which only ",
+    "model_simultaneous.txt has -- the real production rand_effect/",
+    "fixed_effect models use a separate phi[i] per study with no pooling, ",
+    "so there's no single global baseline to add d[k] to. Re-fit with ",
+    "model_simultaneous.txt for absolute effects, or use --effect relative."
+  )
+}
+
 plot_treatments <- manifest$plot_treatments
 if (is.null(plot_treatments) || length(plot_treatments) == 0) {
   # Default: every non-placebo treatment that made it into the model, in the

@@ -388,33 +388,52 @@ data_recon <- data_sel %>%
 # ---------------------------------------------------------------------------
 # BATMAN augmentation: phantom placebo arm for studies with none
 # ---------------------------------------------------------------------------
-# Matches efficacy_bnma_v3_gzmu_misc5.R's own logic exactly: any included
-# study with no literal placebo row gets one injected (SE=1, y=NA), full
-# stop. A connectivity-aware version of this (only bridge studies that are
-# genuinely isolated from the rest of the network, rather than every study
-# lacking a literal placebo row) was tried and reverted -- it wasn't a
-# documented team methodology (checked: the term never appears in
-# GUIDE_README.md, the workflow guide, or the NMA output review guide, and
-# no original script comments on the rationale either way), so it isn't this
-# skill's place to unilaterally change it. If this behavior needs revisiting,
-# that's a decision for whoever owns BATMAN+/the NMA methodology, not
-# something to bake into the skill without their sign-off.
+# model_type controls whether this fires at all. Confirmed 2026-08-17
+# (BNMA_forest_plot-main.zip, the real production BNMA Shiny app): the real
+# tool has NO automatic phantom-placebo bridging anywhere -- its own
+# intro page states "If a placebo already exists for the treatment arm from
+# previous studies in the Core dataset, no new placebo data is needed.
+# Otherwise, placebo data is required," i.e. a curator supplies the value
+# upstream; a study with none simply doesn't connect to the network (its
+# phi[i] baseline is estimated, but it contributes no delta/relative-effect
+# information). That's real, documented behavior (unlike the earlier
+# connectivity-aware attempt, which had no documentation anywhere and was
+# reverted for exactly that reason) -- so for model_type rand_effect/
+# fixed_effect (the real production models), we match it: no injection,
+# just a clear log line instead of a silent no-op.
+#
+# model_type absent or "simultaneous" (the legacy hierarchical model) keeps
+# today's unconditional bridging exactly as-is -- every existing manifest
+# was written assuming this, so the field defaults to the OLD behavior when
+# absent, not the new recommended default (same asymmetric-default pattern
+# as region_filter's own note above).
+model_type <- manifest$model_type %||% "simultaneous"
+if (!model_type %in% c("simultaneous", "rand_effect", "fixed_effect")) {
+  stop("model_type must be 'simultaneous', 'rand_effect', or 'fixed_effect', got: ", model_type)
+}
+
 studies_with_placebo <- data_recon %>% filter(treat == "placebo") %>% pull(study_ind) %>% unique()
 studies_without_placebo <- setdiff(unique(data_recon$study_ind), studies_with_placebo)
 
 if (length(studies_without_placebo) > 0) {
   lookup <- data_recon %>% select(study, study_ind) %>% distinct()
-  cat(
-    "Studies without a placebo arm (phantom arm injected):\n  ",
-    paste(lookup %>% filter(study_ind %in% studies_without_placebo) %>% pull(study), collapse = ", "),
-    "\n"
-  )
-  phantom_rows <- data_recon %>%
-    filter(study_ind %in% studies_without_placebo) %>%
-    select(study, study_ind) %>%
-    distinct() %>%
-    mutate(treat = "placebo", arm_ind = 1L, pchg_wl_ee = NA_real_, se_wl_ee = 1, compound = NA_character_)
-  data_recon <- bind_rows(data_recon, phantom_rows) %>% arrange(study_ind, arm_ind)
+  no_placebo_studies <- lookup %>% filter(study_ind %in% studies_without_placebo) %>% pull(study)
+
+  if (model_type == "simultaneous") {
+    cat("Studies without a placebo arm (phantom arm injected):\n  ", paste(no_placebo_studies, collapse = ", "), "\n")
+    phantom_rows <- data_recon %>%
+      filter(study_ind %in% studies_without_placebo) %>%
+      select(study, study_ind) %>%
+      distinct() %>%
+      mutate(treat = "placebo", arm_ind = 1L, pchg_wl_ee = NA_real_, se_wl_ee = 1, compound = NA_character_)
+    data_recon <- bind_rows(data_recon, phantom_rows) %>% arrange(study_ind, arm_ind)
+  } else {
+    cat(
+      "Studies without a placebo arm (model_type='", model_type, "' -- NOT bridged, matches the real ",
+      "production tool's own behavior; these studies contribute a baseline estimate only, no ",
+      "relative-effect information):\n  ", paste(no_placebo_studies, collapse = ", "), "\n", sep = ""
+    )
+  }
 }
 
 # ---------------------------------------------------------------------------

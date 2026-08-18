@@ -213,6 +213,7 @@ row_exclusions:
     reason: "Duplicate row sharing (study_name, treatment) with another row -- n disambiguates which one to drop."
 placebo_clamp: false # optional -- set true to force any placebo row's positive (weight-gain) pchg_wl_ee to 0; requires placebo_clamp_reason
 supplementary_data: [] # optional -- literal rows for data not yet in the QA/PRD workbook; see below
+model_type: rand_effect # rand_effect (recommended default for new runs) | fixed_effect | simultaneous (legacy) -- omit or "simultaneous" = today's unconditional phantom-bridging behavior, unchanged; see Step 5
 plot_treatments:
   - tirzepatide 5mg qw
   - tirzepatide 10mg qw
@@ -277,11 +278,16 @@ entry under `studies:`, same as any other study — no exemption from the
 completeness check just because the data was hand-added.
 
 **Any study lacking a literal placebo row gets a phantom placebo arm
-(SE=1, y=NA) injected automatically** — matches
-`efficacy_bnma_v3_gzmu_misc5.R`'s own logic exactly. This is not something
-the skill second-guesses or gates on a per-study decision; if this behavior
-ever needs revisiting, that's a call for whoever owns the BATMAN+/NMA
-methodology, not something to change unilaterally here.
+(SE=1, y=NA) injected automatically — but only when `model_type` is
+`simultaneous` (the legacy hierarchical model) or omitted.** Matches
+`efficacy_bnma_v3_gzmu_misc5.R`'s own logic exactly, and this is not
+something the skill second-guesses or gates on a per-study decision for that
+model. For `model_type: rand_effect`/`fixed_effect` (the recommended
+defaults for new runs — see Step 5), **no bridging happens at all**: a study
+with no placebo row simply doesn't connect to the network. This isn't a gap
+— it's confirmed, documented real-tool behavior (see Step 5), unlike the
+earlier connectivity-aware bridging attempt this skill tried and reverted
+mid-session for having no such documentation anywhere.
 
 Save it under the dated `programs/YYYYMMDD_.../` folder for this run (ask the
 user for that folder if it's not obvious), e.g. `study_selection_manifest.yaml`.
@@ -307,9 +313,34 @@ wrapper** — plain `Rscript` will fail to load `rjags` in this environment:
 
 ```bash
 scripts/run_with_jags.sh scripts/fit_bnma_model.R \
-  --batman /tmp/bnma_batman.rds --model model_simultaneous.txt \
+  --batman /tmp/bnma_batman.rds --model model_random.txt \
   --cache <programs_folder>/samples_<run_name>.rds
 ```
+
+**Which model file to use is driven by the manifest's `model_type` field**
+(see Step 4's example) — pass the matching file here:
+- `model_type: rand_effect` (recommended default for new runs) →
+  `--model model_random.txt`
+- `model_type: fixed_effect` → `--model model_fixed.txt`
+- `model_type: simultaneous` (legacy) or omitted → `--model
+  model_simultaneous.txt`
+
+`model_random.txt`/`model_fixed.txt` are copied verbatim from the real
+production BNMA Shiny app (`BNMA_forest_plot-main.zip`, confirmed
+2026-08-17) — non-hierarchical `phi[i]~dnorm(0,0.0001)` baseline per study
+(the "separate model per Dias 2013" the NMA Output Review Process Guide
+already said was the team's stated standard), `sigma~dunif(0,8)`. The app's
+own UI defaults to the random-effect model, which is why this skill now
+does too. `fit_bnma_model.R` infers which variables to monitor from the
+model file's basename — no extra flag needed, and every existing driver
+script that already passes `--model model_simultaneous.txt` explicitly
+keeps working unchanged.
+
+`model_simultaneous.txt` (hierarchical/pooled baseline, `sigma~dunif(0,100)`)
+stays as a legacy option — it's the only one with a pooled baseline `m` node,
+which is required if you need `effect_type: absolute` (see Step 3); the real
+production tool has no absolute-effect view at all, since a non-hierarchical
+model has no single global baseline to compute one from.
 
 Give the cache file a run-specific name (per the workflow doc's "cached MCMC
 samples are expensive to regenerate, version-specific name" rule) — don't
@@ -377,7 +408,7 @@ sys2(file.path(skill_dir, "scripts/run_r.sh"), c(
 ))
 sys2(file.path(skill_dir, "scripts/run_with_jags.sh"), c(
   file.path(skill_dir, "scripts/fit_bnma_model.R"),
-  "--batman", "<batman.rds>", "--model", file.path(skill_dir, "model_simultaneous.txt"),
+  "--batman", "<batman.rds>", "--model", file.path(skill_dir, "<model_random.txt|model_fixed.txt|model_simultaneous.txt -- match the manifest's model_type>"),
   "--cache", "<samples_<run_name>.rds>"
 ))
 sys2(file.path(skill_dir, "scripts/run_r.sh"), c(
@@ -394,10 +425,13 @@ with no further editing.
 
 ## Non-goals
 
-- No fixed-effects model — heterogeneity is already handled by this model's
-  `sigma`/`tau2` term.
 - No external grounding (ClinicalTrials.gov/INN lookups) for the naming
   check — string-similarity + same-study disconfirmation + a persisted
   registry only.
 - Does not touch `/home/l138303/BNMA` (an unrelated LLM-extraction/curation
   app project that happens to share the name).
+- No absolute-effect view for `model_type: rand_effect`/`fixed_effect` —
+  confirmed via `BNMA_forest_plot-main.zip` that the real production tool
+  doesn't have one either, since its non-hierarchical model has no single
+  pooled baseline to compute one from. `effect_type: absolute` only works
+  with the legacy `model_simultaneous.txt` (`model_type: simultaneous`).

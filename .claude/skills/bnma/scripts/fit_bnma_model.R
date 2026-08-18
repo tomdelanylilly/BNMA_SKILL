@@ -7,12 +7,21 @@
 # sigma/tau2 term, which is what was actually needed, not a fixed-effect
 # model).
 #
+# model_random.txt/model_fixed.txt (the recommended defaults -- see SKILL.md)
+# are copied verbatim from the real production BNMA Shiny app
+# (BNMA_forest_plot-main.zip, confirmed 2026-08-17): non-hierarchical
+# phi[i]~dnorm(0,0.0001) baseline per Dias 2013's "separate model" (matching
+# the NMA Output Review Process Guide's stated standard), sigma~dunif(0,8).
+# model_simultaneous.txt (hierarchical/exchangeable phi, sigma~dunif(0,100))
+# stays as a legacy option -- it's the only one with a pooled baseline `m`
+# node, needed for effect_type: absolute.
+#
 # Must be run via scripts/run_with_jags.sh, not Rscript directly -- rjags
 # needs the `jags` environment module loaded first in this environment.
 #
 # Usage:
 #   scripts/run_with_jags.sh scripts/fit_bnma_model.R --batman <batman.rds> \
-#     --model <model_simultaneous.txt> --cache <samples.rds> [--force]
+#     --model <model_random.txt|model_fixed.txt|model_simultaneous.txt> --cache <samples.rds> [--force]
 
 suppressPackageStartupMessages(library(rjags))
 
@@ -53,10 +62,23 @@ if (file.exists(args$cache) && !args$force) {
   cat("Burn-in (", args$n_burnin, "iterations)...\n")
   update(jags_model, as.integer(args$n_burnin))
 
+  # model_simultaneous.txt is the only model file with a pooled baseline (m,
+  # sigma_m, mu_new) -- model_random.txt/model_fixed.txt (the real
+  # production models) use a separate phi[i] per study with no pooling, so
+  # those nodes don't exist there and monitoring them would error at
+  # compile/sample time. Keyed off the model file itself (not a manifest
+  # field) so every existing caller that already passes an explicit --model
+  # path keeps working with zero changes.
+  variable_names <- if (basename(args$model) == "model_simultaneous.txt") {
+    c("d", "phi", "delta", "m", "sigma_m", "mu_new")
+  } else {
+    c("d", "phi", "delta")
+  }
+
   cat("Sampling (", args$n_iter, "iterations, thin =", args$thin, ")...\n")
   samples <- coda.samples(
     jags_model, as.integer(args$n_iter),
-    variable.names = c("d", "phi", "delta", "m", "sigma_m", "mu_new"),
+    variable.names = variable_names,
     thin = as.integer(args$thin)
   )
   saveRDS(samples, args$cache)
