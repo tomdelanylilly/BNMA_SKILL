@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>/bnma — Guided BNMA for the Obesity Landscape</title>
+<style>
+  :root {
+    color-scheme: light;
+    --page:            #f9f9f7;
+    --surface-1:       #fcfcfb;
+    --surface-2:       #f3f2ee;
+    --text-primary:    #0b0b0b;
+    --text-secondary:  #52514e;
+    --text-muted:      #898781;
+    --gridline:        #e1e0d9;
+    --baseline:        #c3c2b7;
+    --border:          rgba(11,11,11,0.10);
+
+    --series-1: #2a78d6; /* blue */
+    --series-2: #eb6834; /* orange */
+    --series-3: #1baf7a; /* aqua */
+    --series-4: #eda100; /* yellow */
+    --series-5: #e87ba4; /* magenta */
+
+    --good:     #0ca30c;
+    --warning:  #fab219;
+    --critical: #d03b3b;
+
+    --brand-navy: #0d366b; /* sequential step 700 -- header/chrome only, not a data color */
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page:            #0d0d0d;
+    --surface-1:       #1a1a19;
+    --surface-2:       #232322;
+    --text-primary:    #ffffff;
+    --text-secondary:  #c3c2b7;
+    --text-muted:      #898781;
+    --gridline:        #2c2c2a;
+    --baseline:        #383835;
+    --border:          rgba(255,255,255,0.10);
+
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+    --series-5: #d55181;
+
+    --good:     #0ca30c;
+    --warning:  #fab219;
+    --critical: #e66767;
+
+    --brand-navy: #184f95;
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--page);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: var(--text-primary);
+  }
+  body {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .theme-toggle {
+    position: fixed;
+    top: 16px; right: 16px;
+    z-index: 10;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-family: inherit;
+    padding: 6px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .theme-toggle:hover { color: var(--text-primary); }
+
+  .slide {
+    width: 100%;
+    max-width: 1360px;
+    aspect-ratio: 16 / 9;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: 0 1px 3px rgba(11,11,11,0.06), 0 12px 32px rgba(11,11,11,0.10);
+    padding: 40px 52px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    overflow: hidden;
+  }
+
+  /* ---------- header ---------- */
+  .slide-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+  .kicker {
+    font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--brand-navy);
+  }
+  h1 { margin: 4px 0 2px; font-size: 28px; font-weight: 700; letter-spacing: -0.01em; }
+  .subhead { margin: 0; font-size: 14.5px; color: var(--text-secondary); max-width: 640px; line-height: 1.45; }
+  .badge {
+    flex-shrink: 0;
+    font-size: 11px; font-weight: 600; color: var(--text-secondary);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 6px 10px; text-align: right; line-height: 1.5;
+  }
+  .badge b { display: block; color: var(--text-primary); font-size: 12.5px; }
+
+  /* ---------- main grid ---------- */
+  .grid { flex: 1; display: grid; grid-template-columns: 290px 1fr 330px; grid-template-rows: 1fr; gap: 22px; min-height: 0; }
+
+  .panel-title {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+    color: var(--text-muted); margin: 0 0 10px;
+  }
+
+  /* ---------- problem column ---------- */
+  .problem-col { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow: hidden; }
+  .incident {
+    background: var(--surface-2);
+    border-radius: 10px;
+    padding: 8px 11px;
+    display: flex; gap: 9px; align-items: flex-start;
+  }
+  .status-dot {
+    flex-shrink: 0; width: 16px; height: 16px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 800; color: #fff; margin-top: 1px;
+  }
+  .status-dot.critical { background: var(--critical); }
+  .status-dot.warning   { background: var(--warning); color: #3a2c00; }
+  .incident-text { font-size: 12px; line-height: 1.35; color: var(--text-primary); }
+  .incident-text b { display: block; font-size: 12px; margin-bottom: 1px; }
+  .incident-text span.muted { color: var(--text-secondary); font-size: 11.5px; }
+
+  /* ---------- workflow column ---------- */
+  .workflow-col { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+  .steps { flex: 1; display: flex; flex-direction: column; gap: 6px; justify-content: center; }
+  .step-row { display: flex; align-items: center; gap: 10px; }
+  .step-num {
+    flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%;
+    background: var(--series-1); color: #fff; font-size: 11px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .step-body {
+    flex: 1;
+    background: var(--surface-2);
+    border-radius: 8px;
+    padding: 7px 12px;
+    font-size: 12.5px;
+    color: var(--text-primary);
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  .step-body .tag {
+    font-size: 10px; font-weight: 700; color: var(--text-muted); white-space: nowrap;
+  }
+  .step-connector {
+    width: 1px; height: 6px; background: var(--baseline); margin-left: 11px;
+  }
+
+  /* ---------- forest plot mock ---------- */
+  .forest-col { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+  .forest-card {
+    flex: 1;
+    background: var(--surface-2);
+    border-radius: 10px;
+    padding: 12px 14px 10px;
+    display: flex; flex-direction: column;
+  }
+  .forest-title { font-size: 11.5px; font-weight: 700; color: var(--text-primary); margin: 0 0 2px; }
+  .forest-sub { font-size: 10.5px; color: var(--text-muted); margin: 0 0 8px; }
+  .forest-plot { flex: 1; display: flex; flex-direction: column; gap: 5px; position: relative; }
+  .forest-zero-line {
+    position: absolute; top: 0; bottom: 16px; left: var(--zero-x, 46%);
+    width: 1px; background: var(--baseline);
+    background-image: linear-gradient(var(--baseline) 60%, transparent 40%);
+    background-size: 1px 6px;
+  }
+  .forest-row { display: grid; grid-template-columns: 116px 1fr 48px; align-items: center; gap: 6px; font-size: 10px; }
+  .forest-label { color: var(--text-secondary); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .forest-label sup { font-size: 8px; color: var(--text-muted); }
+  .forest-track { position: relative; height: 14px; }
+  .forest-ci {
+    position: absolute; top: 50%; height: 2px; background: currentColor;
+    transform: translateY(-50%); border-radius: 1px;
+  }
+  .forest-dot {
+    position: absolute; top: 50%; width: 9px; height: 9px; border-radius: 50%;
+    background: currentColor; transform: translate(-50%, -50%);
+    box-shadow: 0 0 0 2px var(--surface-2);
+  }
+  .forest-value { font-size: 10px; color: var(--text-secondary); text-align: left; font-variant-numeric: tabular-nums; }
+  .forest-legend { display: flex; gap: 12px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--text-secondary); }
+  .legend-swatch { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .legend-note { font-size: 9.5px; color: var(--text-muted); margin-top: 4px; }
+
+  /* ---------- footer stat tiles ---------- */
+  .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .stat-tile {
+    background: var(--surface-2);
+    border-radius: 10px;
+    padding: 10px 14px;
+  }
+  .stat-value { font-size: 18px; font-weight: 700; color: var(--text-primary); line-height: 1.2; }
+  .stat-label { font-size: 11px; color: var(--text-secondary); margin-top: 2px; line-height: 1.35; }
+  .stat-tile.good .stat-value::before { content: "✓ "; color: var(--good); }
+
+  .footer-note { font-size: 10px; color: var(--text-muted); text-align: right; }
+</style>
+</head>
+<body>
+
+<button class="theme-toggle" onclick="
+  const r = document.documentElement;
+  r.setAttribute('data-theme', r.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+">🌓 Toggle theme</button>
+
+<div class="slide">
+
+  <!-- HEADER -->
+  <div class="slide-header">
+    <div>
+      <div class="kicker">Claude Code Skill · Obesity BNMA Landscape</div>
+      <h1>/bnma — a guided Bayesian network meta-analysis, not a hardcoded script</h1>
+      <p class="subhead">
+        Turns study selection from a silent, hand-edited R vector into a forced,
+        traceable decision at every step — so a low-dose Phase&nbsp;2 study or a
+        naming mismatch can't quietly skew a competitive-landscape result again.
+      </p>
+    </div>
+    <div class="badge">
+      Model basis<br /><b>Real production BNMA</b>
+      confirmed against the actual CMH Shiny app
+    </div>
+  </div>
+
+  <!-- MAIN GRID -->
+  <div class="grid">
+
+    <!-- PROBLEM COLUMN -->
+    <div class="problem-col">
+      <p class="panel-title">What kept going wrong</p>
+
+      <div class="incident">
+        <div class="status-dot critical">!</div>
+        <div class="incident-text">
+          <b>A silent inclusion skewed a result</b>
+          <span class="muted">A low-dose Phase 2 study entered a semaglutide analysis with no one deciding to include it.</span>
+        </div>
+      </div>
+
+      <div class="incident">
+        <div class="status-dot warning">!</div>
+        <div class="incident-text">
+          <b>Naming drift broke scripts</b>
+          <span class="muted">A compound-name change silently split one arm into two, unnoticed until the fit looked wrong.</span>
+        </div>
+      </div>
+
+      <div class="incident">
+        <div class="status-dot warning">!</div>
+        <div class="incident-text">
+          <b>No audit trail</b>
+          <span class="muted">Study choices lived as a commented-out vector inside a script — not reviewable, not reproducible.</span>
+        </div>
+      </div>
+
+      <div class="incident">
+        <div class="status-dot critical">!</div>
+        <div class="incident-text">
+          <b>The model itself was wrong</b>
+          <span class="muted">Hierarchical baseline + the wrong heterogeneity prior — confirmed against the real tool's own source.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- WORKFLOW COLUMN -->
+    <div class="workflow-col">
+      <p class="panel-title">How /bnma forces the decision</p>
+      <div class="steps">
+
+        <div class="step-row">
+          <div class="step-num">1</div>
+          <div class="step-body">Load QA + PRD, merge with full traceability <span class="tag">load_merge_data.R</span></div>
+        </div>
+        <div class="step-connector"></div>
+
+        <div class="step-row">
+          <div class="step-num">2</div>
+          <div class="step-body">Naming &amp; route-pooling QA gate — catch drift before it fits <span class="tag">check_naming_pooling.R</span></div>
+        </div>
+        <div class="step-connector"></div>
+
+        <div class="step-row">
+          <div class="step-num">3</div>
+          <div class="step-body">Route / evidence / region scope, confirmed up front <span class="tag">Step 2.5</span></div>
+        </div>
+        <div class="step-connector"></div>
+
+        <div class="step-row">
+          <div class="step-num">4</div>
+          <div class="step-body">Every study explicitly included or excluded, with a reason <span class="tag">Step 3</span></div>
+        </div>
+        <div class="step-connector"></div>
+
+        <div class="step-row">
+          <div class="step-num">5</div>
+          <div class="step-body">Decisions written to a reviewable YAML manifest <span class="tag">manifest.yaml</span></div>
+        </div>
+        <div class="step-connector"></div>
+
+        <div class="step-row">
+          <div class="step-num">6</div>
+          <div class="step-body">BATMAN + JAGS fit — the real production model <span class="tag">model_random.txt</span></div>
+        </div>
+        <div class="step-connector"></div>
+
+        <div class="step-row">
+          <div class="step-num">7</div>
+          <div class="step-body">Forest plot, footnoted back to source data <span class="tag">make_forest_plot.R</span></div>
+        </div>
+        <div class="step-connector"></div>
+
+        <div class="step-row">
+          <div class="step-num">8</div>
+          <div class="step-body">A driver script that reproduces the run from scratch <span class="tag">run_bnma_*.R</span></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- FOREST PLOT MOCK -->
+    <div class="forest-col">
+      <div class="forest-card">
+        <p class="forest-title">Every plotted arm marked by evidence type</p>
+        <p class="forest-sub">Illustrative — % body weight change, placebo-adjusted</p>
+
+        <div class="forest-plot" id="forestPlot" style="--zero-x: 40%;">
+          <div class="forest-zero-line"></div>
+          <!-- rows injected as static markup below -->
+        </div>
+
+        <div class="forest-legend" id="forestLegend"></div>
+        <p class="legend-note">ᵒ observed &nbsp;·&nbsp; ᵖ projection — same superscript convention as the real plot output</p>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- STAT ROW -->
+  <div class="stat-row">
+    <div class="stat-tile good">
+      <div class="stat-value">0</div>
+      <div class="stat-label">Hardcoded study vectors — replaced by a written, reasoned manifest</div>
+    </div>
+    <div class="stat-tile good">
+      <div class="stat-value">2</div>
+      <div class="stat-label">Real model variants supported — random-effect (default) &amp; fixed-effect</div>
+    </div>
+    <div class="stat-tile good">
+      <div class="stat-value">4</div>
+      <div class="stat-label">Explicit gates before a fit ever runs — naming, scope, selection, manifest</div>
+    </div>
+    <div class="stat-tile good">
+      <div class="stat-value">1</div>
+      <div class="stat-label">Reproducible driver script per run — not a chat transcript</div>
+    </div>
+  </div>
+
+  <p class="footer-note">.claude/skills/bnma — obesity landscape BNMA · mockup for team review, not a live result</p>
+
+</div>
+
+<script>
+  // Illustrative data only -- directionally consistent with real fits this
+  // session produced, not a literal result. Fixed categorical color order
+  // (blue, orange, aqua, yellow, magenta) assigned by compound identity.
+  const rows = [
+    { label: "Placebo",                 sup: "o,p", mean: 0,     lo: 0,     hi: 0,     slot: 1 },
+    { label: "Semaglutide 2.4mg",       sup: "o",   mean: -14.1, lo: -16.1, hi: -11.8, slot: 1 },
+    { label: "CagriSema 2.4+2.4",       sup: "o",   mean: -17.6, lo: -22.7, hi: -12.5, slot: 2 },
+    { label: "Tirzepatide 15mg",        sup: "o",   mean: -20.2, lo: -23.0, hi: -17.1, slot: 3 },
+    { label: "Retatrutide 12mg",        sup: "p",   mean: -26.4, lo: -31.8, hi: -20.9, slot: 4 },
+    { label: "Eloralintide 9mg",        sup: "p",   mean: -14.2, lo: -18.8, hi: -9.6,  slot: 5 },
+  ];
+
+  const seriesVar = n => `var(--series-${n})`;
+  const min = -34, max = 4; // fixed scale so 0 lines up with --zero-x
+  const pct = v => ((v - min) / (max - min)) * 100;
+  const zeroPct = pct(0);
+  document.getElementById("forestPlot").style.setProperty("--zero-x", zeroPct + "%");
+
+  const plot = document.getElementById("forestPlot");
+  rows.forEach(r => {
+    const row = document.createElement("div");
+    row.className = "forest-row";
+    row.style.color = seriesVar(r.slot);
+
+    const label = document.createElement("div");
+    label.className = "forest-label";
+    label.innerHTML = r.label + `<sup>${r.sup}</sup>`;
+
+    const track = document.createElement("div");
+    track.className = "forest-track";
+
+    const ci = document.createElement("div");
+    ci.className = "forest-ci";
+    const loP = pct(r.lo), hiP = pct(r.hi);
+    ci.style.left = loP + "%";
+    ci.style.width = Math.max(hiP - loP, 0.5) + "%";
+
+    const dot = document.createElement("div");
+    dot.className = "forest-dot";
+    dot.style.left = pct(r.mean) + "%";
+
+    track.appendChild(ci);
+    track.appendChild(dot);
+
+    const value = document.createElement("div");
+    value.className = "forest-value";
+    value.textContent = r.mean === 0 ? "0" : r.mean.toFixed(1);
+
+    row.appendChild(label);
+    row.appendChild(track);
+    row.appendChild(value);
+    plot.appendChild(row);
+  });
+
+  // legend by compound (fixed order, matches series slots used above)
+  const legendItems = [
+    { name: "Semaglutide",   slot: 1 },
+    { name: "CagriSema",     slot: 2 },
+    { name: "Tirzepatide",   slot: 3 },
+    { name: "Retatrutide",   slot: 4 },
+    { name: "Eloralintide",  slot: 5 },
+  ];
+  const legend = document.getElementById("forestLegend");
+  legendItems.forEach(it => {
+    const el = document.createElement("div");
+    el.className = "legend-item";
+    el.innerHTML = `<span class="legend-swatch" style="background:${seriesVar(it.slot)}"></span>${it.name}`;
+    legend.appendChild(el);
+  });
+</script>
+
+</body>
+</html>
