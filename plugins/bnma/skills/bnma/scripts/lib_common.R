@@ -76,6 +76,15 @@ QA_NUMERIC_COLS <- c(
 
 #' Re-cast the QA schema's numeric columns back to numeric after a
 #' stringify_all()-based bind_rows(), leaving any column not present alone.
+#' The fixed list above is the weight-loss QA/PRD schema's own numeric
+#' columns -- harmless (via `intersect()`) for any other endpoint's workbook,
+#' since none of those column names will be present to recast. This is NOT a
+#' functional gap for a non-weight-loss endpoint though: build_batman_data.R
+#' wraps every read of the manifest's own `effect_col`/`se_col` in an
+#' explicit `as.numeric()` regardless of this recast, so an HbA1c/physical-
+#' function column left as character here still ends up numeric where it
+#' actually matters. This list only affects merged.rds's column *type* for
+#' anyone inspecting it directly, not any value the model sees.
 recast_numeric_cols <- function(df) {
   present <- intersect(QA_NUMERIC_COLS, names(df))
   dplyr::mutate(df, dplyr::across(dplyr::all_of(present), as.numeric))

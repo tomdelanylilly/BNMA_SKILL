@@ -1,17 +1,21 @@
 ---
 name: bnma
 description: >
-  Run an obesity-landscape Bayesian network meta-analysis (BNMA) on weight-
-  loss data with forced study-selection confirmation and a naming/route
-  pooling-risk QA gate, instead of a hardcoded, hand-edited study list. Use
-  this skill whenever the user wants to run, update, or refresh a BNMA
-  forest plot from the QA/PRD weight-loss dataset, or mentions "/bnma",
+  Run an obesity/diabetes-landscape Bayesian network meta-analysis (BNMA) on
+  any single continuous endpoint (weight loss, HbA1c, physical function,
+  etc.) from the QA/PRD dataset, with forced study-selection confirmation and
+  a naming/route pooling-risk QA gate, instead of a hardcoded, hand-edited
+  study list. Use this skill whenever the user wants to run, update, or
+  refresh a BNMA forest plot from a QA/PRD dataset, or mentions "/bnma",
   "run the meta-analysis", "BATMAN", or a compound landscape forest plot.
 ---
 
 # /bnma
 
-Guided BNMA workflow for the obesity weight-loss QA/PRD dataset. Reuses the
+Guided BNMA workflow for the obesity/diabetes-landscape QA/PRD dataset,
+generalized across endpoints (weight loss, HbA1c, physical function, etc. --
+see Step 3's Endpoint question and Step 4's `effect_col`/`se_col` manifest
+fields). Reuses the
 existing BATMAN-augmentation + JAGS + forest-plot pipeline (see the misc5
 project's R scripts for the reference implementation this was built from),
 but replaces every place that pipeline made a silent, hardcoded decision
@@ -130,11 +134,12 @@ actual data/report; never leave a placeholder):
 
   SCOPE
    1  Dataset           <path(s)>                                (detected)
-   2  Route            ► both (oral + injectable)
-   3  Evidence         ► both (observed + prediction)
-   4  Region           ► global only
-   5  Heterogeneity    ► random-effects (rand_effect)
-   6  Effect to report ► placebo-adjusted (relative)
+   2  Endpoint         ► weight loss (effect_col: pchg_wl_ee, se_col: se_wl_ee)
+   3  Route            ► both (oral + injectable)
+   4  Evidence         ► both (observed + prediction)
+   5  Region           ► global only
+   6  Heterogeneity    ► random-effects (rand_effect)
+   7  Effect to report ► placebo-adjusted (relative)
 
   NAMING / POOLING  (N active flags)
    - <compound_a> vs <compound_b> -- proposed: <same|different>, because <signal>
@@ -152,6 +157,22 @@ actual data/report; never leave a placeholder):
 ```
 
 Notes:
+- **Endpoint defaults to weight loss** (`effect_col: pchg_wl_ee`,
+  `se_col: se_wl_ee` — the QA/PRD schema's own effect-estimate/SE column
+  pair) **only when the dataset's own columns match that schema** — check
+  the actual column names in the merged data (Step 1) before proposing this
+  default; don't assume every workbook is a weight-loss one just because
+  that's the common case. For any other endpoint (HbA1c, physical function,
+  etc.), state the real column names as the proposal instead — e.g. "HbA1c
+  (`effect_col: chg_hba1c`, `se_col: se_chg_hba1c`)" — and also propose an
+  `effect_label` (a short phrase for the plot's axis/title — e.g. `"HbA1c
+  (%)"`) and, if `placebo_clamp` might be used this run, an `effect_direction`
+  (`decrease_is_better` | `increase_is_better` — controls which sign
+  `placebo_clamp` treats as "wrong direction"; weight loss and HbA1c
+  reduction are `decrease_is_better`, a physical-function score where higher
+  is healthier would be `increase_is_better`). This is a genuinely
+  discretionary, data-dependent choice like Route/Evidence/Region — propose
+  a default, but always state it explicitly rather than leaving it implicit.
 - **Phase 1/2 and prediction-tier studies never get a silent proposed
   decision baked into the default path** — list each one individually and
   require the statistician to actually say include or exclude, even though
@@ -180,6 +201,10 @@ created_at: "2026-08-14"
 source_data:
   prd: /lillyce/prd/diabetes/bnma/obesity/data/shared/weight/cwm_wl_nont2d_prd_20260805.xlsx
   qa: null
+effect_col: pchg_wl_ee # from Step 3's Endpoint question -- the QA/PRD column holding this run's effect estimate; omit = pchg_wl_ee (weight loss), unchanged for every existing manifest
+se_col: se_wl_ee # from Step 3 -- the matching SE column; omit = se_wl_ee (weight loss), unchanged for every existing manifest
+effect_label: "Body Weight" # optional -- short phrase for the plot's default axis/title text (e.g. "HbA1c", "Physical Function Score"); omit = "Body Weight" only when effect_col is pchg_wl_ee, else falls back to the raw effect_col name (unpolished but not wrong) -- --xlab/--title on make_forest_plot.R always override regardless
+effect_direction: decrease_is_better # decrease_is_better | increase_is_better -- from Step 3, only matters if placebo_clamp is used; controls which sign placebo_clamp treats as "wrong direction". omit = decrease_is_better (weight loss/HbA1c-reduction convention), unchanged for every existing manifest
 source_program: <path to whatever script/session produced this run>
 route_filter: both # oral | injectable | both -- from Step 3; omit or "both" = no route filtering
 evidence_filter: both # observed | prediction | both -- from Step 3; omit or "both" = no evidence filtering
@@ -219,8 +244,8 @@ row_exclusions:
     treatment: "some treatment 5mg qd"
     "n": 37 # quote this key -- bare `n:` parses as boolean FALSE in YAML 1.1, not the string "n", and the exclusion silently stops disambiguating (hit this for real once)
     reason: "Duplicate row sharing (study_name, treatment) with another row -- n disambiguates which one to drop."
-placebo_clamp: false # optional -- set true to force any placebo row's positive (weight-gain) pchg_wl_ee to 0; requires placebo_clamp_reason
-se_fallback: false # optional -- set true to derive se_wl_ee = se_fallback_sd/sqrt(n) for rows missing se_wl_ee but with a known n; requires se_fallback_reason
+placebo_clamp: false # optional -- set true to force any placebo row's wrong-direction (per effect_direction) effect_col value to 0; requires placebo_clamp_reason
+se_fallback: false # optional -- set true to derive se_col = se_fallback_sd/sqrt(n) for rows missing se_col but with a known n; requires se_fallback_reason
 supplementary_data: [] # optional -- literal rows for data not yet in the QA/PRD workbook; see below
 model_type: rand_effect # rand_effect (recommended default for new runs) | fixed_effect | simultaneous (legacy) | simultaneous_fixed (legacy, fixed-effect delta -- use instead of simultaneous whenever effect_type: absolute + a full star network, see Step 5) -- from Step 3; omit or "simultaneous" = today's unconditional phantom-bridging behavior, unchanged; see Step 5
 plot_treatments:
@@ -239,12 +264,16 @@ duplicate row within an otherwise-included study; add `"n"` (quoted) when
 two rows share the same `(study_name, treatment)` and need a third field to
 tell them apart.
 
-**`placebo_clamp`** forces any placebo row reporting a positive (weight-gain)
-`pchg_wl_ee` to 0 before fitting. Found in a real analyst script
-(`bnma-nonadj-11AUG2026.R`, applied unconditionally there with no
-traceability — "Yongming advised setting the placebo effect to zero").
-Opt-in and reasoned here like everything else in this manifest: absent means
-no clamping (today's behavior, unchanged). Setting `placebo_clamp: true`
+**`placebo_clamp`** forces any placebo row reporting a "wrong direction"
+`effect_col` value to 0 before fitting — for the `decrease_is_better` default
+(weight loss, HbA1c reduction) that means a positive (e.g. weight-*gain*)
+value; for an `increase_is_better` endpoint it's the mirror, a negative
+value. Found in a real analyst script (`bnma-nonadj-11AUG2026.R`, applied
+unconditionally there with no traceability, and without an
+`effect_direction` concept at all since it only ever ran on weight-loss data
+— "Yongming advised setting the placebo effect to zero"). Opt-in and
+reasoned here like everything else in this manifest: absent means no
+clamping (today's behavior, unchanged). Setting `placebo_clamp: true`
 without a non-blank `placebo_clamp_reason` is a hard error — this rewrites
 an arbitrary number of rows' values across the whole run, so (unlike a
 single `row_exclusions` entry) it needs a documented reason, not just a
@@ -256,17 +285,21 @@ placebo_clamp_reason: "Placebo arms occasionally report a small positive
   not treated as a real placebo effect."
 ```
 
-**`se_fallback`** derives `se_wl_ee = se_fallback_sd / sqrt(n)` for any row
-missing `se_wl_ee` but with a known arm sample size `n` — rescuing a row the
+**`se_fallback`** derives `se_col = se_fallback_sd / sqrt(n)` for any row
+missing `se_col` but with a known arm sample size `n` — rescuing a row the
 unusable-row filter would otherwise silently drop. This is a real, repeated
-team convention, not a one-off (unlike `placebo_clamp`, which stays a
-per-run judgment call): `redefine1`'s own `curator_note` documents the exact
-formula ("se is calculated with 10/sqrt(n) where sd=10 is commonly used for
-%change in body weight in nont2d"), and it's actually applied — not just
-written down — in `brenipatide_gzmu_misc5.R` and `brenipatide_gzmu_gzmd.R`.
-Still opt-in and still requires a reason, same hard-error pattern as
-`placebo_clamp` — fabricating an SE is always a visible, deliberate choice
-for a given run, never a silent default:
+team convention for the weight-loss endpoint specifically, not a one-off
+(unlike `placebo_clamp`, which stays a per-run judgment call): `redefine1`'s
+own `curator_note` documents the exact formula ("se is calculated with
+10/sqrt(n) where sd=10 is commonly used for %change in body weight in
+nont2d"), and it's actually applied — not just written down — in
+`brenipatide_gzmu_misc5.R` and `brenipatide_gzmu_gzmd.R`. The default
+`se_fallback_sd: 10` reflects that weight-loss-specific convention — a
+different endpoint's own team convention (if one exists) needs its own
+`se_fallback_sd`, not this one reused by default. Still opt-in and still
+requires a reason, same hard-error pattern as `placebo_clamp` — fabricating
+an SE is always a visible, deliberate choice for a given run, never a silent
+default:
 ```yaml
 se_fallback: true
 se_fallback_reason: "redefine1's own curator_note documents this exact
@@ -274,8 +307,10 @@ se_fallback_reason: "redefine1's own curator_note documents this exact
   Phase 3 study that would otherwise be dropped for a missing SE."
 se_fallback_sd: 10  # optional, default 10 -- the team's stated standard
                      # assumption for %change in body weight in nont2d;
-                     # override only if a different population/endpoint's
-                     # own convention is documented elsewhere.
+                     # override with a different value (and document why)
+                     # for any other endpoint -- this default is NOT a
+                     # generic statistical constant, it's specific to that
+                     # one convention.
 ```
 
 **`supplementary_data`** is for a small, deliberately-curated addition that
@@ -286,15 +321,16 @@ straight into its analysis with no traceability at all. This is a stopgap,
 not a permanent home for the data — the row should still get entered as a
 real QA row via the project CLAUDE.md's Flow 1 once it's ready, same
 "QA is the live working copy" principle as everywhere else in this
-workspace. Each entry requires `study_name`, `treatment`, `compound`,
-`pchg_wl_ee`, `se_wl_ee`, and `reason`; `aom`/`region` are optional:
+workspace. Each entry requires `study_name`, `treatment`, `compound`, this
+run's `effect_col`/`se_col` values, and `reason`; `aom`/`region` are
+optional:
 ```yaml
 supplementary_data:
   - study_name: "GZMD+GZMU"
     treatment: "brenipatide 8mg q4w"
     compound: brenipatide
-    pchg_wl_ee: -13.86
-    se_wl_ee: 0.26
+    pchg_wl_ee: -13.86 # key name must match this manifest's own effect_col (pchg_wl_ee here, since it's the default)
+    se_wl_ee: 0.26      # key name must match this manifest's own se_col
     aom: injectable
     reason: "Hand-digitized from GZMU_MISC5_Unblinded.pptx (Aug 2026 data
       cut) -- not yet entered as a QA row."
@@ -626,7 +662,7 @@ decisions and reasons live:
 # will just reload the cached samples unless <cache.rds> is deleted (or
 # --force is passed to fit_bnma_model.R, if this run used it).
 
-skill_dir <- "<path to this skill's own installed location>"
+skill_dir <- "<path to .claude/skills/bnma>"
 # system2() joins `args` with spaces and runs it through the shell -- it does
 # NOT shell-quote elements for you, so any arg containing a space (the plot
 # --title, almost always) gets word-split by the shell into multiple argv

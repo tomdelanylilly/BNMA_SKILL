@@ -42,52 +42,86 @@ if (is.null(manifest$studies) || length(manifest$studies) == 0) {
   )
 }
 
-# SE fallback -- derive se_wl_ee = sd/sqrt(n) for rows missing se_wl_ee but
-# with a known arm sample size n. This is a real, repeated team convention,
-# not a one-off: redefine1's own curator_note documents it verbatim ("se is
-# calculated with 10/sqrt(n) where sd=10 is commonly used for %change in
-# body weight in nont2d"), and it's actually *applied* (not just written
-# down) in brenipatide_gzmu_misc5.R and brenipatide_gzmu_gzmd.R. Runs before
+# Endpoint columns -- which QA/PRD column holds this run's effect estimate
+# and SE. Default to the weight-loss schema's own column pair so every
+# existing manifest (none of which set these fields) keeps working
+# unchanged; a run against a different endpoint (HbA1c, physical function,
+# etc.) states its own real column names here instead (see SKILL.md Step 3's
+# Endpoint question). effect_direction only matters for placebo_clamp below
+# -- which sign counts as "wrong direction" depends on whether a decrease or
+# an increase is the desired treatment effect for this endpoint.
+effect_col <- manifest$effect_col %||% "pchg_wl_ee"
+se_col <- manifest$se_col %||% "se_wl_ee"
+effect_direction <- manifest$effect_direction %||% "decrease_is_better"
+if (!effect_direction %in% c("decrease_is_better", "increase_is_better")) {
+  stop("effect_direction must be 'decrease_is_better' or 'increase_is_better', got: ", effect_direction)
+}
+if (!effect_col %in% names(merged)) {
+  stop(
+    "effect_col '", effect_col, "' not found in the merged data's columns. ",
+    "Check the manifest's effect_col against this workbook's actual column ",
+    "name for this endpoint -- available columns: ", paste(names(merged), collapse = ", ")
+  )
+}
+if (!se_col %in% names(merged)) {
+  stop(
+    "se_col '", se_col, "' not found in the merged data's columns. Check ",
+    "the manifest's se_col against this workbook's actual column name for ",
+    "this endpoint -- available columns: ", paste(names(merged), collapse = ", ")
+  )
+}
+cat("Endpoint columns: effect_col='", effect_col, "', se_col='", se_col, "', effect_direction='", effect_direction, "'\n", sep = "")
+
+# SE fallback -- derive se_col = sd/sqrt(n) for rows missing se_col but
+# with a known arm sample size n. This is a real, repeated team convention
+# for the weight-loss endpoint specifically, not a one-off: redefine1's own
+# curator_note documents it verbatim ("se is calculated with 10/sqrt(n)
+# where sd=10 is commonly used for %change in body weight in nont2d"), and
+# it's actually *applied* (not just written down) in
+# brenipatide_gzmu_misc5.R and brenipatide_gzmu_gzmd.R. Runs before
 # the unusable-row filter below so a rescued row survives it, same as any
-# row that already had a real se_wl_ee. Opt-in and reasoned, same pattern as
+# row that already had a real se_col value. Opt-in and reasoned, same pattern as
 # placebo_clamp -- unlike placebo_clamp, this is judged common enough across
 # real datasets to offer as a standing manifest field rather than a
 # one-off (per the user, 2026-08-19), but it still defaults to off:
 # fabricating an SE for a row that never had a data-quality decision made
-# about it must be a deliberate, visible choice, not silent.
+# about it must be a deliberate, visible choice, not silent. se_fallback_sd's
+# own default (10) is the weight-loss convention's value, not a generic
+# statistical constant -- a different endpoint using se_fallback should pass
+# its own se_fallback_sd, not rely on this default.
 if (isTRUE(manifest$se_fallback)) {
   if (is.null(manifest$se_fallback_reason) || !nzchar(trimws(manifest$se_fallback_reason))) {
     stop(
       "se_fallback is true but se_fallback_reason is missing/blank -- this can ",
-      "rewrite an arbitrary number of rows' se_wl_ee values, so (like ",
+      "rewrite an arbitrary number of rows' ", se_col, " values, so (like ",
       "placebo_clamp) it needs a documented reason, not just a logged default."
     )
   }
   fallback_sd <- as.numeric(manifest$se_fallback_sd %||% 10)
-  se_num <- suppressWarnings(as.numeric(merged$se_wl_ee))
+  se_num <- suppressWarnings(as.numeric(merged[[se_col]]))
   n_num  <- suppressWarnings(as.numeric(merged$n))
   needs_fallback <- is.na(se_num) & !is.na(n_num) & n_num > 0
   n_rescued <- sum(needs_fallback)
   if (n_rescued > 0) {
     rescued_studies <- unique(merged$study_name[needs_fallback])
     cat(
-      n_rescued, "row(s) with missing se_wl_ee but known n given a derived SE (",
+      n_rescued, "row(s) with missing", se_col, "but known n given a derived SE (",
       fallback_sd, "/ sqrt(n)) -- reason:", manifest$se_fallback_reason, "\n",
       "  Affected studies:", paste(rescued_studies, collapse = ", "), "\n"
     )
-    merged$se_wl_ee[needs_fallback] <- fallback_sd / sqrt(n_num[needs_fallback])
+    merged[[se_col]][needs_fallback] <- fallback_sd / sqrt(n_num[needs_fallback])
   }
 }
 
 # Rows unusable regardless of any selection decision (not a study-selection
 # choice, just a data-quality precondition) -- same filter the existing
 # misc5 scripts apply, made explicit and logged here.
-usable <- merged %>% filter(!is.na(suppressWarnings(as.numeric(se_wl_ee))))
+usable <- merged %>% filter(!is.na(suppressWarnings(as.numeric(.data[[se_col]]))))
 dropped_unusable <- setdiff(unique(merged$study_name), unique(usable$study_name))
 if (length(dropped_unusable) > 0) {
   cat(
-    "Dropped as unusable (non-numeric/missing se_wl_ee for every row):\n  ",
-    paste(dropped_unusable, collapse = ", "), "\n"
+    "Dropped as unusable (non-numeric/missing ", se_col, " for every row):\n  ",
+    paste(dropped_unusable, collapse = ", "), "\n", sep = ""
   )
 }
 
@@ -102,7 +136,7 @@ if (length(dropped_unusable) > 0) {
 # the only exemption is evidence_filter (see below), since "supplementary"
 # isn't a meaningful point on the observed/prediction axis.
 if (!is.null(manifest$supplementary_data)) {
-  required_fields <- c("study_name", "treatment", "compound", "pchg_wl_ee", "se_wl_ee", "reason")
+  required_fields <- c("study_name", "treatment", "compound", effect_col, se_col, "reason")
   supp_rows <- lapply(seq_along(manifest$supplementary_data), function(i) {
     entry <- manifest$supplementary_data[[i]]
     missing_fields <- setdiff(required_fields, names(entry))
@@ -110,10 +144,11 @@ if (!is.null(manifest$supplementary_data)) {
       stop(
         "supplementary_data entry ", i, " is missing required field(s): ",
         paste(missing_fields, collapse = ", "), " -- every entry needs ",
-        paste(required_fields, collapse = ", "), "."
+        paste(required_fields, collapse = ", "), " (the effect/SE field names ",
+        "must match this manifest's own effect_col/se_col)."
       )
     }
-    data.frame(
+    row_df <- data.frame(
       # Normalized the same way load_merge_data.R normalizes every other
       # row (tolower + squish_ws) -- otherwise a supplementary row's
       # study_name/treatment/compound/aom could silently fail to match the
@@ -122,14 +157,15 @@ if (!is.null(manifest$supplementary_data)) {
       study_name = tolower(squish_ws(entry$study_name)),
       treatment = tolower(squish_ws(entry$treatment)),
       compound = tolower(squish_ws(entry$compound)),
-      pchg_wl_ee = as.numeric(entry$pchg_wl_ee),
-      se_wl_ee = as.numeric(entry$se_wl_ee),
       aom = if (is.null(entry$aom)) NA_character_ else tolower(squish_ws(entry$aom)),
       region = tolower(squish_ws(entry$region %||% "global")),
       source_tier = "supplementary",
       source_sheet = "supplementary",
       stringsAsFactors = FALSE
     )
+    row_df[[effect_col]] <- as.numeric(entry[[effect_col]])
+    row_df[[se_col]] <- as.numeric(entry[[se_col]])
+    row_df
   })
   supp_df <- bind_rows(supp_rows)
   cat(
@@ -239,10 +275,12 @@ if (!is.null(manifest$treatment_relabels)) {
   }
 }
 
-# Placebo clamp -- forces any placebo row reporting a positive (weight-GAIN)
-# pchg_wl_ee to 0. Found via bnma-nonadj-11AUG2026.R, which applies this
-# unconditionally with no manifest equivalent ("Yongming advised setting the
-# placebo effect to zero"). Opt-in and reasoned here, same pattern as every
+# Placebo clamp -- forces any placebo row reporting a "wrong direction"
+# effect_col value to 0. Found via bnma-nonadj-11AUG2026.R, which applies this
+# unconditionally with no manifest equivalent, and no effect_direction concept
+# at all since it only ever ran on weight-loss data ("Yongming advised
+# setting the placebo effect to zero" -- a positive/weight-gain value there).
+# Opt-in and reasoned here, same pattern as every
 # other manifest field -- absent means today's behavior (no clamping),
 # unchanged. Requires a reason (hard stop, not just logged) because unlike a
 # single row_exclusions entry, this can silently rewrite an arbitrary number
@@ -255,15 +293,17 @@ if (isTRUE(manifest$placebo_clamp)) {
       "explicit, documented reason before it can be applied."
     )
   }
-  clamp_idx <- which(usable$compound == "placebo" & suppressWarnings(as.numeric(usable$pchg_wl_ee)) > 0)
+  clamp_vals <- suppressWarnings(as.numeric(usable[[effect_col]]))
+  wrong_direction <- if (effect_direction == "decrease_is_better") clamp_vals > 0 else clamp_vals < 0
+  clamp_idx <- which(usable$compound == "placebo" & wrong_direction)
   if (length(clamp_idx) > 0) {
     cat(
-      "Placebo clamp: ", length(clamp_idx), " placebo row(s) with positive ",
-      "(weight-gain) pchg_wl_ee forced to 0 -- reason:", manifest$placebo_clamp_reason, "\n"
+      "Placebo clamp: ", length(clamp_idx), " placebo row(s) with a wrong-direction ",
+      "(", effect_direction, ") ", effect_col, " forced to 0 -- reason:", manifest$placebo_clamp_reason, "\n", sep = ""
     )
-    usable$pchg_wl_ee[clamp_idx] <- 0
+    usable[[effect_col]][clamp_idx] <- 0
   } else {
-    cat("Placebo clamp enabled, but no placebo rows had a positive pchg_wl_ee -- no-op this run.\n")
+    cat("Placebo clamp enabled, but no placebo rows had a wrong-direction ", effect_col, " -- no-op this run.\n", sep = "")
   }
 }
 
@@ -433,7 +473,7 @@ data_recon <- data_sel %>%
 if (!is.null(args$arm_rows_out)) {
   arm_rows <- data_recon %>%
     transmute(study_ind, study_name = study, arm_ind, treatment = treat, compound,
-              y = as.numeric(pchg_wl_ee), se = as.numeric(se_wl_ee))
+              y = as.numeric(.data[[effect_col]]), se = as.numeric(.data[[se_col]]))
   saveRDS(arm_rows, args$arm_rows_out)
 }
 
@@ -477,7 +517,9 @@ if (length(studies_without_placebo) > 0) {
       filter(study_ind %in% studies_without_placebo) %>%
       select(study, study_ind) %>%
       distinct() %>%
-      mutate(treat = "placebo", arm_ind = 1L, pchg_wl_ee = NA_real_, se_wl_ee = 1, compound = NA_character_)
+      mutate(treat = "placebo", arm_ind = 1L, compound = NA_character_)
+    phantom_rows[[effect_col]] <- NA_real_
+    phantom_rows[[se_col]] <- 1
     data_recon <- bind_rows(data_recon, phantom_rows) %>% arrange(study_ind, arm_ind)
   } else {
     cat(
@@ -506,8 +548,8 @@ for (i in seq_len(ns)) {
   n_i <- nrow(arms_i)
   if (n_i > 0) {
     trt[i, 1:n_i] <- as.integer(arms_i$arm_ind)
-    y[i, 1:n_i]   <- as.numeric(arms_i$pchg_wl_ee)
-    se[i, 1:n_i]  <- as.numeric(arms_i$se_wl_ee)
+    y[i, 1:n_i]   <- as.numeric(arms_i[[effect_col]])
+    se[i, 1:n_i]  <- as.numeric(arms_i[[se_col]])
   }
 }
 
@@ -574,7 +616,7 @@ study_info <- data_recon %>% select(study_ind, study_name = study) %>% distinct(
 # every real-placebo study's phi[i] was -3 to +1, dragging the pooled mean
 # from a plausible ~-2% to an implausible -5.9%.
 has_placebo_study <- data_recon %>%
-  filter(arm_ind == 1, !is.na(pchg_wl_ee)) %>%
+  filter(arm_ind == 1, !is.na(.data[[effect_col]])) %>%
   pull(study_ind) %>% unique()
 study_info <- study_info %>% mutate(has_placebo = study_ind %in% has_placebo_study)
 saveRDS(study_info, args$study_info_out)

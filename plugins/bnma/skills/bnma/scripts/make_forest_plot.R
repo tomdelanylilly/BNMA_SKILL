@@ -149,14 +149,24 @@ range_span <- max(data_plot$val97.5pc, na.rm = TRUE) - min(data_plot$val2.5pc, n
 
 trt_order <- unique(data_plot$treatment_label)
 
-ylab_text <- args$xlab %||% if (args$effect == "relative") {
-  "Mean (95% CI) of Pbo-adj Percent Change in Body Weight (%)"
-} else {
-  "Mean (95% CI) of Absolute Percent Change in Body Weight (%)"
-}
-title_text <- args$title %||% paste0(
+# Default axis/title text templates assume a "percent change" endpoint
+# (weight loss, HbA1c reduction, etc.) -- this is a template, not a
+# universal label: an endpoint that isn't naturally a percent change (e.g. a
+# raw physical-function score) will render a technically-present but
+# semantically-wrong "(%)" via this default. --xlab/--title always override
+# it regardless, so use those explicitly for any endpoint this template
+# doesn't fit rather than trying to make one template cover every shape.
+effect_col <- manifest$effect_col %||% "pchg_wl_ee"
+endpoint_label <- manifest$effect_label %||% (if (effect_col == "pchg_wl_ee") "Body Weight" else effect_col)
+ylab_text <- args$xlab %||% sprintf(
+  "Mean (95%% CI) of %s Percent Change in %s (%%)",
+  if (args$effect == "relative") "Pbo-adj" else "Absolute",
+  endpoint_label
+)
+title_text <- args$title %||% sprintf(
+  "%s Percent %s Change",
   if (args$effect == "relative") "Placebo-Adjusted" else "Absolute",
-  " Percent Body Weight Change"
+  endpoint_label
 )
 
 # Absolute-effect plots report the two parameters that number is actually
@@ -219,6 +229,11 @@ footnote_text <- paste(footnote_lines, collapse = "<br>")
 # Reference palette (2026-08-19, per the user's team-standard T2D forest
 # plot): fixed, named colors for the compounds it showed, so our output
 # lines up with that convention exactly rather than an auto-assigned hue.
+# This is a weight-loss/obesity-landscape compound convention specifically,
+# not tied to the endpoint being plotted -- an HbA1c or physical-function run
+# on these same compounds still gets these colors; a run on unrelated
+# compounds (a different drug class) just falls through to the hue_pal()
+# fallback below, same as any other unlisted compound.
 # Any compound NOT in this list (this skill has plotted 20+ over the
 # session) falls back to a distinct auto-generated color rather than
 # erroring or rendering as NA -- extend FIXED_COMPOUND_COLORS here as more
