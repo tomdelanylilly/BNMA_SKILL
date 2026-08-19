@@ -84,6 +84,11 @@ studies:
     data_type: observed
     include: true
     reason: "exercises se_fallback (case 9) -- included here with the fallback NOT set, as the regression baseline (hdm2000's row is dropped as unusable, only its placebo row survives)"
+  - study_name: canaflig-vs-canafligizon-1
+    phase: "phase 3"
+    data_type: observed
+    include: true
+    reason: "exercises case 10 -- closes a loop with canaflig-1/canafligizon-1 for the network/consistency/DIC diagnostics gate to have a real (non-N/A) result to report."
 plot_treatments:
   - canaflig 10mg qw
   - canafligizon 10mg qw

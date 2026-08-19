@@ -25,6 +25,13 @@
 #   9. A row with se_wl_ee missing but n known, to exercise se_fallback --
 #      dropped as unusable by default (regression), rescued via sd/sqrt(n)
 #      only when the manifest sets se_fallback: true.
+#  10. A head-to-head study directly comparing canaflig 10mg qw and
+#      canafligizon 10mg qw -- each already independently connected to
+#      placebo via canaflig-1/canafligizon-1 (case 1), so this creates a
+#      genuine closed loop (direct evidence AND an indirect path through
+#      placebo) for check_network_diagnostics.R's consistency/DIC checks to
+#      exercise. Every other case is star-shaped from placebo; without this
+#      one, those checks only ever report N/A/SKIP, never a real result.
 #
 # Usage: Rscript tests/make_fixture.R --out tests/fixtures/prd_fixture.xlsx
 
@@ -103,6 +110,12 @@ observed <- rbind(
   # only when se_fallback: true is set in the manifest ---
   row("se-fallback-1", "placebo",           "placebo", NA,           "phase 3", 1.0, 0,     n = 64),
   row("se-fallback-1", "hdm2000 5mg qw",     "hdm2000", "injectable", "phase 3", NA,  -10.0, n = 64),
+
+  # --- Case 10: head-to-head canaflig vs canafligizon -> closes a loop with
+  # case 1's two independent placebo-controlled studies (direct AND
+  # indirect evidence for the same comparison) ---
+  row("canaflig-vs-canafligizon-1", "canaflig 10mg qw",     "canaflig",     "injectable", "phase 3", 0.6, -12.5, n = 85),
+  row("canaflig-vs-canafligizon-1", "canafligizon 10mg qw", "canafligizon", "injectable", "phase 3", 0.6, -11.8, n = 85),
 
   stringsAsFactors = FALSE
 )

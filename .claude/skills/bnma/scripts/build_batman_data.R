@@ -27,7 +27,8 @@ args <- parse_args(list(
   manifest        = list(required = TRUE),
   batman_out      = list(required = TRUE),
   arm_info_out    = list(required = TRUE),
-  study_info_out  = list(required = TRUE)
+  study_info_out  = list(required = TRUE),
+  arm_rows_out    = list(default = NULL)
 ))
 
 merged <- readRDS(args$data)
@@ -421,6 +422,20 @@ if ("placebo" %in% treatment_list) {
 data_recon <- data_sel %>%
   left_join(data.frame(study = study_list, study_ind = seq_along(study_list)), by = "study") %>%
   left_join(data.frame(treat = treatment_list, arm_ind = seq_along(treatment_list)), by = "treat")
+
+# Real (non-phantom), study-level arm rows -- snapshot taken here, before
+# phantom-placebo bridging below can add synthetic rows. Consumed by
+# check_network_diagnostics.R (network/consistency/DIC checks need to know
+# which studies *actually* reported which arms, not the BATMAN-augmented
+# version that would misrepresent a phantom-bridged study as having real
+# placebo evidence). Optional output -- existing driver scripts that don't
+# pass --arm-rows-out keep working unchanged.
+if (!is.null(args$arm_rows_out)) {
+  arm_rows <- data_recon %>%
+    transmute(study_ind, study_name = study, arm_ind, treatment = treat, compound,
+              y = as.numeric(pchg_wl_ee), se = as.numeric(se_wl_ee))
+  saveRDS(arm_rows, args$arm_rows_out)
+}
 
 # ---------------------------------------------------------------------------
 # BATMAN augmentation: phantom placebo arm for studies with none

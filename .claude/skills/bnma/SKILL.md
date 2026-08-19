@@ -24,12 +24,80 @@ mix-up must never enter a model silently again — every step below ends with
 the user explicitly confirming something in writing (the manifest), not you
 inferring it from what "usually" gets excluded.
 
-## Step 0 — Locate the data
+## Step 0 — Scope this run (ask ONCE, in one structured block)
 
-Ask the user (if not already given) for the PRD file path and, if there's a
-newer QA file not yet promoted, its path too. Resolve per the workflow doc's
-fallback rule: try the QA path first, fall back to PRD if it's moved/been
-promoted. Do not guess a path — ask, or use exactly what the user gives you.
+Before touching data, ask every scoping question together, in one message,
+each with a stated default — never as a slow back-and-forth interview
+(2026-08-19: restructured from asking route/evidence/region/heterogeneity
+piecemeal across several later steps, per a colleague's parallel `atlas`
+skill's UX — cherry-picked because asking once with defaults is a real
+improvement over discovering these one flagged row at a time). The user
+answers only what they want to override; everything else proceeds on the
+default shown. Use this exact template (fill in the dataset row from
+what's detectable/given; state real defaults, not placeholders):
+
+```
+╭──────────────────────────────────────────────────────────────────╮
+│  /bnma · scope this run                                           │
+├──────────────────────────────────────────────────────────────────┤
+│  Reply with just what you want to change; anything unmentioned    │
+│  uses the default shown with ►.                                   │
+╰──────────────────────────────────────────────────────────────────╯
+  1  Dataset            <PRD path, + QA path if a newer unpromoted file exists>
+  2  Route            ► both (oral + injectable)      oral only     injectable only
+  3  Evidence         ► both (observed + prediction)   observed only   prediction only
+  4  Region           ► global only                    + other regions present in the workbook
+  5  Heterogeneity    ► random-effects (rand_effect)    fixed-effect
+  6  Effect to report ► placebo-adjusted (relative)      absolute       both
+```
+
+Echo back exactly what was locked in before Step 1 runs.
+
+Notes on specific rows:
+
+- **Row 1 (dataset):** resolve per the workflow doc's fallback rule — try
+  the QA path first, fall back to PRD if it's moved/been promoted. Do not
+  guess a path — ask, or use exactly what the user gives you.
+- **Row 2/3 (route/evidence):** recorded as `route_filter` and
+  `evidence_filter` (see Step 4's example). Omit the field (or `both`) if no
+  filtering is wanted on that axis — `build_batman_data.R` treats a missing
+  field as `both`, so manifests written before these fields existed keep
+  working unchanged. Placebo rows are never dropped by the route filter,
+  regardless of which route is chosen — a placebo arm's `aom` tag reflects
+  its paired active comparator's route, not a property of placebo itself.
+- **Row 4 (region):** some workbooks carry a region-scoped extra sheet
+  alongside the standard global `Observed`/`Prediction` sheets — found in
+  practice: a `"China Observed"` sheet. `load_merge_data.R` detects any
+  sheet named `"<Region> Observed"` or `"<Region> Prediction"`
+  (case-insensitive) and tags its rows with that region (lowercased); the
+  standard sheets are tagged `"global"`. Recorded as `region_filter` — a
+  list of regions to include. **Unlike route/evidence, this defaults to
+  `["global"]` only, not "both"** — a region-scoped sheet is read into
+  every merge unconditionally, so defaulting to include-everything would
+  silently pull a newly-added regional dataset into every existing run the
+  moment someone adds that sheet to a workbook. No placebo exemption here
+  either: a region's own placebo rows are part of that region's scope.
+- **Row 5 (heterogeneity):** recorded as `model_type` (see Step 4's
+  example) — `rand_effect` is the recommended default, `fixed_effect` a
+  real, legitimate alternative, not a fallback. **This answer is
+  preliminary** — Step 5's heterogeneity-estimability check re-examines it
+  against the actual built network once real per-node study counts are
+  known, and can prompt a revision (particularly if the network turns out
+  to be a full star, where heterogeneity literally cannot be estimated —
+  see Step 5). Don't skip asking here just because Step 5 might override it
+  later; the point is a stated, traceable starting position, not a silent
+  default deferred indefinitely.
+- **Row 6 (effect type):** recorded as `effect_type` — `relative`
+  (placebo-adjusted) is the default view; `absolute` needs
+  `model_type: simultaneous` (see Step 5); `both` produces both plots.
+
+**Compound-first entry point and study-by-study selection are NOT part of
+this upfront block** — they have a real data dependency (Step 2's naming
+gate must run against the full merged dataset first, so a user-given
+compound name or treatment string can be checked against the vetted,
+de-duplicated list) that the "ask everything before touching data" ideal
+can't honor. Those stay at Step 2.5/Step 3, after the data is loaded and
+vetted — see below.
 
 ## Step 1 — Load & merge
 
@@ -66,51 +134,10 @@ entry and every `pooling_flags` entry:
 - If there are zero active flags, say so plainly and move on — don't invent
   concerns that aren't in the report.
 
-Do not proceed to step 3 until every active flag has an explicit resolution.
+Do not proceed to step 2.5/3 until every active flag has an explicit
+resolution.
 
-## Step 2.5 — Scope filters (route of administration, observed vs. projection, compound)
-
-Before enumerating individual studies, ask two blanket scoping questions —
-these are the two filters a statistician typically already knows the answer
-to before opening the data (per a specific compound-launch or route
-comparison request), so ask them up front rather than making the user
-discover route/evidence mixing one flagged row at a time later:
-
-- **Route of administration**: oral only, injectable only, or both (default
-  both).
-- **Evidence type**: observed only, projection only, or both (default both).
-
-Record the answers as two new top-level manifest fields, `route_filter` and
-`evidence_filter` (see step 4's example). Leave a field out entirely (or set
-it to `both`) if the user wants no filtering on that axis — `build_batman_data.R`
-treats a missing field as `both`, so manifests written before this step
-existed keep working unchanged.
-
-Note for the route filter: placebo rows are never dropped by it, regardless
-of which route is chosen — a placebo arm's `aom` tag reflects its paired
-active comparator's route, not a property of placebo itself, so filtering it
-out would just remove a study's reference arm for no reason.
-
-### Region scope
-
-Some workbooks carry a region-scoped extra sheet alongside the standard
-global `Observed`/`Prediction` sheets — found in practice: a `"China
-Observed"` sheet. `load_merge_data.R` detects any sheet named `"<Region>
-Observed"` or `"<Region> Prediction"` (case-insensitive) and tags its rows
-with that region (lowercased); the standard sheets are tagged `"global"`.
-
-Ask whether this run should include any region-scoped data, and record the
-answer as `region_filter` — a list of regions to include (e.g. `["global",
-"china"]`). **Unlike `route_filter`/`evidence_filter`, this defaults to
-`["global"]` only, not "both"** — a region-scoped sheet is read into every
-merge unconditionally regardless of whether a given run asked for it, so
-defaulting to include-everything would silently pull a newly-added regional
-dataset into every existing run the moment someone adds that sheet to a
-workbook. There's no placebo exemption here either: a region's own placebo
-rows are part of that region's scope, not a universal cross-region
-reference.
-
-### Compound-first entry point
+## Step 2.5 — Compound-first entry point (optional)
 
 A run can also start from a user-supplied list of specific
 compounds/treatments rather than a full unscoped study review (e.g. "I need
@@ -159,17 +186,9 @@ just a lower-friction one ("include all Phase 3 observed unless you say
 otherwise" is fine to *propose*, but the user must still say yes).
 
 Also ask which treatments/doses should appear on the eventual forest plot
-(`plot_treatments`) and in what order, and which effect type they want:
-`relative` (placebo-adjusted, the usual view) or `absolute`.
-
-**Also explicitly ask: fixed or random effects?** (`model_type` — see Step
-4's example). Random-effects (`rand_effect`) is the recommended default when
-nothing else is known, but this is a real methodological choice, not a
-formality — record whichever the statistician states, then revisit it once
-Step 5's heterogeneity-estimability check has run against the actual built
-network (a preference stated now may need revising once the real per-node
-study counts are known, particularly if the network turns out to be a full
-star — see Step 5).
+(`plot_treatments`) and in what order — `effect_type` and `model_type` were
+already asked in Step 0; don't re-ask them here, just carry the answer
+forward into the manifest (Step 4).
 
 ## Step 4 — Write the manifest
 
@@ -182,10 +201,10 @@ source_data:
   prd: /lillyce/prd/diabetes/bnma/obesity/data/shared/weight/cwm_wl_nont2d_prd_20260805.xlsx
   qa: null
 source_program: <path to whatever script/session produced this run>
-route_filter: both # oral | injectable | both -- from step 2.5; omit or "both" = no route filtering
-evidence_filter: both # observed | prediction | both -- from step 2.5; omit or "both" = no evidence filtering
-compound_filter: null # optional list of compound names -- from step 2.5's compound-first entry point; omit/null = no compound filtering
-region_filter: [global] # list of regions to include -- from step 2.5's region scope; omit = ["global"] only, unlike route/evidence_filter's "both" default
+route_filter: both # oral | injectable | both -- from Step 0; omit or "both" = no route filtering
+evidence_filter: both # observed | prediction | both -- from Step 0; omit or "both" = no evidence filtering
+compound_filter: null # optional list of compound names -- from Step 2.5's compound-first entry point; omit/null = no compound filtering
+region_filter: [global] # list of regions to include -- from Step 0; omit = ["global"] only, unlike route/evidence_filter's "both" default
 naming_pooling_resolutions:
   - kind: compound_flag
     compound_a: canaflig
@@ -223,12 +242,12 @@ row_exclusions:
 placebo_clamp: false # optional -- set true to force any placebo row's positive (weight-gain) pchg_wl_ee to 0; requires placebo_clamp_reason
 se_fallback: false # optional -- set true to derive se_wl_ee = se_fallback_sd/sqrt(n) for rows missing se_wl_ee but with a known n; requires se_fallback_reason
 supplementary_data: [] # optional -- literal rows for data not yet in the QA/PRD workbook; see below
-model_type: rand_effect # rand_effect (recommended default for new runs) | fixed_effect | simultaneous (legacy) -- omit or "simultaneous" = today's unconditional phantom-bridging behavior, unchanged; see Step 5
+model_type: rand_effect # rand_effect (recommended default for new runs) | fixed_effect | simultaneous (legacy) -- from Step 0; omit or "simultaneous" = today's unconditional phantom-bridging behavior, unchanged; see Step 5
 plot_treatments:
   - tirzepatide 5mg qw
   - tirzepatide 10mg qw
   - tirzepatide 15mg qw
-effect_type: relative
+effect_type: relative # from Step 0
 ```
 
 `compound_relabels` is for a naming-QA flag resolved as "these rows were
@@ -334,17 +353,22 @@ otherwise — that's intentional, not a bug to work around.
 scripts/run_r.sh scripts/build_batman_data.R \
   --data /tmp/bnma_merged.rds --manifest <manifest.yaml> \
   --batman-out /tmp/bnma_batman.rds --arm-info-out /tmp/bnma_arm_info.rds \
-  --study-info-out /tmp/bnma_study_info.rds
+  --study-info-out /tmp/bnma_study_info.rds [--arm-rows-out /tmp/bnma_arm_rows.rds]
 ```
 
 If this errors because studies are missing from the manifest, that's the
 intended guard — go back to step 3/4 with the user, don't patch around it.
 
+`--arm-rows-out` is optional but recommended for every new run — it saves
+the real (non-phantom), study-level arm rows that Step 5.6's network/
+consistency/DIC diagnostics gate needs. Existing driver scripts that omit
+it keep working unchanged; Step 5.6 simply isn't runnable without it.
+
 `build_batman_data.R` also prints a **heterogeneity estimability** check —
 for every non-placebo treatment node, how many distinct studies feed it.
-This is the checkpoint for the fixed-vs-random-effects question (see Step 4's
-`model_type` field): if it reports a **star network** (zero nodes with ≥2
-contributing studies — the exact situation in `pf_nma.R`, a physical-function
+This is the checkpoint for the fixed-vs-random-effects question asked in
+Step 0: if it reports a **star network** (zero nodes with ≥2 contributing
+studies — the exact situation in `pf_nma.R`, a physical-function
 sub-network where every comparison has exactly one supporting study),
 between-study heterogeneity literally cannot be estimated from the data, and
 `model_type: fixed_effect` is the appropriate primary analysis, not a
@@ -352,7 +376,7 @@ stylistic preference — quote `pf_nma.R`'s own rationale to the statistician
 ("with only 1 study per comparison, between-study heterogeneity cannot be
 estimated; fixed-effects is the appropriate primary analysis") and get an
 explicit confirmation/revision of `model_type` in the manifest **before**
-running the fit below, even if the manifest already states a preference.
+running the fit below, even if Step 0's answer already stated a preference.
 When the network isn't a full star (some nodes have multi-study support,
 even if most don't — this is the common case for the obesity landscape data,
 where dozens of single-study nodes coexist with a handful of well-replicated
@@ -402,7 +426,7 @@ keeps working unchanged.
 corrected 2026-08-19 to match the NMA Output Review Process Guide's explicit
 spec for this parameter) stays as a legacy option — it's the only one with a
 pooled baseline `m` node, which is required if you need `effect_type: absolute`
-(see Step 3); the real production tool has no absolute-effect view at all,
+(see Step 0); the real production tool has no absolute-effect view at all,
 since a non-hierarchical model has no single global baseline to compute one
 from.
 
@@ -420,6 +444,11 @@ naive `m`-based pooled baseline from a plausible ~-2% to an implausible
 own 95% CrI) and `τ` (the between-study SD of the *relative* treatment
 effect — `sigma`, not `sigma_m` — per the user's explicit convention), so a
 reviewer sees the method, not just the number.
+
+**This is a modelled, shrunk placebo level, not any single trial's observed
+placebo** — footnote it as such (this caveat, from a colleague's parallel
+`atlas` skill's `model_spec.md`, applies equally to our own exchangeable-
+baseline model) so it isn't mistaken for a directly-observed value.
 
 Give the cache file a run-specific name (per the workflow doc's "cached MCMC
 samples are expensive to regenerate, version-specific name" rule) — don't
@@ -460,6 +489,60 @@ thresholds), run the diagnostics standalone:
 scripts/run_r.sh scripts/check_convergence.R --samples <cache.rds> --out <diagnostics.yaml>
 ```
 
+## Step 5.6 — Network/consistency/DIC diagnostics gate (automatic, `--skip-dic` to opt out)
+
+Adapted from a colleague's parallel `atlas` skill's `diagnostics.R`
+(cherry-picked 2026-08-19) — four checks on top of Step 5.5's convergence
+check, together forming a single combined gate:
+
+```bash
+scripts/run_with_jags.sh scripts/check_network_diagnostics.R \
+  --batman <batman.rds> --arm-rows <arm_rows.rds> --arm-info <arm_info.rds> \
+  --samples <cache.rds> --out <network_diagnostics.yaml> [--gate] [--skip-dic]
+```
+
+Requires `--arm-rows-out` to have been passed to Step 5's
+`build_batman_data.R` call — the checks below need the real, non-phantom
+study-level rows, not the BATMAN-augmented version. Runs via
+`run_with_jags.sh` unless `--skip-dic` is passed (then plain `run_r.sh`
+works, since only the DIC check needs a second `rjags` fit).
+
+1. **Network** — `igraph`: is the network one connected component? Which
+   treatments have no *direct* placebo comparison (indirect-only, wider by
+   construction)? `FAIL` if disconnected, `WARN` if any node is
+   indirect-only.
+2. **Uncertainty** — flags every single-study ("fragile") arm via its CrI
+   width and study count. `WARN` if any exist — expected and common for the
+   obesity landscape data, not usually a reason to stop, but worth knowing
+   which specific arms are provisional.
+3. **Consistency** (node-splitting, `netmeta::netsplit()`) — for every
+   loop-informed comparison (one with both direct and indirect evidence),
+   compares the two; `FAIL` if any disagree at p<0.05. Reports `N/A` for a
+   star-shaped network (no loops to test — add a head-to-head study to
+   enable this) or `SKIP` if the real-evidence network splits into
+   disconnected sub-networks that only phantom-placebo bridging connects
+   (those cross-sub-network estimates lean on the imputed placebo and can't
+   be genuinely consistency-checked).
+4. **DIC inconsistency** (NICE DSU TSD4) — fits a second, unrelated-mean-
+   effects (UME) model and compares DIC to the ordinary consistency model.
+   `FAIL` if the consistency model's DIC exceeds the UME model's by more
+   than 5, `WARN` if by more than 2 (ideally the difference is negative —
+   consistency preferred). **Always uses `model_random.txt` for its own
+   internal comparison, regardless of which model the main analysis
+   fit used** — both sides of a DIC comparison must share the same
+   baseline structure (flat/independent `phi[i]`, matching the UME model's
+   own hardcoded baseline) or the DIC difference would partly reflect a
+   baseline mismatch instead of purely the consistency question being
+   tested. `--model` can override this default deliberately (e.g. to test
+   a different baseline's own consistency profile), but never to reuse
+   whatever `--model` the main fit happened to pass as a shortcut.
+
+Overall verdict is the worst of these four plus Step 5.5's convergence
+check. Written to YAML (`<out>`), printed to console per-check. `--gate`
+exits non-zero (status 2) on an overall `FAIL` — **surface a `FAIL` to the
+user and get explicit sign-off before Step 6**, same rule as every other
+gate in this skill; a `WARN` is worth mentioning but not blocking.
+
 ## Step 6 — Forest plot + footnote
 
 ```bash
@@ -481,6 +564,13 @@ type — `°` for observed, `ᵖ` for projection, `°ᵖ` for an arm fed by both
 arms are real trial data vs. modeled without cross-referencing the manifest.
 A one-line legend ("° = observed, ᵖ = projection") is appended to the
 footnote automatically.
+
+**Never produce both `--effect relative` and `--effect absolute` "for
+completeness" unless the user explicitly asked, or the manifest states
+`effect_type: both`** — this doubles unrequested output, and the absolute
+view needs its own footnote caveat (see Step 5's "modelled, shrunk placebo
+level" note) that's easy to skip if it wasn't deliberately asked for
+(cherry-picked from `atlas`'s own anti-pattern table, 2026-08-19).
 
 **Layout and color palette (aligned 2026-08-19 to the team's own T2D forest
 plot reference):** each row's value label sits directly above its own point
@@ -531,7 +621,7 @@ sys2(file.path(skill_dir, "scripts/run_r.sh"), c(
   file.path(skill_dir, "scripts/build_batman_data.R"),
   "--data", "<merged.rds>", "--manifest", "<manifest.yaml>",
   "--batman-out", "<batman.rds>", "--arm-info-out", "<arm_info.rds>",
-  "--study-info-out", "<study_info.rds>"
+  "--study-info-out", "<study_info.rds>", "--arm-rows-out", "<arm_rows.rds>"
 ))
 sys2(file.path(skill_dir, "scripts/run_with_jags.sh"), c(
   file.path(skill_dir, "scripts/fit_bnma_model.R"),
@@ -550,6 +640,21 @@ Fill in every `<...>` placeholder with this run's literal paths/args before
 writing the file — it must be directly `Rscript run_bnma_<slug>.R`-runnable
 with no further editing.
 
+## Utilities (not numbered pipeline steps)
+
+**`named_contrast.R`** — resolves a contrast between two treatments by name
+from an already-fitted run, instead of a hardcoded posterior index (the
+exact anti-pattern this replaces, seen in real analyst code:
+`TZP15_vs_Sema72 <- d[18] - d[89]`, silently wrong if treatment order ever
+shifts). Cherry-picked from `atlas`, 2026-08-19:
+```bash
+scripts/run_r.sh scripts/named_contrast.R \
+  --samples <cache.rds> --arm-info <arm_info.rds> \
+  --treat1 "<treatment name>" --treat2 "<treatment name>" [--out <contrast.yaml>]
+```
+Use whenever a specific head-to-head comparison is needed from a run that's
+already been fit — not part of the numbered pipeline above.
+
 ## Non-goals
 
 - No external grounding (ClinicalTrials.gov/INN lookups) for the naming
@@ -562,3 +667,7 @@ with no further editing.
   doesn't have one either, since its non-hierarchical model has no single
   pooled baseline to compute one from. `effect_type: absolute` only works
   with the legacy `model_simultaneous.txt` (`model_type: simultaneous`).
+- No formal node-splitting-vs-DIC reconciliation logic — Step 5.6 reports
+  both independently; when they diverge (a real, informative disagreement,
+  not a bug), trace the node-split flags back to their source study by hand
+  before deciding whether to exclude, relabel, or accept the result.
