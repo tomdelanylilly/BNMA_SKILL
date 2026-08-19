@@ -398,11 +398,28 @@ model file's basename — no extra flag needed, and every existing driver
 script that already passes `--model model_simultaneous.txt` explicitly
 keeps working unchanged.
 
-`model_simultaneous.txt` (hierarchical/pooled baseline, `sigma~dunif(0,100)`)
-stays as a legacy option — it's the only one with a pooled baseline `m` node,
-which is required if you need `effect_type: absolute` (see Step 3); the real
-production tool has no absolute-effect view at all, since a non-hierarchical
-model has no single global baseline to compute one from.
+`model_simultaneous.txt` (hierarchical/pooled baseline, `sigma~dunif(0,8)`,
+corrected 2026-08-19 to match the NMA Output Review Process Guide's explicit
+spec for this parameter) stays as a legacy option — it's the only one with a
+pooled baseline `m` node, which is required if you need `effect_type: absolute`
+(see Step 3); the real production tool has no absolute-effect view at all,
+since a non-hierarchical model has no single global baseline to compute one
+from.
+
+**`effect_type: absolute`'s pooled baseline is *not* simply the model's own
+`m` node.** `make_forest_plot.R` computes it as the average of `phi[i]`
+across only the studies that actually have a real placebo arm (per
+`study_info.rds`'s `has_placebo` column, set by `build_batman_data.R`) —
+not `m` itself, which is drawn from *every* study's `phi[i]` including
+head-to-head trials with no placebo row at all. Found by testing
+(2026-08-19): a no-placebo study's `phi[i]` is purely a hierarchical-prior
+artifact with nothing real anchoring it — two such studies had `phi[i]` of
+-15 and -25 against every real-placebo study's -3 to +1, dragging the
+naive `m`-based pooled baseline from a plausible ~-2% to an implausible
+-5.9%. The plot's subtitle reports both this pooled baseline (`μ`, with its
+own 95% CrI) and `τ` (the between-study SD of the *relative* treatment
+effect — `sigma`, not `sigma_m` — per the user's explicit convention), so a
+reviewer sees the method, not just the number.
 
 Give the cache file a run-specific name (per the workflow doc's "cached MCMC
 samples are expensive to regenerate, version-specific name" rule) — don't

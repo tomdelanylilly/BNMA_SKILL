@@ -60,6 +60,34 @@ if (args$effect == "absolute" && !("m" %in% colnames(samples_mat))) {
   )
 }
 
+# The pooled baseline used for absolute effects is the average of phi[i]
+# across only the studies that actually have a real placebo arm -- NOT the
+# model's own "m" node directly. m is drawn from every study's phi[i]
+# including head-to-head trials with no placebo row at all, whose phi[i] is
+# purely a hierarchical-prior artifact with nothing real anchoring it (found
+# by testing, 2026-08-19: two no-placebo studies had phi[i] of -15 and -25
+# against every real-placebo study's -3 to +1, dragging m from a plausible
+# ~-2% to an implausible -5.9%). Falls back to m with a warning if
+# study_info predates the has_placebo column (an older cached study_info.rds).
+if (args$effect == "absolute") {
+  if ("has_placebo" %in% colnames(study_info)) {
+    placebo_studies <- study_info %>% filter(has_placebo) %>% pull(study_ind)
+    phi_cols <- paste0("phi[", placebo_studies, "]")
+    missing_phi <- setdiff(phi_cols, colnames(samples_mat))
+    if (length(missing_phi) > 0) {
+      stop("Expected phi columns not found in samples: ", paste(missing_phi, collapse = ", "))
+    }
+    m_samples <- rowMeans(samples_mat[, phi_cols, drop = FALSE])
+    cat("Pooled baseline computed from", length(placebo_studies), "studies with a real placebo arm",
+        "(excluded", nrow(study_info) - length(placebo_studies), "with none).\n")
+  } else {
+    warning("study_info.rds has no has_placebo column (predates this fix) -- falling back to the model's ",
+            "own 'm' node directly, which may be contaminated by no-placebo studies' phi[i]. Rebuild ",
+            "study_info.rds to get the corrected pooled baseline.")
+    m_samples <- samples_mat[, "m"]
+  }
+}
+
 plot_treatments <- manifest$plot_treatments
 if (is.null(plot_treatments) || length(plot_treatments) == 0) {
   # Default: every non-placebo treatment that made it into the model, in the
@@ -71,8 +99,6 @@ if (is.null(plot_treatments) || length(plot_treatments) == 0) {
 arm_lookup <- arm_info %>%
   filter(treatment %in% c(plot_treatments, "placebo")) %>%
   group_by(arm_ind) %>% slice(1) %>% ungroup()
-
-m_samples <- if (args$effect == "absolute") samples_mat[, "m"] else NULL
 
 rows <- lapply(seq_len(nrow(arm_lookup)), function(i) {
   arm_k <- arm_lookup$arm_ind[i]
@@ -139,6 +165,26 @@ title_text <- args$title %||% paste0(
   " Percent Body Weight Change"
 )
 
+# Absolute-effect plots report the two parameters that number is actually
+# built from -- the pooled placebo baseline (mu = m) and the between-study
+# SD of the relative treatment effect (tau = sigma, standard NMA notation,
+# per the user 2026-08-19) -- so a reviewer sees the method, not just the
+# number. Soft-fails (omits the line, doesn't error the whole plot) if
+# `sigma` isn't in this fit's samples -- true for any samples.rds cached
+# before sigma was added to fit_bnma_model.R's monitored variables.
+subtitle_text <- NULL
+if (args$effect == "absolute") {
+  mu_mean <- mean(m_samples); mu_ci <- quantile(m_samples, c(0.025, 0.975))
+  mu_part <- sprintf("Absolute = pooled placebo μ (%.1f%%; 95%% CrI: %.1f, %.1f) + d[j]",
+                      mu_mean, mu_ci[1], mu_ci[2])
+  if ("sigma" %in% colnames(samples_mat)) {
+    tau_mean <- mean(samples_mat[, "sigma"]); tau_ci <- quantile(samples_mat[, "sigma"], c(0.025, 0.975))
+    subtitle_text <- sprintf("%s    τ = %.2f (95%% CrI: %.2f, %.2f)", mu_part, tau_mean, tau_ci[1], tau_ci[2])
+  } else {
+    subtitle_text <- paste0(mu_part, "    (τ unavailable -- refit to capture 'sigma')")
+  }
+}
+
 # Plot width must be known before the footnote is wrapped -- strwrap()'s
 # `width` is a character count, and a fixed value (e.g. 120) doesn't
 # actually fit the physical plot width once that varies per run (few
@@ -190,7 +236,7 @@ pforest <- ggplot(
   coord_flip() +
   xlab("") +
   ylab(ylab_text) +
-  ggtitle(title_text) +
+  ggtitle(title_text, subtitle = subtitle_text) +
   labs(caption = footnote_text) +
   theme_bw() +
   theme(
@@ -204,6 +250,7 @@ pforest <- ggplot(
     axis.text.y = ggtext::element_markdown(size = 14),
     axis.text.x = element_text(size = 14),
     plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(size = 11, color = "grey35", hjust = 0.5),
     plot.caption = ggtext::element_markdown(size = 9, hjust = 0, face = "italic"),
     legend.text = element_text(size = 13),
     legend.title = element_text(size = 13)

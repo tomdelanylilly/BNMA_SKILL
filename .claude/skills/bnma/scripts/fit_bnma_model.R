@@ -123,8 +123,12 @@ if (file.exists(args$cache) && !args$force) {
   # compile/sample time. Keyed off the model file itself (not a manifest
   # field) so every existing caller that already passes an explicit --model
   # path keeps working with zero changes.
+  # `sigma` (the between-study SD of the relative treatment effect, feeding
+  # delta[i,j]'s variance -- standard NMA "tau", per the user 2026-08-19) is
+  # monitored alongside sigma_m (baseline heterogeneity) so make_forest_plot.R
+  # can report it on absolute-effect plots.
   variable_names <- if (basename(args$model) == "model_simultaneous.txt") {
-    c("d", "phi", "delta", "m", "sigma_m", "mu_new")
+    c("d", "phi", "delta", "m", "sigma", "sigma_m", "mu_new")
   } else {
     c("d", "phi", "delta")
   }

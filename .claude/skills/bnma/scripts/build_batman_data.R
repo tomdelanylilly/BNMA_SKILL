@@ -548,6 +548,20 @@ arm_info <- arm_info %>% left_join(arm_evidence, by = "arm_ind")
 saveRDS(arm_info, args$arm_info_out)
 
 study_info <- data_recon %>% select(study_ind, study_name = study) %>% distinct() %>% arrange(study_ind)
+# has_placebo: whether this study has a real placebo arm (arm_ind == 1) --
+# not whether one was phantom-injected (model_type: simultaneous). Needed so
+# make_forest_plot.R's --effect absolute can exclude studies with no real
+# placebo data from the pooled baseline: a head-to-head trial's phi[i] is
+# purely a hierarchical-prior artifact with nothing anchoring it to a real
+# value, and averaging it into "the pooled placebo baseline" silently
+# corrupts that number -- found via testing (2026-08-19), not assumed: two
+# no-placebo studies (surmount-5, redefine4) had phi[i] of -15 and -25 when
+# every real-placebo study's phi[i] was -3 to +1, dragging the pooled mean
+# from a plausible ~-2% to an implausible -5.9%.
+has_placebo_study <- data_recon %>%
+  filter(arm_ind == 1, !is.na(pchg_wl_ee)) %>%
+  pull(study_ind) %>% unique()
+study_info <- study_info %>% mutate(has_placebo = study_ind %in% has_placebo_study)
 saveRDS(study_info, args$study_info_out)
 
 cat(
