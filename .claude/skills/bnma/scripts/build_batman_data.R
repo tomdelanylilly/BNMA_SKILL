@@ -41,6 +41,43 @@ if (is.null(manifest$studies) || length(manifest$studies) == 0) {
   )
 }
 
+# SE fallback -- derive se_wl_ee = sd/sqrt(n) for rows missing se_wl_ee but
+# with a known arm sample size n. This is a real, repeated team convention,
+# not a one-off: redefine1's own curator_note documents it verbatim ("se is
+# calculated with 10/sqrt(n) where sd=10 is commonly used for %change in
+# body weight in nont2d"), and it's actually *applied* (not just written
+# down) in brenipatide_gzmu_misc5.R and brenipatide_gzmu_gzmd.R. Runs before
+# the unusable-row filter below so a rescued row survives it, same as any
+# row that already had a real se_wl_ee. Opt-in and reasoned, same pattern as
+# placebo_clamp -- unlike placebo_clamp, this is judged common enough across
+# real datasets to offer as a standing manifest field rather than a
+# one-off (per the user, 2026-08-19), but it still defaults to off:
+# fabricating an SE for a row that never had a data-quality decision made
+# about it must be a deliberate, visible choice, not silent.
+if (isTRUE(manifest$se_fallback)) {
+  if (is.null(manifest$se_fallback_reason) || !nzchar(trimws(manifest$se_fallback_reason))) {
+    stop(
+      "se_fallback is true but se_fallback_reason is missing/blank -- this can ",
+      "rewrite an arbitrary number of rows' se_wl_ee values, so (like ",
+      "placebo_clamp) it needs a documented reason, not just a logged default."
+    )
+  }
+  fallback_sd <- as.numeric(manifest$se_fallback_sd %||% 10)
+  se_num <- suppressWarnings(as.numeric(merged$se_wl_ee))
+  n_num  <- suppressWarnings(as.numeric(merged$n))
+  needs_fallback <- is.na(se_num) & !is.na(n_num) & n_num > 0
+  n_rescued <- sum(needs_fallback)
+  if (n_rescued > 0) {
+    rescued_studies <- unique(merged$study_name[needs_fallback])
+    cat(
+      n_rescued, "row(s) with missing se_wl_ee but known n given a derived SE (",
+      fallback_sd, "/ sqrt(n)) -- reason:", manifest$se_fallback_reason, "\n",
+      "  Affected studies:", paste(rescued_studies, collapse = ", "), "\n"
+    )
+    merged$se_wl_ee[needs_fallback] <- fallback_sd / sqrt(n_num[needs_fallback])
+  }
+}
+
 # Rows unusable regardless of any selection decision (not a study-selection
 # choice, just a data-quality precondition) -- same filter the existing
 # misc5 scripts apply, made explicit and logged here.

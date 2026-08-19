@@ -22,6 +22,9 @@
 #   8. A placebo arm reporting a positive (noise-driven weight-gain) value,
 #      to exercise placebo_clamp -- unclamped by default (regression),
 #      forced to 0 only when the manifest sets placebo_clamp: true.
+#   9. A row with se_wl_ee missing but n known, to exercise se_fallback --
+#      dropped as unusable by default (regression), rescued via sd/sqrt(n)
+#      only when the manifest sets se_fallback: true.
 #
 # Usage: Rscript tests/make_fixture.R --out tests/fixtures/prd_fixture.xlsx
 
@@ -94,6 +97,12 @@ observed <- rbind(
   # 0 only when placebo_clamp: true is set in the manifest ---
   row("clamp-test-1", "placebo",             "placebo",     NA,           "phase 3", 1.0, 1.2,  n = 45),
   row("clamp-test-1", "semaglutide 2.4mg qw","semaglutide", "injectable", "phase 3", 0.5, -15.0, n = 45),
+
+  # --- Case 9: se_wl_ee missing but n known -> exercises se_fallback;
+  # dropped as unusable by default (regression), rescued via 10/sqrt(n)
+  # only when se_fallback: true is set in the manifest ---
+  row("se-fallback-1", "placebo",           "placebo", NA,           "phase 3", 1.0, 0,     n = 64),
+  row("se-fallback-1", "hdm2000 5mg qw",     "hdm2000", "injectable", "phase 3", NA,  -10.0, n = 64),
 
   stringsAsFactors = FALSE
 )

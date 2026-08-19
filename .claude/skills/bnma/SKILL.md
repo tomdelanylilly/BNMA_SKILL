@@ -221,6 +221,7 @@ row_exclusions:
     "n": 37 # quote this key -- bare `n:` parses as boolean FALSE in YAML 1.1, not the string "n", and the exclusion silently stops disambiguating (hit this for real once)
     reason: "Duplicate row sharing (study_name, treatment) with another row -- n disambiguates which one to drop."
 placebo_clamp: false # optional -- set true to force any placebo row's positive (weight-gain) pchg_wl_ee to 0; requires placebo_clamp_reason
+se_fallback: false # optional -- set true to derive se_wl_ee = se_fallback_sd/sqrt(n) for rows missing se_wl_ee but with a known n; requires se_fallback_reason
 supplementary_data: [] # optional -- literal rows for data not yet in the QA/PRD workbook; see below
 model_type: rand_effect # rand_effect (recommended default for new runs) | fixed_effect | simultaneous (legacy) -- omit or "simultaneous" = today's unconditional phantom-bridging behavior, unchanged; see Step 5
 plot_treatments:
@@ -254,6 +255,28 @@ placebo_clamp: true
 placebo_clamp_reason: "Placebo arms occasionally report a small positive
   (noise-driven) value; forced to 0 per <analyst>'s guidance on this run,
   not treated as a real placebo effect."
+```
+
+**`se_fallback`** derives `se_wl_ee = se_fallback_sd / sqrt(n)` for any row
+missing `se_wl_ee` but with a known arm sample size `n` — rescuing a row the
+unusable-row filter would otherwise silently drop. This is a real, repeated
+team convention, not a one-off (unlike `placebo_clamp`, which stays a
+per-run judgment call): `redefine1`'s own `curator_note` documents the exact
+formula ("se is calculated with 10/sqrt(n) where sd=10 is commonly used for
+%change in body weight in nont2d"), and it's actually applied — not just
+written down — in `brenipatide_gzmu_misc5.R` and `brenipatide_gzmu_gzmd.R`.
+Still opt-in and still requires a reason, same hard-error pattern as
+`placebo_clamp` — fabricating an SE is always a visible, deliberate choice
+for a given run, never a silent default:
+```yaml
+se_fallback: true
+se_fallback_reason: "redefine1's own curator_note documents this exact
+  derivation but never applied it -- applying it here to include a large
+  Phase 3 study that would otherwise be dropped for a missing SE."
+se_fallback_sd: 10  # optional, default 10 -- the team's stated standard
+                     # assumption for %change in body weight in nont2d;
+                     # override only if a different population/endpoint's
+                     # own convention is documented elsewhere.
 ```
 
 **`supplementary_data`** is for a small, deliberately-curated addition that

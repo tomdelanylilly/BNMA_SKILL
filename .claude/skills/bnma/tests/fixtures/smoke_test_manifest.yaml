@@ -79,6 +79,11 @@ studies:
     data_type: observed
     include: true
     reason: "exercises placebo_clamp (case 8) -- included here with clamp NOT set, as the regression baseline"
+  - study_name: se-fallback-1
+    phase: "phase 3"
+    data_type: observed
+    include: true
+    reason: "exercises se_fallback (case 9) -- included here with the fallback NOT set, as the regression baseline (hdm2000's row is dropped as unusable, only its placebo row survives)"
 plot_treatments:
   - canaflig 10mg qw
   - canafligizon 10mg qw
