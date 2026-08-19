@@ -462,6 +462,15 @@ for (i in seq_len(ns)) {
 batman_data <- list(na = na_vec, M = M, ns = ns, trt = trt, y = y, se = se)
 saveRDS(batman_data, args$batman_out)
 
+# Surface whether this specific network can actually support a
+# random-effects heterogeneity estimate, or whether every treatment node is
+# single-study (fixed-effects territory -- see lib_common.R's
+# compute_heterogeneity_estimability() for the full rationale and its
+# pf_nma.R precedent). Informational only -- never overrides the manifest's
+# own model_type, but must be surfaced to the statistician before fitting
+# (Step 5 in SKILL.md) rather than left for them to discover after the fact.
+print_heterogeneity_estimability(compute_heterogeneity_estimability(data_recon))
+
 arm_info <- data_recon %>%
   mutate(node = paste0("d[", arm_ind, "]")) %>%
   select(node, arm_ind, treatment = treat, compound) %>%

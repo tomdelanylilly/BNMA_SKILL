@@ -81,7 +81,62 @@ recast_numeric_cols <- function(df) {
   dplyr::mutate(df, dplyr::across(dplyr::all_of(present), as.numeric))
 }
 
-#' MCMC convergence diagnostics on an mcmc.list (from coda.samples()).
+#' Whether this network's data can actually support a random-effects
+#' heterogeneity estimate, or whether every treatment node is fed by exactly
+#' one study -- the literal "star network" case in pf_nma.R (a physical-
+#' function sub-network where STEP-1/REDEFINE-1/SURMOUNT-1-GPHK each supply
+#' the ONLY study for their own vs-placebo comparison): "with only 1 study
+#' per comparison, between-study heterogeneity cannot be estimated;
+#' fixed-effects is the appropriate primary analysis." That file's model is
+#' entirely different (frequentist netmeta, not this skill's JAGS BNMA) --
+#' only the underlying identifiability argument transfers.
+#'
+#' Proxy used here (documented as a proxy, not a literal graph-theoretic
+#' multi-edge check): per non-placebo treatment node (arm_ind != 1), count
+#' distinct contributing studies. If NO node has >=2, every contrast in the
+#' network is single-study-supported and tau/sigma has nothing to be
+#' estimated from -- a random-effects fit would be reporting its prior back,
+#' not a data-driven heterogeneity estimate.
+#'
+#' `data_recon` must have `study_ind` and `arm_ind` columns (one row per
+#' study-arm, same shape build_batman_data.R already has in scope when it
+#' builds `trt`/`y`/`se`).
+compute_heterogeneity_estimability <- function(data_recon) {
+  per_node <- data_recon %>%
+    dplyr::filter(arm_ind != 1) %>%
+    dplyr::group_by(arm_ind) %>%
+    dplyr::summarise(n_studies = dplyr::n_distinct(study_ind), .groups = "drop")
+
+  n_multi_study  <- sum(per_node$n_studies >= 2)
+  n_single_study <- sum(per_node$n_studies == 1)
+  is_star_network <- nrow(per_node) > 0 && n_multi_study == 0
+
+  list(
+    n_nodes_total = nrow(per_node),
+    n_nodes_multi_study = n_multi_study,
+    n_nodes_single_study = n_single_study,
+    is_star_network = is_star_network,
+    recommendation = if (is_star_network) {
+      "fixed_effect -- every treatment node is fed by exactly one study; heterogeneity is not estimable from this data (per pf_nma.R's identical situation and rationale)."
+    } else {
+      "rand_effect (or fixed_effect, analyst's choice) -- at least one node has multi-study support, so heterogeneity can be estimated from the network as a whole."
+    }
+  )
+}
+
+#' Console-print a compute_heterogeneity_estimability() result.
+print_heterogeneity_estimability <- function(het) {
+  cat("=== Heterogeneity Estimability ===\n")
+  cat("Treatment nodes:", het$n_nodes_total,
+      " (", het$n_nodes_multi_study, "with >=2 studies,",
+      het$n_nodes_single_study, "with exactly 1 study)\n")
+  if (het$is_star_network) {
+    cat("*** STAR NETWORK -- every node is single-study. ***\n")
+  }
+  cat("Recommended model_type:", het$recommendation, "\n")
+}
+
+
 #' Thresholds are the BayesianAgent plugin's JAGS/R2jags bar (its own
 #' model-diagnostics skill): Rhat <= 1.1 and ESS >= 100 to pass -- looser
 #' than the 1.01/400 bar that skill quotes for Stan/NUTS fits, since a

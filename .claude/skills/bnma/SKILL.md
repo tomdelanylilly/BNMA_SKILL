@@ -162,6 +162,15 @@ Also ask which treatments/doses should appear on the eventual forest plot
 (`plot_treatments`) and in what order, and which effect type they want:
 `relative` (placebo-adjusted, the usual view) or `absolute`.
 
+**Also explicitly ask: fixed or random effects?** (`model_type` — see Step
+4's example). Random-effects (`rand_effect`) is the recommended default when
+nothing else is known, but this is a real methodological choice, not a
+formality — record whichever the statistician states, then revisit it once
+Step 5's heterogeneity-estimability check has run against the actual built
+network (a preference stated now may need revising once the real per-node
+study counts are known, particularly if the network turns out to be a full
+star — see Step 5).
+
 ## Step 4 — Write the manifest
 
 Write a YAML manifest capturing everything decided so far — this is the
@@ -307,6 +316,26 @@ scripts/run_r.sh scripts/build_batman_data.R \
 
 If this errors because studies are missing from the manifest, that's the
 intended guard — go back to step 3/4 with the user, don't patch around it.
+
+`build_batman_data.R` also prints a **heterogeneity estimability** check —
+for every non-placebo treatment node, how many distinct studies feed it.
+This is the checkpoint for the fixed-vs-random-effects question (see Step 4's
+`model_type` field): if it reports a **star network** (zero nodes with ≥2
+contributing studies — the exact situation in `pf_nma.R`, a physical-function
+sub-network where every comparison has exactly one supporting study),
+between-study heterogeneity literally cannot be estimated from the data, and
+`model_type: fixed_effect` is the appropriate primary analysis, not a
+stylistic preference — quote `pf_nma.R`'s own rationale to the statistician
+("with only 1 study per comparison, between-study heterogeneity cannot be
+estimated; fixed-effects is the appropriate primary analysis") and get an
+explicit confirmation/revision of `model_type` in the manifest **before**
+running the fit below, even if the manifest already states a preference.
+When the network isn't a full star (some nodes have multi-study support,
+even if most don't — this is the common case for the obesity landscape data,
+where dozens of single-study nodes coexist with a handful of well-replicated
+ones), heterogeneity is estimable from the network as a whole; surface the
+node counts for information, but `rand_effect` vs. `fixed_effect` remains
+the analyst's own call, same as always.
 
 Then fit (or load a cached fit of) the model. **Must go through the JAGS
 wrapper** — plain `Rscript` will fail to load `rjags` in this environment:
