@@ -626,7 +626,7 @@ decisions and reasons live:
 # will just reload the cached samples unless <cache.rds> is deleted (or
 # --force is passed to fit_bnma_model.R, if this run used it).
 
-skill_dir <- "<path to .claude/skills/bnma>"
+skill_dir <- "<path to this skill's own installed location>"
 # system2() joins `args` with spaces and runs it through the shell -- it does
 # NOT shell-quote elements for you, so any arg containing a space (the plot
 # --title, almost always) gets word-split by the shell into multiple argv

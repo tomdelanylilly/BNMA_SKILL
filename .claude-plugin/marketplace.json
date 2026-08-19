@@ -1,0 +1,14 @@
+{
+  "name": "bnma-marketplace",
+  "owner": {
+    "name": "tomdelanylilly"
+  },
+  "description": "Internal Claude Code plugin marketplace for the obesity/diabetes BNMA landscape team.",
+  "plugins": [
+    {
+      "name": "bnma",
+      "source": "./plugins/bnma",
+      "description": "Obesity-landscape BNMA: BATMAN + JAGS + forest plots with a forced study-selection/naming-QA gate."
+    }
+  ]
+}
