@@ -175,7 +175,13 @@ if (args$effect == "absolute") {
     tau_mean <- mean(samples_mat[, "sigma"]); tau_ci <- quantile(samples_mat[, "sigma"], c(0.025, 0.975))
     subtitle_text <- sprintf("%s    τ = %.2f (95%% CrI: %.2f, %.2f)", mu_part, tau_mean, tau_ci[1], tau_ci[2])
   } else {
-    subtitle_text <- paste0(mu_part, "    (τ unavailable -- refit to capture 'sigma')")
+    # No 'sigma' column can mean either: (a) this fit used
+    # model_simultaneous_fixed.txt, where delta[i,j] is deterministic by
+    # design -- there's no tau to report, not an omission; or (b) an older
+    # samples.rds cached before sigma was added to model_simultaneous.txt's
+    # monitored variables. Can't tell which from samples_mat alone, so the
+    # message covers both rather than asserting the wrong one.
+    subtitle_text <- paste0(mu_part, "    (no τ for this fit -- either a fixed-effect delta model, or refit to capture 'sigma')")
   }
 }
 

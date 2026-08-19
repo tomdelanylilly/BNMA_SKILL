@@ -222,7 +222,7 @@ row_exclusions:
 placebo_clamp: false # optional -- set true to force any placebo row's positive (weight-gain) pchg_wl_ee to 0; requires placebo_clamp_reason
 se_fallback: false # optional -- set true to derive se_wl_ee = se_fallback_sd/sqrt(n) for rows missing se_wl_ee but with a known n; requires se_fallback_reason
 supplementary_data: [] # optional -- literal rows for data not yet in the QA/PRD workbook; see below
-model_type: rand_effect # rand_effect (recommended default for new runs) | fixed_effect | simultaneous (legacy) -- from Step 3; omit or "simultaneous" = today's unconditional phantom-bridging behavior, unchanged; see Step 5
+model_type: rand_effect # rand_effect (recommended default for new runs) | fixed_effect | simultaneous (legacy) | simultaneous_fixed (legacy, fixed-effect delta -- use instead of simultaneous whenever effect_type: absolute + a full star network, see Step 5) -- from Step 3; omit or "simultaneous" = today's unconditional phantom-bridging behavior, unchanged; see Step 5
 plot_treatments:
   - tirzepatide 5mg qw
   - tirzepatide 10mg qw
@@ -360,7 +360,12 @@ about the data, not a discretionary preference, so if Step 3's answer said
 `rand_effect` and the network turns out to be a full star, auto-correct
 `model_type` to `fixed_effect` in the manifest and refit with that model,
 noting the override loudly in the final summary/footnote rather than
-stopping to ask again. When the network isn't a full star (some nodes have
+stopping to ask again. **The same rule applies to `effect_type: absolute` on
+`model_simultaneous.txt`/`model_simultaneous_fixed.txt`** — a full star means
+`model_simultaneous_fixed.txt` (deterministic delta), not
+`model_simultaneous.txt` (random delta); see the CI-inflation finding
+documented below under Step 5's model-file list. When the network isn't a
+full star (some nodes have
 multi-study support, even if most don't — this is the common case for the
 obesity landscape data, where dozens of single-study nodes coexist with a
 handful of well-replicated ones), heterogeneity is estimable from the
@@ -384,16 +389,22 @@ scripts/run_with_jags.sh scripts/fit_bnma_model.R \
 - `model_type: fixed_effect` → `--model model_fixed.txt`
 - `model_type: simultaneous` (legacy) or omitted → `--model
   model_simultaneous.txt`
+- `model_type: simultaneous_fixed` (legacy, fixed-effect delta) → `--model
+  model_simultaneous_fixed.txt` — use this instead of `simultaneous` whenever
+  `effect_type: absolute` is requested **and** the network is a full star
+  (see the heterogeneity-estimability check above); see below for why.
 
 **MCMC settings and chain initialization follow the NMA Output Review
 Process Guide** (2026 V2) — n.adapt 10,000, burn-in 20,000, 50,000 sampling
 iterations thinned to 5 (3 chains), with chain 1 initialized to exactly 0 on
-the baseline (`phi`, and `m` for `model_simultaneous.txt`) and
+the baseline (`phi`, and `m` for `model_simultaneous.txt`/
+`model_simultaneous_fixed.txt`) and
 treatment-effect (`d`) nodes and chains 2–3 drawing from those same nodes'
 own vague priors (Normal(0, SD=100)) — all built into `fit_bnma_model.R`
 itself, nothing to configure per run. Override via `--n_adapt`/`--n_burnin`/
 `--n_iter`/`--thin` if a specific run's convergence diagnostics (Step 5.5)
 call for more.
+
 
 `model_random.txt`/`model_fixed.txt` are copied verbatim from the real
 production BNMA Shiny app (`BNMA_forest_plot-main.zip`, confirmed
@@ -413,6 +424,33 @@ pooled baseline `m` node, which is required if you need `effect_type: absolute`
 (see Step 3); the real production tool has no absolute-effect view at all,
 since a non-hierarchical model has no single global baseline to compute one
 from.
+
+**On a full star network, `model_simultaneous.txt` will hugely inflate every
+credible interval — use `model_simultaneous_fixed.txt` instead.** Found by
+testing (2026-08-19, the ADA oral compounds run — 21 treatments, every
+non-placebo node single-study): fitting `model_simultaneous.txt`'s *random*
+`delta[i,j]~dnorm(..., tau2)` on a star network produced CIs like
+orforglipron 6mg's -8.3 (95% CrI -18.1, 1.6) — nearly 20 points wide, versus
+that arm's own reported SE of 0.306. Root cause: with zero studies per node,
+`sigma` (delta's between-study SD) has no replication to estimate it from and
+is almost entirely prior-driven (posterior mean landed ~3.9, prior
+`dunif(0,8)`) — that ~4-point SD gets added on top of every arm's own much
+smaller trial SE. This is the exact same "fixed-effect is the objectively
+correct choice for a star network" argument already used above for
+`rand_effect`→`fixed_effect`; it applies equally to `model_simultaneous.txt`'s
+own delta structure. `model_simultaneous_fixed.txt` pairs the same
+hierarchical/pooled `phi`/`m` (still needed for the absolute-effect baseline)
+with a **deterministic** `delta[i,j]` (no `sigma`, same pattern as
+`model_fixed.txt`'s own delta block) — refitting the same data with this file
+tightened that same orforglipron 6mg arm to -8.4 (95% CrI -9.3, -7.5), tracking
+its own reported SE as expected. **Whenever `effect_type: absolute` is
+requested on a full-star network, use `model_simultaneous_fixed.txt`, not
+`model_simultaneous.txt`** — same auto-correct-without-a-second-round-trip
+rule as `rand_effect`→`fixed_effect` above (it's an objective statistical
+fact, not a preference). `make_forest_plot.R`'s absolute-effect subtitle
+reports `τ` (`sigma`) when it exists and says so plainly when it doesn't
+(either this fixed-effect model, or an older cache predating `sigma`
+monitoring) rather than guessing which.
 
 **`effect_type: absolute`'s pooled baseline is *not* simply the model's own
 `m` node.** `make_forest_plot.R` computes it as the average of `phi[i]`
@@ -650,7 +688,9 @@ already been fit — not part of the numbered pipeline above.
   confirmed via `BNMA_forest_plot-main.zip` that the real production tool
   doesn't have one either, since its non-hierarchical model has no single
   pooled baseline to compute one from. `effect_type: absolute` only works
-  with the legacy `model_simultaneous.txt` (`model_type: simultaneous`).
+  with the legacy `model_simultaneous.txt`/`model_simultaneous_fixed.txt`
+  (`model_type: simultaneous`/`simultaneous_fixed`) — pick the fixed variant
+  on a full-star network (see Step 5), same as the non-absolute path.
 - No formal node-splitting-vs-DIC reconciliation logic — Step 5.6 reports
   both independently; when they diverge (a real, informative disagreement,
   not a bug), trace the node-split flags back to their source study by hand

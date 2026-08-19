@@ -21,7 +21,8 @@
 #   - n.chains stays 3, matching the Guide's explicit "three chains of
 #     initial values" (bnma_berobenatide_T2D.R's 4 chains is the outlier).
 #   - Chain 1 gets deterministic zero initial values for the baseline (phi,
-#     and m for model_simultaneous.txt) and treatment-effect (d) nodes;
+#     and m for model_simultaneous.txt/model_simultaneous_fixed.txt) and
+#     treatment-effect (d) nodes;
 #     chains 2+ get random draws from those same nodes' own vague priors
 #     (Normal(0, SD=100)) -- verbatim per the Guide's stated procedure.
 #     Nothing in bnma_berobenatide_T2D.R contradicts this (it just doesn't
@@ -46,12 +47,27 @@
 # that exact parameter, with no other internal source supporting 100 --
 # corrected 2026-08-19.
 #
+# model_simultaneous_fixed.txt (added 2026-08-19): same hierarchical/pooled
+# phi as model_simultaneous.txt (needed for effect_type: absolute's baseline),
+# but delta[i,j] is DETERMINISTIC (no sigma), matching model_fixed.txt's own
+# delta block. Found by testing: fitting a star network (every treatment node
+# single-study -- see compute_heterogeneity_estimability()) through
+# model_simultaneous.txt's random delta[i,j]~dnorm(..., tau2) inflates every
+# credible interval hugely, because with zero replication per node, sigma is
+# almost entirely prior-driven (dunif(0,8) posterior mean landed ~3.9-4) and
+# that ~4-point SD gets added on top of each arm's own (much smaller) trial
+# SE. This is exactly the same "fixed-effect is the objectively correct
+# choice for a star network" argument SKILL.md already documents for
+# rand_effect->fixed_effect (model_random.txt/model_fixed.txt) -- it applies
+# equally to model_simultaneous.txt's own delta structure, this file is the
+# fixed-effect counterpart for the absolute-effect path.
+#
 # Must be run via scripts/run_with_jags.sh, not Rscript directly -- rjags
 # needs the `jags` environment module loaded first in this environment.
 #
 # Usage:
 #   scripts/run_with_jags.sh scripts/fit_bnma_model.R --batman <batman.rds> \
-#     --model <model_random.txt|model_fixed.txt|model_simultaneous.txt> --cache <samples.rds> [--force]
+#     --model <model_random.txt|model_fixed.txt|model_simultaneous.txt|model_simultaneous_fixed.txt> --cache <samples.rds> [--force]
 
 suppressPackageStartupMessages(library(rjags))
 
@@ -80,9 +96,10 @@ if (file.exists(args$cache) && !args$force) {
   set.seed(as.integer(args$seed))
   base_seed <- as.integer(args$seed) * 1000
 
-  # model_simultaneous.txt additionally has a pooled baseline mean `m` --
-  # give it the same deliberate zero/random-from-prior init treatment as phi.
-  has_pooled_baseline <- basename(args$model) == "model_simultaneous.txt"
+  # model_simultaneous.txt / model_simultaneous_fixed.txt additionally have a
+  # pooled baseline mean `m` -- give it the same deliberate zero/random-from-
+  # prior init treatment as phi.
+  has_pooled_baseline <- basename(args$model) %in% c("model_simultaneous.txt", "model_simultaneous_fixed.txt")
   ns <- batman_data$ns
   M  <- batman_data$M
 
@@ -126,9 +143,13 @@ if (file.exists(args$cache) && !args$force) {
   # `sigma` (the between-study SD of the relative treatment effect, feeding
   # delta[i,j]'s variance -- standard NMA "tau", per the user 2026-08-19) is
   # monitored alongside sigma_m (baseline heterogeneity) so make_forest_plot.R
-  # can report it on absolute-effect plots.
+  # can report it on absolute-effect plots. model_simultaneous_fixed.txt has
+  # no `sigma` node at all (delta[i,j] is deterministic there -- see its own
+  # header comment) so it's excluded from that file's monitored set.
   variable_names <- if (basename(args$model) == "model_simultaneous.txt") {
     c("d", "phi", "delta", "m", "sigma", "sigma_m", "mu_new")
+  } else if (basename(args$model) == "model_simultaneous_fixed.txt") {
+    c("d", "phi", "delta", "m", "sigma_m", "mu_new")
   } else {
     c("d", "phi", "delta")
   }
