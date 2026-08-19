@@ -325,6 +325,16 @@ scripts/run_with_jags.sh scripts/fit_bnma_model.R \
 - `model_type: simultaneous` (legacy) or omitted → `--model
   model_simultaneous.txt`
 
+**MCMC settings and chain initialization follow the NMA Output Review
+Process Guide** (2026 V2) — n.adapt 10,000, burn-in 20,000, 50,000 sampling
+iterations thinned to 5 (3 chains), with chain 1 initialized to exactly 0 on
+the baseline (`phi`, and `m` for `model_simultaneous.txt`) and
+treatment-effect (`d`) nodes and chains 2–3 drawing from those same nodes'
+own vague priors (Normal(0, SD=100)) — all built into `fit_bnma_model.R`
+itself, nothing to configure per run. Override via `--n_adapt`/`--n_burnin`/
+`--n_iter`/`--thin` if a specific run's convergence diagnostics (Step 5.5)
+call for more.
+
 `model_random.txt`/`model_fixed.txt` are copied verbatim from the real
 production BNMA Shiny app (`BNMA_forest_plot-main.zip`, confirmed
 2026-08-17) — non-hierarchical `phi[i]~dnorm(0,0.0001)` baseline per study

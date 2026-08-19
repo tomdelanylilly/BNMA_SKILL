@@ -41,7 +41,7 @@ model{
       d[k] ~ dnorm(0, 1e-04)
     }
 
-    sigma  ~ dunif(0, 100)
+    sigma  ~ dunif(0, 8)
     sigma2 <- sigma * sigma
     tau2   <- 1 / sigma2
 
