@@ -29,7 +29,8 @@ args <- parse_args(list(
   manifest    = list(required = TRUE),
   effect      = list(default = "relative"),
   out         = list(required = TRUE),
-  title       = list(default = NULL)
+  title       = list(default = NULL),
+  xlab        = list(default = NULL)
 ))
 
 if (!args$effect %in% c("relative", "absolute")) {
@@ -128,7 +129,7 @@ label_margin <- range_span * (0.12 + 0.018 * max(nchar(data_plot$Label)))
 
 trt_order <- unique(data_plot$treatment_label)
 
-ylab_text <- if (args$effect == "relative") {
+ylab_text <- args$xlab %||% if (args$effect == "relative") {
   "Mean & 95% CI of Pbo-adj Percent Change in Body Weight (%)"
 } else {
   "Mean & 95% CI of Absolute Percent Change in Body Weight (%)"
