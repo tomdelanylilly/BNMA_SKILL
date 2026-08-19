@@ -146,19 +146,13 @@ data_plot <- data_plot %>%
   )
 
 range_span <- max(data_plot$val97.5pc, na.rm = TRUE) - min(data_plot$val2.5pc, na.rm = TRUE)
-# The leading "-" of a left-aligned label starting too close to the panel's
-# own clip boundary gets sliced off (visible as a missing minus sign on the
-# mean, while the CI numbers further right in the same string render fine) --
-# 0.04 wasn't enough clearance; push the column further inside the panel.
-data_plot$label_x <- max(data_plot$val97.5pc, na.rm = TRUE) + 0.12 * range_span
-label_margin <- range_span * (0.12 + 0.018 * max(nchar(data_plot$Label)))
 
 trt_order <- unique(data_plot$treatment_label)
 
 ylab_text <- args$xlab %||% if (args$effect == "relative") {
-  "Mean & 95% CI of Pbo-adj Percent Change in Body Weight (%)"
+  "Mean (95% CI) of Pbo-adj Percent Change in Body Weight (%)"
 } else {
-  "Mean & 95% CI of Absolute Percent Change in Body Weight (%)"
+  "Mean (95% CI) of Absolute Percent Change in Body Weight (%)"
 }
 title_text <- args$title %||% paste0(
   if (args$effect == "relative") "Placebo-Adjusted" else "Absolute",
@@ -216,23 +210,48 @@ footnote_lines <- c(footnote_lines, "^o^ = observed, ^p^ = projection, ^s^ = sup
 # it respects.
 footnote_text <- paste(footnote_lines, collapse = "<br>")
 
+# Reference palette (2026-08-19, per the user's team-standard T2D forest
+# plot): fixed, named colors for the compounds it showed, so our output
+# lines up with that convention exactly rather than an auto-assigned hue.
+# Any compound NOT in this list (this skill has plotted 20+ over the
+# session) falls back to a distinct auto-generated color rather than
+# erroring or rendering as NA -- extend FIXED_COMPOUND_COLORS here as more
+# reference conventions are confirmed.
+FIXED_COMPOUND_COLORS <- c(
+  semaglutide  = "#7B241C",
+  cagrisema    = "#1B4F72",
+  maritide     = "#D68910",
+  retatrutide  = "#000000",
+  berobenatide = "#E74C3C",
+  tirzepatide  = "#85C1E9",
+  placebo      = "#7F8C8D"
+)
+compounds_in_plot <- unique(data_plot$compound)
+unmapped_compounds <- setdiff(compounds_in_plot, names(FIXED_COMPOUND_COLORS))
+fallback_colors <- if (length(unmapped_compounds) > 0) {
+  setNames(scales::hue_pal()(length(unmapped_compounds)), unmapped_compounds)
+} else {
+  character(0)
+}
+compound_colors <- c(FIXED_COMPOUND_COLORS, fallback_colors)
+
 pforest <- ggplot(
   data_plot,
   aes(x = factor(treatment_label, levels = rev(trt_order)), y = mean, ymin = val2.5pc, ymax = val97.5pc)
 ) +
   geom_pointrange(aes(col = compound), size = 0.5) +
-  geom_hline(yintercept = 0, size = 1, linetype = 2) +
-  # A single fixed label column (all labels start at the same y, just past
-  # the widest upper CI in the whole plot) rather than positioning each
-  # label relative to its own point/CI -- anchoring per-row breaks down as
-  # soon as one row is the most extreme in the plot (its label has nowhere
-  # to go on that side) or has a very wide CI (the label ends up floating
-  # far from its own point). A fixed column is what forest plots normally
-  # use for exactly this reason.
+  geom_hline(yintercept = 0, linewidth = 1, linetype = 2) +
+  # Label sits directly above its own point (nudged along the categorical
+  # axis, pre-flip that's "x") rather than in a fixed side column -- matches
+  # the reference plot's layout. Nudging by a fraction of a row (0.32) keeps
+  # it inside that row's own band, clear of the neighboring row's point.
   geom_text(
-    aes(y = label_x, label = Label), hjust = 0, vjust = 0.5, size = 5, show.legend = FALSE
+    aes(y = mean, label = Label),
+    position = position_nudge(x = 0.32), vjust = 0, size = 4.2, color = "black", show.legend = FALSE
   ) +
-  scale_y_continuous(expand = expansion(mult = c(0.08, 0.05), add = c(0, label_margin))) +
+  scale_color_manual(values = compound_colors, name = "Compound") +
+  scale_y_continuous(expand = expansion(mult = c(0.08, 0.08))) +
+  scale_x_discrete(expand = expansion(add = c(0.6, 0.6))) +
   coord_flip() +
   xlab("") +
   ylab(ylab_text) +
@@ -255,6 +274,7 @@ pforest <- ggplot(
     legend.text = element_text(size = 13),
     legend.title = element_text(size = 13)
   )
+
 
 plot_height <- max(4, 0.6 * length(trt_order)) + 0.22 * length(footnote_lines)
 # n_compounds/max_label_chars/plot_width already computed above (needed

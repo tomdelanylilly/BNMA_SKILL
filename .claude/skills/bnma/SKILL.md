@@ -482,6 +482,19 @@ arms are real trial data vs. modeled without cross-referencing the manifest.
 A one-line legend ("° = observed, ᵖ = projection") is appended to the
 footnote automatically.
 
+**Layout and color palette (aligned 2026-08-19 to the team's own T2D forest
+plot reference):** each row's value label sits directly above its own point
+(nudged along the treatment axis), not in a fixed side column, and
+`Compound` (capitalized) is the legend title, not the aes name. Colors are a
+fixed, named palette (`FIXED_COMPOUND_COLORS` in `make_forest_plot.R`) for
+the compounds the reference plot showed — `semaglutide`, `cagrisema`,
+`maritide`, `retatrutide`, `berobenatide`, `tirzepatide`, `placebo` — so
+runs plotting any of these line up with that convention exactly. Any other
+compound (this skill has plotted 20+ over one session) falls back to an
+auto-generated distinct color rather than erroring or rendering blank;
+extend `FIXED_COMPOUND_COLORS` as more of the team's own conventions are
+confirmed, don't just hardcode a one-off run's colors elsewhere.
+
 ## Step 7 — Generate the driver script
 
 Once the manifest-driven run is finished (BATMAN built, model fit, plot(s)
