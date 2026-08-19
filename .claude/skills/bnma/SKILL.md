@@ -346,6 +346,41 @@ Give the cache file a run-specific name (per the workflow doc's "cached MCMC
 samples are expensive to regenerate, version-specific name" rule) — don't
 reuse another run's cache path.
 
+## Step 5.5 — Convergence diagnostics (automatic, never skipped)
+
+`fit_bnma_model.R` runs MCMC convergence diagnostics itself, right after
+every fit (fresh or loaded from cache) — nothing to invoke separately, and
+no way to opt out, same "no silent skip" rule as every other gate. It
+prints a summary and writes `<cache-name>_diagnostics.yaml` next to the
+samples file, e.g. `samples.rds` → `samples_diagnostics.yaml`.
+
+Thresholds come from the BayesianAgent plugin's `model-diagnostics` skill
+(its own JAGS/R2jags bar — looser than the 1.01/400 it quotes for Stan/NUTS,
+since a Gibbs sampler's per-iteration efficiency isn't comparable):
+
+| Metric | Good | Concern (fails) |
+|---|---|---|
+| Rhat (max across nodes) | ≤ 1.01 | > 1.10 |
+| ESS (min across nodes) | ≥ 400 | < 100 |
+
+Verdict is `pass`, `warn`, or `fail`. The fixed reference treatment (`d[1]`)
+and any other zero-variance node (e.g. `model_fixed.txt`'s deterministic
+`delta[i,j]`) are excluded from scoring — they're not actually sampled, so
+their ESS is mathematically 0 and would force a false `fail` on every run
+otherwise.
+
+**A `fail` verdict must be surfaced to the user before Step 6** — show them
+the printed summary and get an explicit decision (re-fit with more
+`--n_iter`/`--n_burnin`, or proceed anyway with the caveat documented in the
+footnote) rather than quietly producing a forest plot from a fit that didn't
+converge. A `warn` is worth mentioning but not blocking.
+
+To re-check an already-cached run without refitting (e.g. after changing
+thresholds), run the diagnostics standalone:
+```bash
+scripts/run_r.sh scripts/check_convergence.R --samples <cache.rds> --out <diagnostics.yaml>
+```
+
 ## Step 6 — Forest plot + footnote
 
 ```bash
