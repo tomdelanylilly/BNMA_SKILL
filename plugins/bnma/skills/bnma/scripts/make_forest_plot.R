@@ -234,10 +234,13 @@ footnote_text <- paste(footnote_lines, collapse = "<br>")
 # on these same compounds still gets these colors; a run on unrelated
 # compounds (a different drug class) just falls through to the hue_pal()
 # fallback below, same as any other unlisted compound.
-# Any compound NOT in this list (this skill has plotted 20+ over the
-# session) falls back to a distinct auto-generated color rather than
-# erroring or rendering as NA -- extend FIXED_COMPOUND_COLORS here as more
-# reference conventions are confirmed.
+# Any compound NOT in this list falls back to a distinct auto-generated
+# color rather than erroring or rendering as NA -- extend
+# FIXED_COMPOUND_COLORS here as more reference conventions are confirmed
+# (vk2735/brenipatide added 2026-08-20, deliberately NOT their raw hue_pal()
+# fallback -- the auto-generated vk2735 hue landed visually close to
+# berobenatide's already-fixed red, so it was assigned a separated purple
+# instead; brenipatide's auto teal was already well-separated and kept as-is).
 FIXED_COMPOUND_COLORS <- c(
   semaglutide  = "#7B241C",
   cagrisema    = "#1B4F72",
@@ -245,6 +248,8 @@ FIXED_COMPOUND_COLORS <- c(
   retatrutide  = "#000000",
   berobenatide = "#E74C3C",
   tirzepatide  = "#85C1E9",
+  vk2735       = "#6C3483",
+  brenipatide  = "#00BFC4",
   placebo      = "#7F8C8D"
 )
 compounds_in_plot <- unique(data_plot$compound)

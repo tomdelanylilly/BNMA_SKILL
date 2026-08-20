@@ -522,11 +522,64 @@ if (length(studies_without_placebo) > 0) {
     phantom_rows[[se_col]] <- 1
     data_recon <- bind_rows(data_recon, phantom_rows) %>% arrange(study_ind, arm_ind)
   } else {
-    cat(
-      "Studies without a placebo arm (model_type='", model_type, "' -- NOT bridged, matches the real ",
-      "production tool's own behavior; these studies contribute a baseline estimate only, no ",
-      "relative-effect information):\n  ", paste(no_placebo_studies, collapse = ", "), "\n", sep = ""
-    )
+    # rand_effect/fixed_effect default to NOT bridging (see note above), but
+    # this is a real, recurring per-run judgment call -- confirmed 2026-08-20,
+    # comes up "in some analyses we run" (e.g. an isolated head-to-head trial
+    # that would otherwise sit outside the network entirely). So it's opt-in
+    # per study here, same hard-error-if-no-reason pattern as placebo_clamp/
+    # se_fallback below -- a phantom placebo (se=1, y=NA) is a fabricated,
+    # zero-information data point, not something to default silently either
+    # way. The skill conversation surfaces every no-placebo study in Step 3
+    # (whether or not this field ends up used) so "leave disconnected" is
+    # always a stated decision, not a silent fallthrough.
+    bridge_requested <- manifest$phantom_placebo_studies %||% list()
+    bridge_requested <- unique(tolower(squish_ws(unlist(bridge_requested))))
+
+    if (length(bridge_requested) > 0) {
+      reason <- manifest$phantom_placebo_reason
+      if (is.null(reason) || !nzchar(trimws(reason))) {
+        stop(
+          "phantom_placebo_studies is set but phantom_placebo_reason is missing/blank -- ",
+          "bridging a study with no real placebo arm fabricates a zero-information data ",
+          "point (se=1, y=NA) for it, so (like placebo_clamp/se_fallback) it needs a ",
+          "documented reason, not just a logged default."
+        )
+      }
+      unknown <- setdiff(bridge_requested, tolower(squish_ws(no_placebo_studies)))
+      if (length(unknown) > 0) {
+        stop(
+          "phantom_placebo_studies lists study/ies not among this run's no-placebo studies ",
+          "(check spelling against study_name): ", paste(unknown, collapse = ", ")
+        )
+      }
+    }
+
+    to_bridge <- lookup %>%
+      filter(study_ind %in% studies_without_placebo, tolower(squish_ws(study)) %in% bridge_requested)
+    to_leave <- lookup %>%
+      filter(study_ind %in% studies_without_placebo, !tolower(squish_ws(study)) %in% bridge_requested)
+
+    if (nrow(to_bridge) > 0) {
+      cat(
+        "Studies without a placebo arm, phantom-bridged per phantom_placebo_studies ",
+        "-- reason:", reason, ":\n  ", paste(to_bridge$study, collapse = ", "), "\n", sep = ""
+      )
+      phantom_rows <- data_recon %>%
+        filter(study_ind %in% to_bridge$study_ind) %>%
+        select(study, study_ind) %>%
+        distinct() %>%
+        mutate(treat = "placebo", arm_ind = 1L, compound = NA_character_)
+      phantom_rows[[effect_col]] <- NA_real_
+      phantom_rows[[se_col]] <- 1
+      data_recon <- bind_rows(data_recon, phantom_rows) %>% arrange(study_ind, arm_ind)
+    }
+    if (nrow(to_leave) > 0) {
+      cat(
+        "Studies without a placebo arm (model_type='", model_type, "' -- NOT bridged, matches the real ",
+        "production tool's own behavior; these studies contribute a baseline estimate only, no ",
+        "relative-effect information):\n  ", paste(to_leave$study, collapse = ", "), "\n", sep = ""
+      )
+    }
   }
 }
 

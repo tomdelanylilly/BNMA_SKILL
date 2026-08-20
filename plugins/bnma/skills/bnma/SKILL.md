@@ -75,6 +75,45 @@ scripts/run_r.sh scripts/load_merge_data.R \
 No stop here — the printed summary (row/study/compound counts) feeds
 directly into Step 3's consolidated message, not a separate confirmation.
 
+**If the user attaches a standalone workbook instead of a QA/PRD path**
+(confirmed real case, 2026-08-20: `Global_ADA_Oral_KAI7535_*.xlsx`, sheets
+named `weight`/`WC` with generic `study_ind`/`arm_ind`/`y`/`se`/`Treatment`/
+`Compound`/`Study` columns, not `Observed`/`Prediction` sheets with
+`study_name`/`treatment`/`compound`/`aom`/`region`/`pchg_wl_ee`/`se_wl_ee`
+columns) — check the actual sheet names and columns with R/readxl **before**
+running `load_merge_data.R` on it. That script's sheet-fallback logic
+(`read_sheet_with_fallback`, "Observed"/"Prediction" by name else positional
+index 2/3) will silently misread an arbitrary sheet as "Observed" and
+silently drop any sheet beyond position 3 if the workbook doesn't use that
+naming — exactly the kind of silent, undetected data error this skill exists
+to prevent, and worse than asking, because it looks like it worked.
+
+If the schema doesn't match, don't force it through Step 1. Instead:
+1. Write a small one-off adapter script (save it as `adapt_standalone.R`
+   next to this run's manifest, not in `/tmp` — Step 7's driver script needs
+   a permanent path to call it from) that maps the file's own columns into
+   the shape `build_batman_data.R` expects: lowercase + `squish_ws()`
+   `study_name`/`treatment`/`compound`; derive `aom`/`region`/`source_sheet`
+   from context (e.g. a study name containing "Prediction" → `source_sheet
+   = "prediction"`, else `"observed"`); keep the file's own effect/SE column
+   names as-is — no need to rename to `pchg_wl_ee`/`se_wl_ee`, the
+   manifest's `effect_col`/`se_col` can name whatever columns actually exist.
+   Save the result as an `.rds`.
+2. Feed that `.rds` into `check_naming_pooling.R` (Step 2) and
+   `build_batman_data.R` (Step 5) exactly as if it were `load_merge_data.R`'s
+   own output — every other step is unchanged.
+3. In the manifest, put the adapter script's path in `source_program` and
+   the original workbook's path in `source_data.prd` (not a custom key) —
+   `make_forest_plot.R`'s footnote only reads `source_data.prd/qa` and
+   `source_program`, so a custom key silently prints "(not recorded)"
+   instead of the real path.
+
+Also: a manifest's `effect_col`/`se_col` value of literally `y` or `n` must
+be quoted (`effect_col: "y"`) — bare `y`/`n`/`yes`/`no`/`on`/`off` parse as
+YAML 1.1 booleans, not strings, and `build_batman_data.R` fails with a
+confusing "effect_col 'TRUE' not found" error. Same root cause as the
+`row_exclusions` `"n"` gotcha documented under Step 4.
+
 ## Step 2 — Naming/pooling check (runs automatically, proposes resolutions)
 
 ```bash
@@ -103,6 +142,19 @@ to `compound_registry.yaml` (Edit tool, this skill's own repo copy) so the
 same pair is never re-flagged; pooling-flag resolutions go in the manifest
 only (Step 4), since they're data-specific rather than a general
 compound-identity fact.
+
+The same report also lists `no_placebo_flags` — studies with no `placebo`
+row at all (Check 4). This only matters if this run ends up on `model_type:
+rand_effect`/`fixed_effect` (confirmed real, recurring scenario, 2026-08-20:
+comes up "in some analyses" — an isolated head-to-head trial with no placebo
+arm is the common case): those two model types leave such a study
+disconnected from the network by default, matching the real production
+tool's own behavior, unless explicitly opted into phantom-bridging. Carry
+every flagged study into Step 3 individually, same "no silent default"
+treatment as a phase 1/2 study — propose "leave disconnected" (the default,
+and the one that matches production behavior) but require an explicit
+per-study answer, not a blanket accept. If there are zero such studies, note
+that plainly rather than a separate line here, same as the other two checks.
 
 ## Step 2.5 — Compound-first entry point (if requested)
 
@@ -170,6 +222,14 @@ actual data/report; never leave a placeholder):
        <study_name> (<phase>, <data_type>) -- proposed reason if you accept: <reason>
        ...
 
+  STUDIES WITHOUT A PLACEBO ARM  (N found -- only matters if Heterogeneity above
+  lands on rand_effect/fixed_effect; omit this whole section if N is 0)
+   - <study_name> (<treatments in this study>) -- proposed: leave disconnected
+     (matches production tool default; contributes a baseline estimate only,
+     no relative-effect info) -- reply "bridge <study_name>" + a reason to
+     phantom-bridge it instead
+     ...
+
   PLOT
    - Treatments to show, in order -- proposed: <list, or "everything in scope">
 ```
@@ -200,6 +260,13 @@ Notes:
   "decided for you." (A *proposed reason* is fine to show for when they do
   decide to include one, per Step 4's manifest schema — the decision itself
   is never pre-filled.)
+- **Studies without a placebo arm get the same individual, no-silent-default
+  treatment**, but with a stated default (leave disconnected) they can
+  accept in bulk by saying nothing — unlike phase 1/2 studies, this one has
+  an objectively reasonable default (matches the real production tool), so
+  silence means "leave every one of them disconnected," not "undecided."
+  Only a study the statistician explicitly names to bridge needs a reason
+  from them (folded into `phantom_placebo_reason`).
 - End with an open invitation: "anything else to flag — a study you know
   about that should be excluded, a data-quality concern, a specific
   treatment format — say so now or after the fact; I'll fold it in before
@@ -330,6 +397,33 @@ se_fallback_sd: 10  # optional, default 10 -- the team's stated standard
                      # generic statistical constant, it's specific to that
                      # one convention.
 ```
+
+**`phantom_placebo_studies`** opts specific no-placebo studies into
+BATMAN's phantom-placebo bridging (`se=1, y=NA`) even when `model_type` is
+`rand_effect`/`fixed_effect` — those two model types leave a no-placebo
+study disconnected from the network by default (matching the real
+production tool's own behavior; `model_type: simultaneous` already bridges
+every no-placebo study unconditionally, unaffected by this field). A real,
+recurring judgment call (confirmed 2026-08-20, comes up "in some analyses" —
+e.g. an isolated head-to-head trial that would otherwise sit outside the
+network entirely), not a one-off — every study listed here must be one
+Step 2's `no_placebo_flags` actually found and Step 3 surfaced individually;
+`build_batman_data.R` errors on an unrecognized study name (spelling
+mismatch against `study_name`) rather than silently ignoring it. Same
+hard-error-if-no-reason pattern as `placebo_clamp`/`se_fallback` — a phantom
+placebo row is a fabricated, zero-information data point, so bridging one in
+is always a visible, deliberate choice, never a silent default either
+direction:
+```yaml
+phantom_placebo_studies: [oral hrs9531 ph2 china to global prediction]
+phantom_placebo_reason: "Head-to-head-only trial with no placebo arm --
+  bridging it in so its two dose arms connect to the rest of the network,
+  per analyst's request 2026-08-20."
+```
+Omit or leave empty (the default) — every no-placebo study stays
+disconnected, contributing a baseline (`phi`) estimate only, no
+relative-effect information. This is still a stated decision from Step 3,
+not a silent fallthrough, even when nothing is listed here.
 
 **`supplementary_data`** is for a small, deliberately-curated addition that
 hasn't been promoted into the QA/PRD workbook yet — e.g. a hand-digitized
@@ -506,6 +600,26 @@ reports `τ` (`sigma`) when it exists and says so plainly when it doesn't
 (either this fixed-effect model, or an older cache predating `sigma`
 monitoring) rather than guessing which.
 
+**Independently reconfirmed 2026-08-20** against `kai7535_bnma_v3.R`, a real
+hand-written team script (found in the shared output tree this skill writes
+to) fit on this exact same ADA-oral dataset. That script always uses a
+`model_random.txt`-equivalent spec (independent `phi[i]~dnorm(0,0.0001)`,
+`sigma~dunif(0,8)`, one global `sigma` shared across every study-arm
+deviation) with no star-network check at all. Result: point estimates
+matched this skill's fixed-effect fit almost exactly (e.g. orforglipron 6mg
+-6.8 vs. this skill's -6.9), but every single one of its 18 d-node CIs came
+out ~20-22 points wide regardless of that arm's own reported SE (0.3-2.1) —
+the uniform width across arms of wildly different precision is the
+tell-tale sign of one global, prior-dominated `sigma` swamping every
+interval, not real data-driven heterogeneity. This is the same mechanism as
+the `model_simultaneous.txt` finding above, just via `model_random.txt`'s
+structurally equivalent single-global-`sigma` delta instead — confirming
+that a hand-written random-effects script run on a full-star network,
+whichever model file it happens to use, will produce this same inflation,
+and that this skill's auto-correction to fixed-effect (or
+`model_simultaneous_fixed.txt`) is the one that actually tracks the source
+data's own precision.
+
 **`effect_type: absolute`'s pooled baseline is *not* simply the model's own
 `m` node.** `make_forest_plot.R` computes it as the average of `phi[i]`
 across only the studies that actually have a real placebo arm (per
@@ -664,23 +778,55 @@ confirmed, don't just hardcode a one-off run's colors elsewhere.
 ## Step 7 — Generate the driver script
 
 Once the manifest-driven run is finished (BATMAN built, model fit, plot(s)
-rendered) and the user is happy with the plot, write a thin driver script
-into the same dated `programs/YYYYMMDD_.../` folder, e.g. `run_bnma_<slug>.R`,
+rendered) and the user is happy with the plot, write a driver script into
+the same dated `programs/YYYYMMDD_.../` folder, e.g. `run_bnma_<slug>.R`,
 that reproduces the run from scratch by calling this skill's own tested
-scripts — not a flattened rewrite of their logic. Its header comments
-should point at (not duplicate) the manifest, since that's where the actual
-decisions and reasons live:
+scripts — not a flattened rewrite of their logic (the naming/pooling QA gate,
+the star-network model_type auto-correction, and the convergence/network/DIC
+gates all live in those scripts precisely so no run — including a driver
+script re-run six months later on refreshed data — can silently skip them.
+A hand-rolled reimplementation, however well-organized, would quietly drop
+every one of those checks).
+
+**Shape it as a single self-contained, directly-readable script matching
+this team's own established convention** (see a real example:
+`kai7535_bnma_v3.R`, found on 2026-08-20 in the same shared output tree this
+skill writes to — a lineage of hand-written v1→v4 scripts analysts already
+read and hand off to each other). Concretely, that means:
+- Named R functions wrapping each stage (`build_data()`, `fit_model()`,
+  `plot_forest()`), not a bare sequence of unlabeled `sys2(...)` calls — a
+  reader unfamiliar with this skill's CLI scripts should still be able to
+  follow the pipeline shape at a glance.
+- The resolved JAGS model **echoed inline as a comment block** (read the
+  actual `--model` file's contents and paste them into the header, labeled
+  with which file it came from) — so a reviewer sees the exact model being
+  fit without having to go find and open another file, the same way
+  `kai7535_bnma_v3.R` writes its model text inline via `cat(..., file =
+  model_path)` rather than pointing at an opaque pre-existing file.
+- A short decisions summary as comments (studies included/excluded and why,
+  `model_type` and whether it was auto-corrected, active naming/pooling
+  resolutions) — pointing at, not duplicating, the manifest as the source of
+  truth for the full record.
 
 ```r
 #!/usr/bin/env Rscript
 # Driver script for the <slug> BNMA run.
-# Manifest (full decision record incl. route/evidence filters): <path to manifest.yaml>
+# Manifest (full decision record incl. route/evidence filters, naming/pooling
+# resolutions, study include/exclude): <path to manifest.yaml>
 # Source data: <prd path> [+ <qa path>]
+#
+# Decisions summary (see manifest for the full record):
+#   - model_type: <fixed_effect|rand_effect|...> <" (auto-corrected from X -- full star network)" if applicable>
+#   - studies: <n> included, <n> excluded <list any excluded + why>
+#   - naming/pooling: <n> active flag(s), resolved as: <list>
+#
 # Re-running this script from scratch reproduces the same plot. The JAGS step
 # will just reload the cached samples unless <cache.rds> is deleted (or
 # --force is passed to fit_bnma_model.R, if this run used it).
 
 skill_dir <- "<path to .claude/skills/bnma>"
+manifest_path <- "<manifest.yaml>"
+
 # system2() joins `args` with spaces and runs it through the shell -- it does
 # NOT shell-quote elements for you, so any arg containing a space (the plot
 # --title, almost always) gets word-split by the shell into multiple argv
@@ -689,32 +835,59 @@ skill_dir <- "<path to .claude/skills/bnma>"
 # shQuote() every element, not just the ones that look risky.
 sys2 <- function(command, args) system2(command, shQuote(args))
 
-sys2(file.path(skill_dir, "scripts/run_r.sh"), c(
-  file.path(skill_dir, "scripts/load_merge_data.R"),
-  "--prd", "<prd_path.xlsx>", "--qa", "<qa_path.xlsx>", "--out", "<merged.rds>"
-))
-sys2(file.path(skill_dir, "scripts/run_r.sh"), c(
-  file.path(skill_dir, "scripts/build_batman_data.R"),
-  "--data", "<merged.rds>", "--manifest", "<manifest.yaml>",
-  "--batman-out", "<batman.rds>", "--arm-info-out", "<arm_info.rds>",
-  "--study-info-out", "<study_info.rds>", "--arm-rows-out", "<arm_rows.rds>"
-))
-sys2(file.path(skill_dir, "scripts/run_with_jags.sh"), c(
-  file.path(skill_dir, "scripts/fit_bnma_model.R"),
-  "--batman", "<batman.rds>", "--model", file.path(skill_dir, "<model_random.txt|model_fixed.txt|model_simultaneous.txt -- match the manifest's model_type>"),
-  "--cache", "<samples_<run_name>.rds>"
-))
-sys2(file.path(skill_dir, "scripts/run_r.sh"), c(
-  file.path(skill_dir, "scripts/make_forest_plot.R"),
-  "--samples", "<samples_<run_name>.rds>", "--arm-info", "<arm_info.rds>",
-  "--study-info", "<study_info.rds>", "--manifest", "<manifest.yaml>",
-  "--effect", "relative", "--out", "<forest_plot.png>", "--title", "<title>"
-))
+# --- Resolved model (<model_random.txt|model_fixed.txt|model_simultaneous.txt
+# |model_simultaneous_fixed.txt -- match the manifest's model_type>), echoed
+# here verbatim for review -- the actual fit below still reads the file
+# itself, this comment block is not re-parsed:
+# <paste the literal contents of the resolved --model file here>
+
+build_data <- function() {
+  sys2(file.path(skill_dir, "scripts/run_r.sh"), c(
+    file.path(skill_dir, "scripts/load_merge_data.R"),
+    "--prd", "<prd_path.xlsx>", "--qa", "<qa_path.xlsx>", "--out", "<merged.rds>"
+  ))
+  sys2(file.path(skill_dir, "scripts/run_r.sh"), c(
+    file.path(skill_dir, "scripts/build_batman_data.R"),
+    "--data", "<merged.rds>", "--manifest", manifest_path,
+    "--batman-out", "<batman.rds>", "--arm-info-out", "<arm_info.rds>",
+    "--study-info-out", "<study_info.rds>", "--arm-rows-out", "<arm_rows.rds>"
+  ))
+}
+
+fit_model <- function() {
+  sys2(file.path(skill_dir, "scripts/run_with_jags.sh"), c(
+    file.path(skill_dir, "scripts/fit_bnma_model.R"),
+    "--batman", "<batman.rds>",
+    "--model", file.path(skill_dir, "<model file matching manifest's model_type>"),
+    "--cache", "<samples_<run_name>.rds>"
+  ))
+}
+
+plot_forest <- function() {
+  sys2(file.path(skill_dir, "scripts/run_r.sh"), c(
+    file.path(skill_dir, "scripts/make_forest_plot.R"),
+    "--samples", "<samples_<run_name>.rds>", "--arm-info", "<arm_info.rds>",
+    "--study-info", "<study_info.rds>", "--manifest", manifest_path,
+    "--effect", "relative", "--out", "<forest_plot.png>", "--title", "<title>"
+  ))
+}
+
+build_data()
+fit_model()
+plot_forest()
 ```
 
-Fill in every `<...>` placeholder with this run's literal paths/args before
-writing the file — it must be directly `Rscript run_bnma_<slug>.R`-runnable
-with no further editing.
+If Step 0-2's source data was a standalone, non-QA/PRD-schema workbook (see
+the compound-first / standalone-file note under Step 1), `build_data()`
+calls that run's own adapter script (saved alongside the manifest, e.g.
+`adapt_standalone.R`) instead of `load_merge_data.R` — same principle, still
+a named function, still followed immediately by `build_batman_data.R` so the
+naming/pooling and study-completeness checks still run against the adapted
+data.
+
+Fill in every `<...>` placeholder with this run's literal paths/args (and
+the literal model-file contents) before writing the file — it must be
+directly `Rscript run_bnma_<slug>.R`-runnable with no further editing.
 
 ## Utilities (not numbered pipeline steps)
 

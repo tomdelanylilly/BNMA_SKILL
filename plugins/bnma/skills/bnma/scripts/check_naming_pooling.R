@@ -210,16 +210,49 @@ if (nrow(mistagged) > 0) {
   }
 }
 
+# ---------------------------------------------------------------------------
+# Check 4: studies with no placebo arm at all
+# ---------------------------------------------------------------------------
+# Only matters for model_type rand_effect/fixed_effect -- build_batman_data.R
+# leaves such a study disconnected from the network by default (matches the
+# real production tool's own documented behavior), unless the manifest opts
+# it into phantom-bridging via `phantom_placebo_studies` (see SKILL.md Step
+# 3/4). Computed here (pre-study-selection, pre-model_type-finalization) so
+# every such study can be surfaced in Step 3's one consolidated ask rather
+# than discovered only once build_batman_data.R runs. A study excluded from
+# this run entirely (Step 3 studies: list) makes this moot for it, same as
+# any other flag here -- the skill conversation reconciles that at Step 3,
+# not this script.
+no_placebo_flags <- list()
+studies_with_placebo_all <- merged %>% filter(treatment == "placebo") %>% pull(study_name) %>% unique()
+studies_without_placebo_all <- setdiff(unique(merged$study_name), studies_with_placebo_all)
+if (length(studies_without_placebo_all) > 0) {
+  for (sn in studies_without_placebo_all) {
+    treats <- merged %>% filter(study_name == sn) %>% pull(treatment) %>% unique()
+    no_placebo_flags[[length(no_placebo_flags) + 1]] <- list(
+      study_name = sn,
+      treatments = treats,
+      message = paste0(
+        "'", sn, "' has no 'placebo' row -- under model_type rand_effect/fixed_effect this study ",
+        "won't connect to the network by default (baseline estimate only, no relative-effect ",
+        "information) unless opted into phantom-bridging via phantom_placebo_studies."
+      )
+    )
+  }
+}
+
 report <- list(
   compound_flags = compound_flags,
   pooling_flags = pooling_flags,
   integrity_flags = integrity_flags,
+  no_placebo_flags = no_placebo_flags,
   summary = list(
     n_compounds_checked = length(compounds),
     n_compound_flags = length(compound_flags),
     n_compound_flags_active = sum(vapply(compound_flags, function(f) !f$suppressed, logical(1))),
     n_pooling_flags = length(pooling_flags),
-    n_integrity_flags = length(integrity_flags)
+    n_integrity_flags = length(integrity_flags),
+    n_no_placebo_flags = length(no_placebo_flags)
   )
 )
 
@@ -232,5 +265,7 @@ cat(
   "(", report$summary$n_compound_flags_active, "active,",
   report$summary$n_compound_flags - report$summary$n_compound_flags_active, "suppressed )\n",
   "  Pooling flags:", report$summary$n_pooling_flags, "\n",
-  "  Integrity flags (placebo mistagging):", report$summary$n_integrity_flags, "\n"
+  "  Integrity flags (placebo mistagging):", report$summary$n_integrity_flags, "\n",
+  "  Studies with no placebo arm:", report$summary$n_no_placebo_flags,
+  "(relevant only if model_type ends up rand_effect/fixed_effect -- see SKILL.md Step 3)\n"
 )
