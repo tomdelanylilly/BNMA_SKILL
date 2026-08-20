@@ -34,6 +34,40 @@ environment must already have:
 Third-party marketplaces (this one included) don't auto-update, so both
 steps are needed to pick up a new version after a `git push` to this repo.
 
+## Getting a teammate set up
+
+Two things have to be true before the `/plugin marketplace add` command
+above will work for anyone but you:
+
+1. **This repo has to actually be on GitHub.** Everything so far is local
+   commits only (`git log` shows them, `git push` hasn't been run) — a
+   teammate's `/plugin marketplace add tomdelanylilly/BNMA_SKILL` clones
+   from the remote, so it 404s until this repo is pushed.
+2. **They need read access to it**, since it's private — add them as a
+   collaborator (GitHub → this repo → Settings → Collaborators), or move the
+   repo into an org/team they already have access to.
+
+Once both are true, a teammate's setup is exactly the "Install" section
+above: `/plugin marketplace add tomdelanylilly/BNMA_SKILL`, then
+`/plugin install bnma@bnma-marketplace`. Two more things worth telling them
+up front:
+- They need the same HPC/Positron environment prerequisites listed above
+  (`module load R`/`module load jags`, the R package list) — this plugin
+  doesn't provision any of that.
+- **Suggest a dry run against the test fixture before a real dataset** —
+  it's the fastest way to confirm their own environment (JAGS module,
+  R packages) works before trusting a real analysis to it:
+  ```bash
+  cd ~/.claude/plugins/cache/bnma-marketplace/bnma/<installed-version>/skills/bnma
+  scripts/run_r.sh tests/make_fixture.R --out /tmp/bnma_fixture.xlsx
+  scripts/run_r.sh scripts/load_merge_data.R --prd /tmp/bnma_fixture.xlsx --out /tmp/bnma_merged.rds
+  scripts/run_r.sh scripts/build_batman_data.R --data /tmp/bnma_merged.rds \
+    --manifest tests/fixtures/smoke_test_manifest.yaml \
+    --batman-out /tmp/batman.rds --arm-info-out /tmp/arm_info.rds --study-info-out /tmp/study_info.rds
+  ```
+  If that runs clean, the environment is fine and they're ready to point
+  `/bnma` at a real QA/PRD file.
+
 ### Repo layout
 
 - `.claude-plugin/marketplace.json` — the marketplace manifest (this repo
