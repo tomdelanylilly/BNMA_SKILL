@@ -41,11 +41,29 @@ mentioning in the final summary but does not stop the run.
 
 ## Step 0 — Locate the data
 
-Ask for the PRD file path (and, if there's a newer QA file not yet
-promoted, its path too) only if not already given in the initial prompt.
-Resolve per the workflow doc's fallback rule: try the QA path first, fall
-back to PRD if it's moved/been promoted. Do not guess a path — ask, or use
-exactly what's given.
+Only ask if the initial prompt didn't already make this clear. Two ways a
+statistician can point at the data — both valid, use whichever fits what
+they actually gave you:
+- **An exact file path** (PRD, and QA too if there's a newer one not yet
+  promoted). Resolve per the workflow doc's fallback rule: try the QA path
+  first, fall back to PRD if it's moved/been promoted. Use exactly what's
+  given — don't guess a filename.
+- **A working directory instead of a filename** — mirrors how a
+  statistician's own scripts usually open with a `setwd()` to anchor
+  relative paths; here it means naming a folder (their own project
+  directory, e.g. under `programs/YYYYMMDD_.../`, or wherever this
+  session's files live) and letting the search find the actual file. Search
+  depth-limited (e.g. `find <dir> -maxdepth 3 -iname "*.xlsx"`) — never a
+  full recursive walk, and never a directory that's itself a mount root
+  (see the org's filesystem-search policy). **Always show every candidate
+  found, with modified dates, and get an explicit pick — even when only one
+  file looks plausible.** Silently choosing "the newest" or "the best name
+  match" is exactly the class of silent assumption this skill exists to
+  eliminate everywhere else; the directory search finds candidates, it
+  never substitutes for confirming which one.
+
+If neither a path nor a directory came with the initial prompt, ask which
+the statistician wants to use.
 
 ## Step 1 — Load & merge (runs automatically)
 
