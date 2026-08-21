@@ -2,31 +2,37 @@
 # Step 5 of the /bnma skill: fit (or load a cached fit of) the BATMAN/JAGS
 # random-effects NMA model.
 #
-# MCMC settings and chain initialization follow the NMA Output Review
-# Process Guide (2026 V2, re-read 2026-08-19) rather than
-# efficacy_bnma_v3_gzmu_misc5.R's own (lighter) settings -- confirmed
-# neither CLAUDE.md nor GUIDE_README.md say anything to the contrary, and a
-# second internal script (bnma_berobenatide_T2D.R) independently corroborates
-# the Guide's burn-in and thinning:
-#   - Burn-in 20,000 (Guide's Run 1/Run 2 examples AND bnma_berobenatide_T2D.R
-#     both use 20,000; misc5's 10,000 is the outlier here).
-#   - Thin 5 (the Guide's own stated default, "initially set to 5",
-#     independently matched by bnma_berobenatide_T2D.R).
-#   - Sampling iterations: the Guide's own examples range 100,000-200,000;
-#     bnma_berobenatide_T2D.R uses 50,000. No single number is unanimous, so
-#     50,000 (the smallest of the three, and the only one from an actual
-#     recent obesity/BNMA-adjacent run rather than a documentation example)
-#     is the new default -- still 2.5x this skill's old 20,000, and anyone
-#     needing the Guide's heavier 100k/200k can still pass --n_iter directly.
-#   - n.chains stays 3, matching the Guide's explicit "three chains of
-#     initial values" (bnma_berobenatide_T2D.R's 4 chains is the outlier).
+# MCMC settings: canonical source is the real production package's own
+# documentation (EliLillyCo/CMH.BNMA, provided by the user 2026-08-20,
+# installed via `pak::pak("EliLillyCo/CMH.BNMA")`) -- this SUPERSEDES the
+# NMA Output Review Process Guide-derived settings this file used before
+# (burn-in 20,000/iter 50,000/thin 5), since it's the actual package's own
+# stated behavior rather than a documentation guide being interpreted
+# against unrelated internal scripts. CMH.BNMA states, verbatim:
+#   "Models are fitted with JAGS (via rjags) using 3 MCMC chains: Adapt:
+#   10,000 iterations. Burn-in: 10,000 iterations. Sampling: 20,000
+#   iterations, thinned by 10."
+# -> n.adapt 10,000 (unchanged), n.burnin 10,000 (was 20,000), n.iter 20,000
+# (was 50,000), thin 10 (was 5), n.chains 3 (unchanged). Anyone needing the
+# Guide's heavier 100k/200k sampling can still pass --n_iter directly.
+#
+# CMH.BNMA also confirms, matching this skill's own existing design (no
+# code change needed, noted here only as independent cross-validation):
+#   - "Two model specifications are available: Fixed effects (common
+#     treatment effects across studies) / Random effects (study-level
+#     heterogeneity via a half-uniform prior on sigma)" -- matches
+#     model_fixed.txt/model_random.txt exactly (sigma~dunif(0,8) IS a
+#     half-uniform prior on the between-study SD).
+#   - "Posterior samples are cached to disk so repeat visits... load
+#     instantly" -- matches this script's own cache-by-path behavior below.
+#
+# Chain initialization (not covered by the CMH.BNMA excerpt above, so the
+# Guide-derived procedure below still stands unchanged):
 #   - Chain 1 gets deterministic zero initial values for the baseline (phi,
 #     and m for model_simultaneous.txt/model_simultaneous_fixed.txt) and
 #     treatment-effect (d) nodes;
 #     chains 2+ get random draws from those same nodes' own vague priors
 #     (Normal(0, SD=100)) -- verbatim per the Guide's stated procedure.
-#     Nothing in bnma_berobenatide_T2D.R contradicts this (it just doesn't
-#     specify explicit inits at all, so JAGS's own defaults apply there).
 #     Heterogeneity nodes (sigma/sigma_m) are deliberately left to JAGS's
 #     own default init -- the Guide's own scope for explicit inits is "the
 #     study-specific baseline term (alpha) and treatment terms (beta)" only,
@@ -81,9 +87,9 @@ args <- parse_args(list(
   cache    = list(required = TRUE),
   force    = list(flag = TRUE, default = FALSE),
   n_adapt  = list(default = "10000"),
-  n_burnin = list(default = "20000"),
-  n_iter   = list(default = "50000"),
-  thin     = list(default = "5"),
+  n_burnin = list(default = "10000"),
+  n_iter   = list(default = "20000"),
+  thin     = list(default = "10"),
   seed     = list(default = "2026")
 ))
 

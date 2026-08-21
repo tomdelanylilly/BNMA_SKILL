@@ -23,14 +23,15 @@ script_dir <- dirname(normalizePath(script_path))
 source(file.path(script_dir, "lib_common.R"))
 
 args <- parse_args(list(
-  samples     = list(required = TRUE),
-  arm_info    = list(required = TRUE),
-  study_info  = list(required = TRUE),
-  manifest    = list(required = TRUE),
-  effect      = list(default = "relative"),
-  out         = list(required = TRUE),
-  title       = list(default = NULL),
-  xlab        = list(default = NULL)
+  samples          = list(required = TRUE),
+  arm_info         = list(required = TRUE),
+  study_info       = list(required = TRUE),
+  manifest         = list(required = TRUE),
+  effect           = list(default = "relative"),
+  placebo_samples  = list(default = NULL),
+  out              = list(required = TRUE),
+  title            = list(default = NULL),
+  xlab             = list(default = NULL)
 ))
 
 if (!args$effect %in% c("relative", "absolute")) {
@@ -44,48 +45,46 @@ manifest <- yaml::read_yaml(args$manifest)
 
 samples_mat <- as.matrix(samples)
 
-# model_random.txt/model_fixed.txt (the real production models, confirmed
-# 2026-08-17 via BNMA_forest_plot-main.zip) have no pooled baseline -- phi[i]
-# is separate per study, so there's no single "m" to add d[k] to. Only
-# model_simultaneous.txt (legacy hierarchical) has one. Check for it here
-# rather than assuming, so a mismatched --effect absolute request fails
-# loudly instead of erroring obscurely inside the m_samples lookup below.
-if (args$effect == "absolute" && !("m" %in% colnames(samples_mat))) {
-  stop(
-    "--effect absolute needs a pooled baseline 'm' node, which only ",
-    "model_simultaneous.txt has -- the real production rand_effect/",
-    "fixed_effect models use a separate phi[i] per study with no pooling, ",
-    "so there's no single global baseline to add d[k] to. Re-fit with ",
-    "model_simultaneous.txt for absolute effects, or use --effect relative."
-  )
-}
-
-# The pooled baseline used for absolute effects is the average of phi[i]
-# across only the studies that actually have a real placebo arm -- NOT the
-# model's own "m" node directly. m is drawn from every study's phi[i]
-# including head-to-head trials with no placebo row at all, whose phi[i] is
-# purely a hierarchical-prior artifact with nothing real anchoring it (found
-# by testing, 2026-08-19: two no-placebo studies had phi[i] of -15 and -25
-# against every real-placebo study's -3 to +1, dragging m from a plausible
-# ~-2% to an implausible -5.9%). Falls back to m with a warning if
-# study_info predates the has_placebo column (an older cached study_info.rds).
+# The absolute-effect baseline comes from a SEPARATE, standalone pooled-
+# placebo model (scripts/fit_pooled_placebo_model.R), not from this model's
+# own fit -- adopted 2026-08-20 from the real production package's own
+# pooled-placebo feature (EliLillyCo/CMH.BNMA). This decouples --effect
+# absolute from model_type entirely: model_random.txt/model_fixed.txt (the
+# real production relative-effect models) have no pooled baseline of their
+# own at all, so this is what actually makes absolute effects available for
+# them, not just the legacy model_simultaneous.txt/model_simultaneous_fixed.txt
+# (which still work fine here too -- this doesn't care what the main model
+# was).
+#
+# Superseded: averaging phi[i] across only real-placebo studies from
+# model_simultaneous.txt's OWN fit (2026-08-19) -- correct in spirit
+# (excluding no-placebo studies' contaminated phi[i]) but architecturally
+# coupled to one specific legacy model file. A genuinely independent fit
+# that only ever sees placebo data is cleaner and works everywhere.
 if (args$effect == "absolute") {
-  if ("has_placebo" %in% colnames(study_info)) {
-    placebo_studies <- study_info %>% filter(has_placebo) %>% pull(study_ind)
-    phi_cols <- paste0("phi[", placebo_studies, "]")
-    missing_phi <- setdiff(phi_cols, colnames(samples_mat))
-    if (length(missing_phi) > 0) {
-      stop("Expected phi columns not found in samples: ", paste(missing_phi, collapse = ", "))
-    }
-    m_samples <- rowMeans(samples_mat[, phi_cols, drop = FALSE])
-    cat("Pooled baseline computed from", length(placebo_studies), "studies with a real placebo arm",
-        "(excluded", nrow(study_info) - length(placebo_studies), "with none).\n")
-  } else {
-    warning("study_info.rds has no has_placebo column (predates this fix) -- falling back to the model's ",
-            "own 'm' node directly, which may be contaminated by no-placebo studies' phi[i]. Rebuild ",
-            "study_info.rds to get the corrected pooled baseline.")
-    m_samples <- samples_mat[, "m"]
+  if (is.null(args$placebo_samples)) {
+    stop(
+      "--effect absolute needs --placebo-samples <path> -- the cached fit from ",
+      "scripts/fit_pooled_placebo_model.R (run it first against this run's ",
+      "arm_rows.rds if you haven't already)."
+    )
   }
+  if (!file.exists(args$placebo_samples)) {
+    stop("--placebo-samples file not found: ", args$placebo_samples)
+  }
+  placebo_samples_mat <- as.matrix(readRDS(args$placebo_samples))
+  if (!"m" %in% colnames(placebo_samples_mat)) {
+    stop("--placebo-samples file has no 'm' node -- was it really fit from model_placebo_random.txt?")
+  }
+  # Resample to this fit's own draw count so `m_samples + d_samples` below is
+  # a valid elementwise Monte Carlo combination of two independent
+  # posteriors, regardless of the two models' differing chain lengths/thin
+  # (the placebo model deliberately uses a lighter MCMC budget -- see its
+  # own script header).
+  m_samples <- sample(placebo_samples_mat[, "m"], nrow(samples_mat), replace = TRUE)
+  sigma_m_samples <- sample(placebo_samples_mat[, "sigma_m"], nrow(samples_mat), replace = TRUE)
+  cat("Pooled placebo baseline loaded from", args$placebo_samples,
+      "-- mean m =", round(mean(m_samples), 3), "\n")
 }
 
 plot_treatments <- manifest$plot_treatments
@@ -170,27 +169,32 @@ title_text <- args$title %||% sprintf(
 )
 
 # Absolute-effect plots report the two parameters that number is actually
-# built from -- the pooled placebo baseline (mu = m) and the between-study
-# SD of the relative treatment effect (tau = sigma, standard NMA notation,
-# per the user 2026-08-19) -- so a reviewer sees the method, not just the
-# number. Soft-fails (omits the line, doesn't error the whole plot) if
-# `sigma` isn't in this fit's samples -- true for any samples.rds cached
-# before sigma was added to fit_bnma_model.R's monitored variables.
+# built from -- the pooled placebo baseline (mu = m, sigma_mu = the standalone
+# placebo model's own between-study SD of the placebo response) and the
+# between-study SD of the relative treatment effect (tau = sigma, standard
+# NMA notation, per the user 2026-08-19) -- so a reviewer sees the method,
+# not just the number. The tau half soft-fails (omits that clause, doesn't
+# error the whole plot) if `sigma` isn't in the MAIN model's samples -- true
+# for a fixed-effect delta model, or an older samples.rds cached before
+# sigma was added to fit_bnma_model.R's monitored variables.
 subtitle_text <- NULL
 if (args$effect == "absolute") {
   mu_mean <- mean(m_samples); mu_ci <- quantile(m_samples, c(0.025, 0.975))
-  mu_part <- sprintf("Absolute = pooled placebo μ (%.1f%%; 95%% CrI: %.1f, %.1f) + d[j]",
-                      mu_mean, mu_ci[1], mu_ci[2])
+  sigma_mu_mean <- mean(sigma_m_samples)
+  mu_part <- sprintf(
+    "Absolute = pooled placebo μ (%.1f%%; 95%% CrI: %.1f, %.1f; between-study σ=%.2f, standalone placebo-only model) + d[j]",
+    mu_mean, mu_ci[1], mu_ci[2], sigma_mu_mean
+  )
   if ("sigma" %in% colnames(samples_mat)) {
     tau_mean <- mean(samples_mat[, "sigma"]); tau_ci <- quantile(samples_mat[, "sigma"], c(0.025, 0.975))
     subtitle_text <- sprintf("%s    τ = %.2f (95%% CrI: %.2f, %.2f)", mu_part, tau_mean, tau_ci[1], tau_ci[2])
   } else {
-    # No 'sigma' column can mean either: (a) this fit used
-    # model_simultaneous_fixed.txt, where delta[i,j] is deterministic by
-    # design -- there's no tau to report, not an omission; or (b) an older
-    # samples.rds cached before sigma was added to model_simultaneous.txt's
-    # monitored variables. Can't tell which from samples_mat alone, so the
-    # message covers both rather than asserting the wrong one.
+    # No 'sigma' column can mean either: (a) this fit used a deterministic-
+    # delta model (model_fixed.txt/model_simultaneous_fixed.txt), where
+    # there's no tau to report, not an omission; or (b) an older samples.rds
+    # cached before sigma was added to the main model's monitored variables.
+    # Can't tell which from samples_mat alone, so the message covers both
+    # rather than asserting the wrong one.
     subtitle_text <- paste0(mu_part, "    (no τ for this fit -- either a fixed-effect delta model, or refit to capture 'sigma')")
   }
 }
@@ -205,6 +209,17 @@ n_compounds <- length(unique(data_plot$compound))
 max_label_chars <- max(nchar(data_plot$Label))
 plot_width <- 10 + 0.15 * max_label_chars + 0.25 * n_compounds
 footnote_wrap_width <- max(40, floor(plot_width * 11))
+
+# Subtitle uses an 11pt font (vs. the caption's 9pt) -- wider characters, so
+# reuse the same physical-width logic scaled down proportionally (~9 chars/
+# inch instead of ~11) rather than a fixed character count, same reasoning
+# as the footnote's own wrap width above. Found by testing, 2026-08-20: the
+# absolute-effect subtitle's added between-study-sigma clause pushed it past
+# the plot width, silently clipped rather than wrapped.
+if (!is.null(subtitle_text)) {
+  subtitle_wrap_width <- max(40, floor(plot_width * 9))
+  subtitle_text <- paste(strwrap(subtitle_text, width = subtitle_wrap_width), collapse = "\n")
+}
 
 contributing_studies <- paste(sort(study_info$study_name), collapse = ", ")
 footnote_lines <- c(
@@ -232,15 +247,17 @@ footnote_text <- paste(footnote_lines, collapse = "<br>")
 # This is a weight-loss/obesity-landscape compound convention specifically,
 # not tied to the endpoint being plotted -- an HbA1c or physical-function run
 # on these same compounds still gets these colors; a run on unrelated
-# compounds (a different drug class) just falls through to the hue_pal()
-# fallback below, same as any other unlisted compound.
+# compounds (a different drug class) just falls through to
+# generate_fallback_colors() below, same as any other unlisted compound.
 # Any compound NOT in this list falls back to a distinct auto-generated
 # color rather than erroring or rendering as NA -- extend
 # FIXED_COMPOUND_COLORS here as more reference conventions are confirmed
 # (vk2735/brenipatide added 2026-08-20, deliberately NOT their raw hue_pal()
-# fallback -- the auto-generated vk2735 hue landed visually close to
-# berobenatide's already-fixed red, so it was assigned a separated purple
-# instead; brenipatide's auto teal was already well-separated and kept as-is).
+# fallback [scales::hue_pal() was this skill's fallback before also being
+# replaced 2026-08-20, see below] -- the auto-generated vk2735 hue landed
+# visually close to berobenatide's already-fixed red, so it was assigned a
+# separated purple instead; brenipatide's auto teal was already
+# well-separated and kept as-is).
 FIXED_COMPOUND_COLORS <- c(
   semaglutide  = "#7B241C",
   cagrisema    = "#1B4F72",
@@ -254,11 +271,25 @@ FIXED_COMPOUND_COLORS <- c(
 )
 compounds_in_plot <- unique(data_plot$compound)
 unmapped_compounds <- setdiff(compounds_in_plot, names(FIXED_COMPOUND_COLORS))
-fallback_colors <- if (length(unmapped_compounds) > 0) {
-  setNames(scales::hue_pal()(length(unmapped_compounds)), unmapped_compounds)
-} else {
-  character(0)
+# Fallback for any compound not in the team-standard fixed list: matches the
+# real production package's own generate_color_palette() (2026-08-20,
+# EliLillyCo/CMH.BNMA/R/plot_utils.R) -- RColorBrewer "Set3", darkened 0.3,
+# extended via colorRampPalette beyond 12 compounds. Confirmed this is what
+# feeds mod_model_forest.R's own BNMA results forest plot specifically (NOT
+# build_color_map()'s dose-shaded palette, which turned out to feed an
+# unrelated raw-data bar chart, mod_group_barchart.R -- checked the call
+# sites directly rather than assuming from the function's name/vicinity).
+# Replaces this skill's own prior scales::hue_pal() fallback.
+generate_fallback_colors <- function(compounds) {
+  n <- length(compounds)
+  if (n == 0) return(character(0))
+  base_colors <- RColorBrewer::brewer.pal(max(min(n, 12), 3), "Set3")
+  if (n > 12) {
+    base_colors <- grDevices::colorRampPalette(RColorBrewer::brewer.pal(12, "Set3"))(n)
+  }
+  setNames(colorspace::darken(base_colors[seq_len(n)], amount = 0.3), compounds)
 }
+fallback_colors <- generate_fallback_colors(unmapped_compounds)
 compound_colors <- c(FIXED_COMPOUND_COLORS, fallback_colors)
 
 pforest <- ggplot(
@@ -302,7 +333,8 @@ pforest <- ggplot(
   )
 
 
-plot_height <- max(4, 0.6 * length(trt_order)) + 0.22 * length(footnote_lines)
+subtitle_lines <- if (is.null(subtitle_text)) 0 else lengths(regmatches(subtitle_text, gregexpr("\n", subtitle_text))) + 1
+plot_height <- max(4, 0.6 * length(trt_order)) + 0.22 * length(footnote_lines) + 0.18 * subtitle_lines
 # n_compounds/max_label_chars/plot_width already computed above (needed
 # earlier to size the footnote's wrap width) -- reused here, not recomputed.
 ggsave(args$out, plot = pforest, width = plot_width, height = plot_height, dpi = 150)

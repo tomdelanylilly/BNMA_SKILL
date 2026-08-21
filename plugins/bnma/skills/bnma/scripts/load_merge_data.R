@@ -70,7 +70,11 @@ load_tier <- function(path, tier_label) {
       mutate(source_tier = tier_label, source_sheet = "prediction", region = "global")
   }
 
-  extra_sheets <- setdiff(sheets, c("Observed", "Prediction"))
+  # Case-insensitive exclusion (matches read_sheet_with_fallback's own
+  # case-insensitive name match above) -- otherwise a lowercase "observed"/
+  # "prediction" sheet would remain in extra_sheets and get needlessly
+  # checked against the region-sheet regex below.
+  extra_sheets <- sheets[!tolower(trimws(sheets)) %in% c("observed", "prediction")]
   for (sheet_name in extra_sheets) {
     m <- regexec(region_sheet_pattern, sheet_name, ignore.case = TRUE)
     matched <- regmatches(sheet_name, m)[[1]]

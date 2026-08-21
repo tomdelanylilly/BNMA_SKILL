@@ -22,6 +22,15 @@ but replaces every place that pipeline made a silent, hardcoded decision
 with an explicit step the user must confirm. See `DESIGN.md` in this skill's
 repo (or the project's `GUIDE_README.md`) for why each step exists.
 
+**Canonical reference for MCMC settings and model behavior:**
+`EliLillyCo/CMH.BNMA` (the real production Shiny app this skill's pipeline
+is meant to match) — provided in full, 2026-08-20. Where this skill's own
+prior settings conflicted with that package's actual documented/coded
+behavior, this skill was corrected to match it (see Step 5's MCMC settings
+and the single-arm-study/`pbo`-alias notes below); `BNMA_forest_plot-main.zip`
+(confirmed 2026-08-17) remains the source for the JAGS model files
+themselves, which CMH.BNMA's own model files match verbatim.
+
 **Do not skip steps or assume defaults on the user's behalf on anything
 genuinely discretionary.** The whole point of this skill is that a low-dose
 Phase 2 study or an oral/injectable mix-up must never enter a model silently
@@ -82,11 +91,29 @@ named `weight`/`WC` with generic `study_ind`/`arm_ind`/`y`/`se`/`Treatment`/
 `study_name`/`treatment`/`compound`/`aom`/`region`/`pchg_wl_ee`/`se_wl_ee`
 columns) — check the actual sheet names and columns with R/readxl **before**
 running `load_merge_data.R` on it. That script's sheet-fallback logic
-(`read_sheet_with_fallback`, "Observed"/"Prediction" by name else positional
-index 2/3) will silently misread an arbitrary sheet as "Observed" and
-silently drop any sheet beyond position 3 if the workbook doesn't use that
-naming — exactly the kind of silent, undetected data error this skill exists
-to prevent, and worse than asking, because it looks like it worked.
+(`read_sheet_with_fallback`, "Observed"/"Prediction" by name — case-
+insensitively, fixed 2026-08-20, see below — else positional index 2/3)
+will silently misread an arbitrary sheet as "Observed" and silently drop
+any sheet beyond position 3 if the workbook doesn't use that naming at all
+— exactly the kind of silent, undetected data error this skill exists to
+prevent, and worse than asking, because it looks like it worked.
+
+**A workbook using the standard schema but with lowercase (or otherwise
+differently-cased) sheet names is a related but distinct trap, found in a
+real T2D HbA1c workbook, 2026-08-20** — sheets literally named
+`observed`/`prediction` (correct schema, wrong case) with an unrelated
+`chinese population` sheet sitting between them. Exact-case matching missed
+both, and the positional fallback for "Prediction" landed on `chinese
+population` (position 3) instead of the real `prediction` sheet (position
+4), silently mislabeling China-specific data as the prediction tier while
+the real prediction data was never read at all. Fixed generally in
+`read_sheet_with_fallback` (case-insensitive name matching, tried before any
+positional fallback) — so a same-schema workbook with differently-cased
+sheet names is now read correctly without an adapter. The positional
+fallback is now reached only when a workbook truly has no `Observed`/
+`Prediction`-named sheet at all (any case) — e.g. the standalone-workbook
+case above — where the same silent-misread risk still applies and still
+needs the adapter approach, not a further loosening of the fallback.
 
 If the schema doesn't match, don't force it through Step 1. Instead:
 1. Write a small one-off adapter script (save it as `adapt_standalone.R`
@@ -143,8 +170,24 @@ same pair is never re-flagged; pooling-flag resolutions go in the manifest
 only (Step 4), since they're data-specific rather than a general
 compound-identity fact.
 
-The same report also lists `no_placebo_flags` — studies with no `placebo`
-row at all (Check 4). This only matters if this run ends up on `model_type:
+The report also lists `placebo_naming_flags` (Check 4a) — rows where
+`compound == "placebo"` but `treatment` isn't literally `"placebo"` (real
+case, 2026-08-20: a T2D HbA1c workbook recorded placebo arms as `"oral
+placebo qd"`, `"injectable placebo qw"`, `"injectable placebo qd"`, `"placebo
+qw"`). This is not cosmetic — `arm_ind` is derived from the treatment string
+alone, so each differently-worded placebo row becomes its own disconnected,
+single-study network node instead of sharing the one placebo reference arm
+every other study anchors to. Propose a `treatment_relabels` entry to
+`"placebo"` for each variant in Step 3, same "shown, never silently applied"
+treatment as any other naming flag. `build_batman_data.R` hard-errors if a
+`compound == "placebo"` row ever reaches arm assignment under a
+non-canonical treatment string — the backstop if this proposal is skipped
+or missed, not just a style nit.
+
+`no_placebo_flags` (Check 4b) — studies with no `placebo`-**compound** row
+at all (computed after accounting for Check 4a's variants, so a study whose
+only placebo arm is spelled `"oral placebo qd"` is correctly NOT flagged
+here). This only matters if this run ends up on `model_type:
 rand_effect`/`fixed_effect` (confirmed real, recurring scenario, 2026-08-20:
 comes up "in some analyses" — an isolated head-to-head trial with no placebo
 arm is the common case): those two model types leave such a study
@@ -153,8 +196,20 @@ tool's own behavior, unless explicitly opted into phantom-bridging. Carry
 every flagged study into Step 3 individually, same "no silent default"
 treatment as a phase 1/2 study — propose "leave disconnected" (the default,
 and the one that matches production behavior) but require an explicit
-per-study answer, not a blanket accept. If there are zero such studies, note
-that plainly rather than a separate line here, same as the other two checks.
+per-study answer, not a blanket accept. If there are zero flagged studies
+for either check, note that plainly rather than a separate line here, same
+as the other checks.
+
+Also flagged (in `integrity_flags`, alongside the existing placebo-mistag
+check): `compound == "pbo"` — confirmed 2026-08-20 against the real
+production package's own `placebo_name()`, which recognizes exactly
+`"placebo"` or `"pbo"` (case-insensitive) as the reference arm. Every check/
+filter in this skill's own pipeline keys off `compound == "placebo"`
+specifically, and `"placebo"` is excluded from Check 1's own compound-
+similarity comparison set — so `"pbo"` previously went completely
+unflagged, never compared against `"placebo"` at all, and would have been
+silently treated as some unrelated extra compound. Propose a
+`compound_relabels` entry (`pbo` → `placebo`) when this fires.
 
 ## Step 2.5 — Compound-first entry point (if requested)
 
@@ -425,6 +480,29 @@ disconnected, contributing a baseline (`phi`) estimate only, no
 relative-effect information. This is still a stated decision from Step 3,
 not a silent fallthrough, even when nothing is listed here.
 
+**Phantom-bridging a fully isolated *multi-node* component can still fail
+to converge, even after a large iteration increase — that's a real
+possibility, not just a hypothetical.** Found 2026-08-20 on a real T2D
+HbA1c landscape run: two studies (`duration6`, a 2-node isolated pair;
+`pioneer plus`, a 3-node isolated triangle) had zero connection to the main
+72-node network. Phantom-bridging both produced a hard convergence `FAIL`
+(Rhat 8.3–36, ESS 6–10) — refitting with 5x the adaptation/burn-in/
+iterations *did not fix it*, it just moved which node looked worst. Root
+cause: the phantom placebo's `se=1` is a very weak anchor, and when the
+bridged component's own treatments are themselves single-study nodes with
+no other anchor either, the model ends up only weakly identifying that
+whole component's absolute position relative to the rest of the network —
+a real statistical property of the model+data, not slow mixing that more
+iterations resolves. Bridging a *single disconnected study* whose
+treatments already have other real network connections is the well-behaved
+case this feature was originally built for; bridging a study that is
+itself the *entire* isolated component is a materially different, weaker
+case. If a `FAIL` persists after a substantial iteration increase (not just
+the first refit) following a phantom bridge, treat that as a signal to
+fall back to excluding the study/studies rather than continuing to push
+iterations — surface this explicitly rather than silently excluding, since
+it reverses an already-confirmed decision.
+
 **`supplementary_data`** is for a small, deliberately-curated addition that
 hasn't been promoted into the QA/PRD workbook yet — e.g. a hand-digitized
 dose-response series pulled from a slide deck, the same situation
@@ -487,6 +565,17 @@ scripts/run_r.sh scripts/build_batman_data.R \
 If this errors because studies are missing from the manifest, that's the
 intended guard — go back to step 3/4 with the user, don't patch around it.
 
+Any study left with only one arm after all filtering/exclusion (route,
+evidence, compound, row_exclusions, study include/exclude) is dropped
+automatically, with a log line naming which — matches the real production
+package's own defensive behavior (confirmed 2026-08-20: `prepare_model_data()`
+"Drop studies with only one arm, JAGS requires at least 2 arms per study").
+Not a crash risk in this skill's own model files (JAGS's `for(j in 2:na[i])`
+is a bounded loop that runs zero times when `na[i]<2`, unlike R's own `:`
+operator — a real single-arm study converged fine in testing, 2026-08-20),
+but it's dead weight (a `phi[i]` baseline node with zero relative-effect
+information) not worth carrying into the fit or its convergence scoring.
+
 `--arm-rows-out` is optional but recommended for every new run — it saves
 the real (non-phantom), study-level arm rows that Step 5.6's network/
 consistency/DIC diagnostics gate needs. Existing driver scripts that omit
@@ -542,9 +631,11 @@ scripts/run_with_jags.sh scripts/fit_bnma_model.R \
   `effect_type: absolute` is requested **and** the network is a full star
   (see the heterogeneity-estimability check above); see below for why.
 
-**MCMC settings and chain initialization follow the NMA Output Review
-Process Guide** (2026 V2) — n.adapt 10,000, burn-in 20,000, 50,000 sampling
-iterations thinned to 5 (3 chains), with chain 1 initialized to exactly 0 on
+**MCMC settings and chain initialization follow the real production
+package's own documentation** (`EliLillyCo/CMH.BNMA`, provided 2026-08-20 —
+supersedes the NMA Output Review Process Guide-derived settings this skill
+used before) — n.adapt 10,000, burn-in 10,000, 20,000 sampling iterations
+thinned by 10 (3 chains), with chain 1 initialized to exactly 0 on
 the baseline (`phi`, and `m` for `model_simultaneous.txt`/
 `model_simultaneous_fixed.txt`) and
 treatment-effect (`d`) nodes and chains 2–3 drawing from those same nodes'
@@ -620,19 +711,38 @@ and that this skill's auto-correction to fixed-effect (or
 `model_simultaneous_fixed.txt`) is the one that actually tracks the source
 data's own precision.
 
-**`effect_type: absolute`'s pooled baseline is *not* simply the model's own
-`m` node.** `make_forest_plot.R` computes it as the average of `phi[i]`
-across only the studies that actually have a real placebo arm (per
-`study_info.rds`'s `has_placebo` column, set by `build_batman_data.R`) —
-not `m` itself, which is drawn from *every* study's `phi[i]` including
-head-to-head trials with no placebo row at all. Found by testing
-(2026-08-19): a no-placebo study's `phi[i]` is purely a hierarchical-prior
-artifact with nothing real anchoring it — two such studies had `phi[i]` of
--15 and -25 against every real-placebo study's -3 to +1, dragging the
-naive `m`-based pooled baseline from a plausible ~-2% to an implausible
--5.9%. The plot's subtitle reports both this pooled baseline (`μ`, with its
-own 95% CrI) and `τ` (the between-study SD of the *relative* treatment
-effect — `sigma`, not `sigma_m` — per the user's explicit convention), so a
+**`effect_type: absolute`'s pooled baseline comes from a separate,
+standalone pooled-placebo model — not the main model's own `m`/`phi[i]`
+nodes at all.** Adopted 2026-08-20 from the real production package's own
+pooled-placebo feature (`EliLillyCo/CMH.BNMA`,
+`pooled_placebo_model_utils.R`), superseding a 2026-08-19 fix that averaged
+`phi[i]` across only the studies with a real placebo arm from
+`model_simultaneous.txt`'s own fit. That fix was correct in spirit (a
+no-placebo study's `phi[i]` is purely a hierarchical-prior artifact with
+nothing real anchoring it — two such studies had `phi[i]` of -15 and -25
+against every real-placebo study's -3 to +1, dragging the naive `m`-based
+pooled baseline from a plausible ~-2% to an implausible -5.9%), but it was
+architecturally coupled to one specific legacy model file. A genuinely
+independent fit that only ever sees placebo data is cleaner, and — the
+actual payoff — it means `effect_type: absolute` now works with **any**
+`model_type`, including `rand_effect`/`fixed_effect` (the real production
+relative-effect models, which have no pooled baseline of their own at all
+and previously couldn't support an absolute view for exactly that reason).
+
+Run it after Step 5's main fit, against the same run's `arm_rows.rds`:
+```bash
+scripts/run_with_jags.sh scripts/fit_pooled_placebo_model.R \
+  --arm-rows <arm_rows.rds> --cache <placebo_samples.rds>
+```
+Then pass `--placebo-samples <placebo_samples.rds>` to `make_forest_plot.R`
+alongside `--effect absolute`. MCMC settings for this model are its own,
+lighter budget (n.adapt 1,000, burn-in 5,000, sampling 10,000, thin 10) —
+matching the production package's own settings for this specific model, not
+the main model's canonical 10k/10k/20k/10 (see Step 5's MCMC settings note).
+The plot's subtitle reports the pooled baseline (`μ`, with its own 95% CrI
+and the placebo model's own between-study `σ`) and `τ` (the between-study SD
+of the *relative* treatment effect — `sigma` from the MAIN model, not the
+placebo model's `sigma_m` — per the user's explicit convention), so a
 reviewer sees the method, not just the number.
 
 **This is a modelled, shrunk placebo level, not any single trial's observed
@@ -770,10 +880,16 @@ fixed, named palette (`FIXED_COMPOUND_COLORS` in `make_forest_plot.R`) for
 the compounds the reference plot showed — `semaglutide`, `cagrisema`,
 `maritide`, `retatrutide`, `berobenatide`, `tirzepatide`, `placebo` — so
 runs plotting any of these line up with that convention exactly. Any other
-compound (this skill has plotted 20+ over one session) falls back to an
-auto-generated distinct color rather than erroring or rendering blank;
-extend `FIXED_COMPOUND_COLORS` as more of the team's own conventions are
-confirmed, don't just hardcode a one-off run's colors elsewhere.
+compound falls back to `generate_fallback_colors()` (RColorBrewer `"Set3"`,
+darkened 0.3, extended via `colorRampPalette` beyond 12 compounds) rather
+than erroring or rendering blank — matches the real production package's
+own `generate_color_palette()` (confirmed 2026-08-20, `EliLillyCo/CMH.BNMA`
+`R/plot_utils.R`, used by that package's own BNMA-results forest plot
+specifically — checked call sites directly: that package's dose-*shaded*
+`build_color_map()` turned out to feed an unrelated raw-data bar chart, not
+its forest plot, so it was deliberately not adopted here). Extend
+`FIXED_COMPOUND_COLORS` as more of the team's own conventions are confirmed,
+don't just hardcode a one-off run's colors elsewhere.
 
 ## Step 7 — Generate the driver script
 
@@ -911,13 +1027,16 @@ already been fit — not part of the numbered pipeline above.
   registry only.
 - Does not touch `/home/l138303/BNMA` (an unrelated LLM-extraction/curation
   app project that happens to share the name).
-- No absolute-effect view for `model_type: rand_effect`/`fixed_effect` —
-  confirmed via `BNMA_forest_plot-main.zip` that the real production tool
-  doesn't have one either, since its non-hierarchical model has no single
-  pooled baseline to compute one from. `effect_type: absolute` only works
-  with the legacy `model_simultaneous.txt`/`model_simultaneous_fixed.txt`
-  (`model_type: simultaneous`/`simultaneous_fixed`) — pick the fixed variant
-  on a full-star network (see Step 5), same as the non-absolute path.
+- ~~No absolute-effect view for `model_type: rand_effect`/`fixed_effect`~~
+  — **no longer true, superseded 2026-08-20.** The standalone pooled-placebo
+  model (Step 5's `fit_pooled_placebo_model.R`, adopted from
+  `EliLillyCo/CMH.BNMA`) supplies the baseline independently of the main
+  model, so `effect_type: absolute` now works with every `model_type`
+  including `rand_effect`/`fixed_effect`. `BNMA_forest_plot-main.zip`'s own
+  lack of an absolute view (confirmed 2026-08-17) reflected that *older*
+  reference tool specifically, not a structural limitation of
+  `model_random.txt`/`model_fixed.txt` — CMH.BNMA (the newer, preferred
+  reference — confirmed 2026-08-20) has one via this separate model.
 - No formal node-splitting-vs-DIC reconciliation logic — Step 5.6 reports
   both independently; when they diverge (a real, informative disagreement,
   not a bug), trace the node-split flags back to their source study by hand

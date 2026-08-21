@@ -72,6 +72,20 @@ if (!se_col %in% names(merged)) {
 }
 cat("Endpoint columns: effect_col='", effect_col, "', se_col='", se_col, "', effect_direction='", effect_direction, "'\n", sep = "")
 
+# Phantom placebo rows below must mirror the actual runtime type of
+# effect_col/se_col, not assume one -- confirmed by testing (2026-08-20/
+# 2026-08-21): load_merge_data.R's recast_numeric_cols() casts the fixed
+# QA_NUMERIC_COLS list (pchg_wl_ee/se_wl_ee, the weight-loss defaults) to
+# numeric during merge, but any OTHER effect_col/se_col (a custom endpoint,
+# e.g. HbA1c's chg_hba1c) stays character until this script's own later
+# as.numeric() casts. A hardcoded NA_real_/1 breaks bind_rows() for a custom
+# endpoint (character vs. double); a hardcoded NA_character_/"1" breaks it
+# right back for the weight-loss default (double vs. character) -- neither
+# constant is safe on its own, only matching whichever type this run's data
+# actually is.
+na_like  <- function(x) if (is.numeric(x)) NA_real_ else NA_character_
+one_like <- function(x) if (is.numeric(x)) 1 else "1"
+
 # SE fallback -- derive se_col = sd/sqrt(n) for rows missing se_col but
 # with a known arm sample size n. This is a real, repeated team convention
 # for the weight-loss endpoint specifically, not a one-off: redefine1's own
@@ -425,6 +439,29 @@ if (nrow(data_sel) == 0) {
 data_sel <- data_sel %>%
   rename(study = study_name, treat = treatment)
 
+# Hard guard: every compound=="placebo" row must have literally treat=="placebo"
+# by this point, or it becomes its own separate, disconnected single-study
+# network node below (arm_ind is derived from the treatment STRING alone,
+# same invariant check_naming_pooling.R's route-collision check already
+# relies on) instead of sharing the network's one placebo reference arm.
+# Real case, 2026-08-20: a T2D HbA1c workbook recorded placebo arms as
+# "oral placebo qd"/"injectable placebo qw"/etc in several studies --
+# check_naming_pooling.R's placebo_naming_flags surfaces these upfront so
+# Step 3 can propose a treatment_relabels entry, but this is the backstop
+# that actually stops the run if that proposal was skipped or missed,
+# rather than silently fragmenting the network.
+bad_placebo <- data_sel %>% filter(compound == "placebo", treat != "placebo")
+if (nrow(bad_placebo) > 0) {
+  bad_variants <- bad_placebo %>% distinct(treat) %>% pull(treat)
+  stop(
+    "compound == 'placebo' row(s) found with a non-canonical treatment string: ",
+    paste(bad_variants, collapse = ", "), " -- add a treatment_relabels entry ",
+    "for each (see check_naming_pooling.R's placebo_naming_flags) mapping it to ",
+    "'placebo', or every one of these becomes its own disconnected single-study ",
+    "node instead of sharing the network's placebo reference arm."
+  )
+}
+
 # Disambiguate study identity when a single study_name internally collides on
 # (study, treat) -- e.g. a study whose own observed rows and own prediction
 # rows are both kept (per the manifest), and both happen to include the same
@@ -518,8 +555,12 @@ if (length(studies_without_placebo) > 0) {
       select(study, study_ind) %>%
       distinct() %>%
       mutate(treat = "placebo", arm_ind = 1L, compound = NA_character_)
-    phantom_rows[[effect_col]] <- NA_real_
-    phantom_rows[[se_col]] <- 1
+    # See na_like()/one_like() above -- must match effect_col/se_col's
+    # actual runtime type in data_recon, which depends on whether this run's
+    # columns happen to be in QA_NUMERIC_COLS (weight-loss defaults: numeric
+    # after merge) or not (a custom endpoint: still character at this point).
+    phantom_rows[[effect_col]] <- na_like(data_recon[[effect_col]])
+    phantom_rows[[se_col]] <- one_like(data_recon[[se_col]])
     data_recon <- bind_rows(data_recon, phantom_rows) %>% arrange(study_ind, arm_ind)
   } else {
     # rand_effect/fixed_effect default to NOT bridging (see note above), but
@@ -569,8 +610,11 @@ if (length(studies_without_placebo) > 0) {
         select(study, study_ind) %>%
         distinct() %>%
         mutate(treat = "placebo", arm_ind = 1L, compound = NA_character_)
-      phantom_rows[[effect_col]] <- NA_real_
-      phantom_rows[[se_col]] <- 1
+      # See na_like()/one_like() near the top of this script -- must match
+      # effect_col/se_col's actual runtime type, same reasoning as the
+      # simultaneous branch above.
+      phantom_rows[[effect_col]] <- na_like(data_recon[[effect_col]])
+      phantom_rows[[se_col]] <- one_like(data_recon[[se_col]])
       data_recon <- bind_rows(data_recon, phantom_rows) %>% arrange(study_ind, arm_ind)
     }
     if (nrow(to_leave) > 0) {
@@ -587,6 +631,35 @@ if (length(studies_without_placebo) > 0) {
 # Build BATMAN/JAGS input matrices
 # ---------------------------------------------------------------------------
 na_df <- data_recon %>% group_by(study_ind) %>% summarise(na = n_distinct(arm_ind), .groups = "drop") %>% arrange(study_ind)
+
+# Drop studies left with only one arm after all filtering/exclusion above --
+# matches the real production app's own defensive behavior (cmh.bnma's
+# prepare_model_data(): "Drop studies with only one arm (JAGS requires at
+# least 2 arms per study)"), confirmed 2026-08-20. Not a crash risk here --
+# JAGS's own `for(j in 2:na[i])` is a bounded loop (zero iterations when
+# na[i]<2), not R's `:` operator semantics, so a single-arm study just adds
+# a dead-weight phi[i] baseline node with no relative-effect contribution
+# (confirmed: our own real T2D HbA1c run had 4 such studies and converged
+# fine) -- but there's no reason to carry that dead weight or let it
+# contribute noise to the convergence scoring, so drop it explicitly and
+# renumber study_ind contiguously, same as the real app does.
+single_arm_studies <- na_df %>% filter(na < 2) %>% pull(study_ind)
+if (length(single_arm_studies) > 0) {
+  dropped_names <- data_recon %>% filter(study_ind %in% single_arm_studies) %>% pull(study) %>% unique()
+  cat("Dropping", length(single_arm_studies), "single-arm study/ies (no relative-effect information possible):\n  ",
+      paste(dropped_names, collapse = ", "), "\n")
+  data_recon <- data_recon %>% filter(!study_ind %in% single_arm_studies)
+  study_remap <- data.frame(
+    study_ind_old = sort(unique(data_recon$study_ind)),
+    study_ind = seq_along(unique(data_recon$study_ind))
+  )
+  data_recon <- data_recon %>%
+    rename(study_ind_old = study_ind) %>%
+    left_join(study_remap, by = "study_ind_old") %>%
+    select(-study_ind_old)
+  na_df <- data_recon %>% group_by(study_ind) %>% summarise(na = n_distinct(arm_ind), .groups = "drop") %>% arrange(study_ind)
+}
+
 na_vec <- na_df$na
 ns <- max(data_recon$study_ind)
 M <- max(data_recon$arm_ind)

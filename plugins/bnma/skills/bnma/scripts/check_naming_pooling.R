@@ -210,8 +210,80 @@ if (nrow(mistagged) > 0) {
   }
 }
 
+# `compound == "pbo"` is a real, documented convention this skill's own
+# checks previously missed entirely -- confirmed 2026-08-20 against the real
+# production package's own placebo_name(): `grep("^placebo$|^pbo$", ...,
+# ignore.case = TRUE)`. Every check/filter in this pipeline keys off
+# `compound == "placebo"` specifically (route exemption, placebo_clamp,
+# arm_ind ordering's fallback), and "placebo" is excluded from Check 1's own
+# compound-similarity comparison set below -- so a compound literally spelled
+# "pbo" would previously have gone completely unflagged (not compared
+# against "placebo" at all, since that string isn't in the comparison list)
+# and been treated as some unrelated 28th drug, not the reference arm.
+pbo_rows <- merged %>% filter(compound == "pbo")
+if (nrow(pbo_rows) > 0) {
+  affected_studies <- unique(pbo_rows$study_name)
+  integrity_flags[[length(integrity_flags) + 1]] <- list(
+    kind = "pbo_compound_alias",
+    study_name = NA_character_,
+    compound = "pbo",
+    message = paste0(
+      "compound == 'pbo' found in ", length(affected_studies), " study/ies (",
+      paste(head(affected_studies, 5), collapse = ", "),
+      if (length(affected_studies) > 5) ", ..." else "",
+      ") -- a real placebo alias (matches the production tool's own placebo_name() ",
+      "regex) that every check/filter in this pipeline will otherwise treat as an ",
+      "unrelated compound. Propose a compound_relabels entry: 'pbo' -> 'placebo'."
+    )
+  )
+}
+
 # ---------------------------------------------------------------------------
-# Check 4: studies with no placebo arm at all
+# Check 4a: placebo-arm naming variants
+# ---------------------------------------------------------------------------
+# Found via testing against real T2D HbA1c PRD data, 2026-08-20: several
+# studies record their placebo arm's `treatment` as "oral placebo qd",
+# "injectable placebo qw", "injectable placebo qd", or "placebo qw" --
+# `compound` is correctly "placebo" for every one of them, only the
+# treatment STRING varies. This is more than a cosmetic naming issue --
+# build_batman_data.R's arm_ind assignment is keyed off the literal
+# treatment string (matches the skill's own "arm_ind is derived from the
+# treatment string alone" invariant used everywhere else, e.g. Check 2's
+# route-collision logic), so each differently-worded placebo row becomes
+# its OWN separate, single-study, disconnected network node instead of
+# sharing the one placebo reference arm every other study anchors to --
+# silently fragmenting the network's connectivity, not just a label
+# inconsistency. The dominant convention in this same dataset already uses
+# a bare "placebo" string across BOTH oral and injectable rows (route
+# filtering already exempts placebo from route matching for exactly this
+# reason), so collapsing these variants onto it is consistent with the
+# data's own existing convention, not a new one.
+placebo_naming_flags <- list()
+placebo_variants <- merged %>%
+  filter(compound == "placebo", treatment != "placebo") %>%
+  distinct(treatment) %>%
+  pull(treatment)
+if (length(placebo_variants) > 0) {
+  for (pv in placebo_variants) {
+    affected_studies <- merged %>% filter(compound == "placebo", treatment == pv) %>% pull(study_name) %>% unique()
+    placebo_naming_flags[[length(placebo_naming_flags) + 1]] <- list(
+      kind = "placebo_naming_variant",
+      treatment = pv,
+      affected_studies = affected_studies,
+      message = paste0(
+        "'", pv, "' is a placebo row (compound == 'placebo') under a non-canonical ",
+        "treatment string -- without a treatment_relabels entry to 'placebo', ", "affects ",
+        length(affected_studies), " study/ies (", paste(head(affected_studies, 5), collapse = ", "),
+        if (length(affected_studies) > 5) ", ..." else "",
+        ") and will each become their own disconnected single-study node instead of ",
+        "sharing the network's one placebo reference arm."
+      )
+    )
+  }
+}
+
+# ---------------------------------------------------------------------------
+# Check 4b: studies with no placebo arm at all
 # ---------------------------------------------------------------------------
 # Only matters for model_type rand_effect/fixed_effect -- build_batman_data.R
 # leaves such a study disconnected from the network by default (matches the
@@ -223,8 +295,16 @@ if (nrow(mistagged) > 0) {
 # this run entirely (Step 3 studies: list) makes this moot for it, same as
 # any other flag here -- the skill conversation reconciles that at Step 3,
 # not this script.
+#
+# Keyed off `compound == "placebo"`, NOT the literal treatment string --
+# using the treatment string here would double-count every Check 4a variant
+# as "no placebo" too (a study can easily have a real placebo arm recorded
+# under one of those variant strings and nothing else), which is exactly the
+# false-positive this fix replaces: real case, 2026-08-20, several studies
+# whose placebo arm was "oral placebo qd" showed up here as falsely having
+# no placebo arm at all.
 no_placebo_flags <- list()
-studies_with_placebo_all <- merged %>% filter(treatment == "placebo") %>% pull(study_name) %>% unique()
+studies_with_placebo_all <- merged %>% filter(compound == "placebo") %>% pull(study_name) %>% unique()
 studies_without_placebo_all <- setdiff(unique(merged$study_name), studies_with_placebo_all)
 if (length(studies_without_placebo_all) > 0) {
   for (sn in studies_without_placebo_all) {
@@ -245,6 +325,7 @@ report <- list(
   compound_flags = compound_flags,
   pooling_flags = pooling_flags,
   integrity_flags = integrity_flags,
+  placebo_naming_flags = placebo_naming_flags,
   no_placebo_flags = no_placebo_flags,
   summary = list(
     n_compounds_checked = length(compounds),
@@ -252,6 +333,7 @@ report <- list(
     n_compound_flags_active = sum(vapply(compound_flags, function(f) !f$suppressed, logical(1))),
     n_pooling_flags = length(pooling_flags),
     n_integrity_flags = length(integrity_flags),
+    n_placebo_naming_flags = length(placebo_naming_flags),
     n_no_placebo_flags = length(no_placebo_flags)
   )
 )
@@ -266,6 +348,7 @@ cat(
   report$summary$n_compound_flags - report$summary$n_compound_flags_active, "suppressed )\n",
   "  Pooling flags:", report$summary$n_pooling_flags, "\n",
   "  Integrity flags (placebo mistagging):", report$summary$n_integrity_flags, "\n",
+  "  Placebo naming variants (need a treatment_relabels entry):", report$summary$n_placebo_naming_flags, "\n",
   "  Studies with no placebo arm:", report$summary$n_no_placebo_flags,
   "(relevant only if model_type ends up rand_effect/fixed_effect -- see SKILL.md Step 3)\n"
 )

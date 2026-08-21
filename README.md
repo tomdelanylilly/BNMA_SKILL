@@ -28,6 +28,10 @@ current-state findings, and the skill architecture.
 - `model_random.txt` / `model_fixed.txt` / `model_simultaneous.txt` /
   `model_simultaneous_fixed.txt` — the JAGS model specs, selected per run by
   the manifest's `model_type`.
+- `model_placebo_random.txt` + `scripts/fit_pooled_placebo_model.R` — a
+  separate, standalone pooled-placebo model that supplies the baseline for
+  `--effect absolute` forest plots, independent of `model_type` (adopted
+  from the real production package, `EliLillyCo/CMH.BNMA`).
 - `plugins/bnma/skills/bnma/compound_registry.yaml` — persisted naming-QA
   decisions, so a resolved compound-name pair is never re-flagged.
 - `plugins/bnma/skills/bnma/tests/` — a synthetic fixture with deliberately

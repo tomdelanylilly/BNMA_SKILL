@@ -46,8 +46,19 @@ parse_args <- function(spec) {
 #' proceed with whichever tiers/sheets actually exist.
 read_sheet_with_fallback <- function(path, sheet_name, fallback_index) {
   sheets <- readxl::excel_sheets(path)
-  if (sheet_name %in% sheets) {
-    return(readxl::read_excel(path, sheet = sheet_name))
+  # Case-insensitive name match -- confirmed real case, 2026-08-20: a T2D
+  # HbA1c workbook with sheets literally named "observed"/"prediction"
+  # (lowercase). Exact %in% matching missed both, fell through to the
+  # POSITIONAL fallback for "Prediction" -- which landed on an unrelated
+  # "chinese population" sheet sitting between them (position 3), silently
+  # mislabeling it as the prediction tier while the real "prediction" sheet
+  # (position 4) was never read at all. Matching case-insensitively finds
+  # the real sheet directly by name in this case, so the fragile positional
+  # fallback is only reached when a workbook truly has no matching sheet at
+  # all -- exactly what it was meant for.
+  match_idx <- which(tolower(trimws(sheets)) == tolower(trimws(sheet_name)))
+  if (length(match_idx) > 0) {
+    return(readxl::read_excel(path, sheet = sheets[match_idx[1]]))
   }
   if (!is.null(fallback_index) && fallback_index <= length(sheets)) {
     message(
