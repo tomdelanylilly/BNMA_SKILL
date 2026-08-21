@@ -48,11 +48,18 @@ is missing from the manifest. Continuing silently past one of these would
 defeat the actual purpose of the skill, not just its UX — a `WARN` is worth
 mentioning in the final summary but does not stop the run.
 
-## Step 0 — Locate the data
+## Step 0 — Locate the data, offer to merge new data, set up the run folders
 
-Only ask if the initial prompt didn't already make this clear. Two ways a
-statistician can point at the data — both valid, use whichever fits what
-they actually gave you:
+Runs at the very start of every trigger, before Step 1 — the entry
+experience for someone opening this skill against a folder that already has
+PRD/QA data sitting in it (the common case: a statistician's own project
+directory). Adapted 2026-08-21 from a colleague's independent restructuring
+of this step (the `godwill-bnma` branch) — the locate-the-data logic below
+is unchanged from before; 0b/0c are the new parts.
+
+**0a. Locate the base dataset.** Only ask if the initial prompt didn't
+already make this clear. Two ways a statistician can point at it — both
+valid, use whichever fits what they actually gave you:
 - **An exact file path** (PRD, and QA too if there's a newer one not yet
   promoted). Resolve per the workflow doc's fallback rule: try the QA path
   first, fall back to PRD if it's moved/been promoted. Use exactly what's
@@ -72,9 +79,57 @@ they actually gave you:
   never substitutes for confirming which one.
 
 If neither a path nor a directory came with the initial prompt, ask which
-the statistician wants to use.
+the statistician wants to use before doing anything else.
+
+**0b. Ask if there's new data to merge in.** Once the base dataset is
+confirmed, always ask — in the same message, not a separate round trip —
+whether there's new data (a new readout, a hand-digitized slide, a
+standalone workbook, an updated QA file) to merge into this run before the
+BNMA is fit. Never assume "no" just because the prompt didn't mention it. If
+yes:
+1. Get the new data's path (or inline content, if small enough to paste —
+   treat that the same as `supplementary_data`, see Step 4).
+2. Merge it into the base dataset via `load_merge_data.R` (QA-wins-over-PRD
+   logic already documented in Step 1) — or, if its schema doesn't match
+   the QA/PRD shape, via the standalone-workbook adapter procedure (see
+   Step 1's own note on this). Show a merge summary: rows added, studies
+   added, studies updated (an existing `(study_name, treatment)` pair whose
+   values changed) — a merge that silently changes an existing row's value
+   is exactly the kind of undetected drift this skill exists to prevent.
+3. **Run `check_naming_pooling.R` against the merged result right away** —
+   new data merging in is precisely when a naming collision or route
+   mismatch is most likely (a newly-added study using a slightly different
+   spelling for an existing compound, or the wrong `aom` tag). Surface any
+   new flags now, folded into Step 3's consolidated ask alongside whatever
+   Step 2 finds on the rest of the data — don't defer this to a second pass
+   through Step 2.
+
+If no, proceed with the base dataset as-is — Step 1 loads it normally.
+
+**0c. Create the run's `programs/` and `output/` folders.** As soon as the
+dataset (merged or not) is confirmed, silently create both folders in the
+background — before any BNMA-specific question (endpoint, route,
+heterogeneity, etc.) is asked in Step 3. Use the same
+`programs/YYYYMMDD_<slug>/` / `output/shared/YYYYMMDD_<slug>/` convention as
+Step 7 already uses for the driver script and forest plot — this just moves
+folder creation earlier so every intermediate artifact from Step 1 onward
+(merged data, naming report, manifest, cached samples, diagnostics) has a
+real home from the start instead of living in `/tmp` until Step 7. Derive
+`<slug>` from the dataset/endpoint (e.g. `cwm_wl_nont2d`, `ada_oral_full`) —
+ask the statistician for a short label if nothing obvious presents itself,
+rather than guessing one that won't mean anything on a re-read six months
+later. State the two paths plainly once created ("Working folder:
+`programs/<slug>/`, output folder: `output/shared/<slug>/`") so the
+statistician knows where things are landing — this is a background action,
+not a silent one.
 
 ## Step 1 — Load & merge (runs automatically)
+
+Every `--out`/intermediate-artifact path in this and the following steps is
+shown below as `/tmp/bnma_*.rds` for brevity — since Step 0c already created
+this run's `programs/YYYYMMDD_<slug>/` folder, actually write these into
+that folder (e.g. `programs/YYYYMMDD_<slug>/merged.rds`), not `/tmp`. `/tmp`
+is fine only for a quick one-off exploration before Step 0c has run.
 
 ```bash
 scripts/run_r.sh scripts/load_merge_data.R \
@@ -732,13 +787,37 @@ and previously couldn't support an absolute view for exactly that reason).
 Run it after Step 5's main fit, against the same run's `arm_rows.rds`:
 ```bash
 scripts/run_with_jags.sh scripts/fit_pooled_placebo_model.R \
-  --arm-rows <arm_rows.rds> --cache <placebo_samples.rds>
+  --arm-rows <arm_rows.rds> --cache <placebo_samples.rds> \
+  --placebo-data-out <placebo_data.rds>
 ```
 Then pass `--placebo-samples <placebo_samples.rds>` to `make_forest_plot.R`
 alongside `--effect absolute`. MCMC settings for this model are its own,
 lighter budget (n.adapt 1,000, burn-in 5,000, sampling 10,000, thin 10) —
 matching the production package's own settings for this specific model, not
 the main model's canonical 10k/10k/20k/10 (see Step 5's MCMC settings note).
+Stops with an error if fewer than 2 studies have a usable placebo arm — same
+identifiability problem as the main model's own star-network check, just for
+`sigma_m` instead of `sigma`: with 1 study, there's no between-study
+variance to estimate at all.
+
+**Recommended: also render the pooled-placebo model's own QC plot**, so a
+reviewer can see the model is sane rather than trusting the number blind —
+`make_forest_plot.R` only ever *consumes* `m`/`sigma_m`, it never shows the
+underlying per-study shrinkage:
+```bash
+scripts/run_r.sh scripts/make_placebo_forest_plot.R \
+  --samples <placebo_samples.rds> --placebo-data <placebo_data.rds> \
+  --manifest <manifest.yaml> --out <placebo_forest_plot.png>
+```
+Shows each contributing study's observed vs. posterior-shrunk placebo effect,
+the pooled `m`, and the predictive `mu_new` for a hypothetical new study —
+adapted 2026-08-21 from a colleague's independent implementation
+(`godwill-bnma` branch), which itself mirrors the production app's own
+`placebo_forest_plot()`. Not a numbered pipeline step (nothing downstream
+consumes its output) — render it whenever `effect_type: absolute` is used,
+same "always do this, don't wait to be asked" expectation as Step 7's driver
+script.
+
 The plot's subtitle reports the pooled baseline (`μ`, with its own 95% CrI
 and the placebo model's own between-study `σ`) and `τ` (the between-study SD
 of the *relative* treatment effect — `sigma` from the MAIN model, not the
@@ -892,6 +971,18 @@ its forest plot, so it was deliberately not adopted here). Extend
 don't just hardcode a one-off run's colors elsewhere.
 
 ## Step 7 — Generate the driver script
+
+**Do this for every run, without being asked — a run is not finished until
+this step happens and its output is shown.** Found by a colleague testing
+this skill (2026-08-20, twice in one session, `godwill-bnma` branch): once a
+plot is on screen it's easy to treat the turn as done and skip straight to
+summarizing results — this step was silently dropped entirely on one run,
+and even after being reinstated, the next run wrote the file but never
+displayed it. Both are the same failure: the user has no R code to inspect,
+audit, or re-run unless it's actually shown to them. **Immediately after
+writing the driver script, use the Read tool (or otherwise print) its full
+contents back to the user in the same turn — a "driver script written to
+`<path>`" message with no code shown does not satisfy this step.**
 
 Once the manifest-driven run is finished (BATMAN built, model fit, plot(s)
 rendered) and the user is happy with the plot, write a driver script into

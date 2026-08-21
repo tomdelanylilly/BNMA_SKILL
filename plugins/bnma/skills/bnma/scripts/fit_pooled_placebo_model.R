@@ -22,7 +22,8 @@
 #
 # Usage:
 #   scripts/run_with_jags.sh scripts/fit_pooled_placebo_model.R \
-#     --arm-rows <arm_rows.rds> --cache <placebo_samples.rds> [--force]
+#     --arm-rows <arm_rows.rds> --cache <placebo_samples.rds> \
+#     [--placebo-data-out <placebo_data.rds>] [--force]
 #
 # No --effect-col/--se-col flag -- arm_rows.rds (Step 5's --arm-rows-out)
 # already normalizes to plain y/se columns regardless of this run's own
@@ -37,6 +38,18 @@
 # data) means the placebo arms fed here already reflect every naming/pooling
 # resolution, study include/exclude, and relabel from this run's manifest,
 # same set of studies the main model itself was fit on.
+#
+# --placebo-data-out (optional) persists the per-study placebo rows actually
+# used for this fit (study_name/study_idx/y/se) -- make_placebo_forest_plot.R
+# needs this to label each posterior mu[i] with its real study name, since
+# the JAGS samples themselves only carry the numeric study_idx. Cross-
+# validated 2026-08-21 against a colleague's independent implementation
+# (the `godwill-bnma` branch, which re-derives this same placebo subset from
+# scratch via its own build_placebo_data.R) -- adopted the persist-and-reuse
+# approach here instead, since arm_rows.rds already reflects this run's full
+# manifest filtering and re-deriving that logic in a second script is a
+# needless duplication risk if build_batman_data.R's own filtering ever
+# changes.
 
 suppressPackageStartupMessages({
   library(rjags)
@@ -48,19 +61,20 @@ script_dir <- dirname(normalizePath(script_path))
 source(file.path(script_dir, "lib_common.R"))
 
 args <- parse_args(list(
-  arm_rows  = list(required = TRUE),
-  cache     = list(required = TRUE),
-  force     = list(flag = TRUE, default = FALSE),
-  n_adapt   = list(default = "1000"),
-  n_burnin  = list(default = "5000"),
-  n_iter    = list(default = "10000"),
-  thin      = list(default = "10"),
-  seed      = list(default = "2026")
+  arm_rows        = list(required = TRUE),
+  cache           = list(required = TRUE),
+  placebo_data_out = list(default = NULL),
+  force           = list(flag = TRUE, default = FALSE),
+  n_adapt         = list(default = "1000"),
+  n_burnin        = list(default = "5000"),
+  n_iter          = list(default = "10000"),
+  thin            = list(default = "10"),
+  seed            = list(default = "2026")
 ))
 
 arm_rows <- readRDS(args$arm_rows)
 
-placebo_rows <- arm_rows %>% filter(compound == "placebo", !is.na(y), !is.na(se), se > 0)
+placebo_rows <- arm_rows %>% filter(compound == "placebo", !is.na(y), !is.na(se), se > 0, is.finite(se))
 if (nrow(placebo_rows) == 0) {
   stop("No usable placebo rows (compound=='placebo', numeric y/se) found in ", args$arm_rows)
 }
@@ -72,6 +86,27 @@ study_map <- data.frame(
   study_idx = seq_along(unique(placebo_rows$study_ind))
 )
 placebo_rows <- placebo_rows %>% left_join(study_map, by = "study_ind")
+
+# A hierarchical random-effects meta-analysis needs at least 2 groups to say
+# anything about between-study variance at all -- the exact same
+# identifiability problem compute_heterogeneity_estimability() already
+# checks for the main model's own delta[i,j] heterogeneity, just here for
+# sigma_m instead of sigma. Confirmed by testing (colleague's godwill-bnma
+# branch, 2026-08-21): with 1 study, sigma_m's posterior is pure prior
+# (dunif(0,10)), not a data-driven estimate -- stop rather than silently
+# fitting a meaningless model.
+if (nrow(study_map) < 2) {
+  stop(
+    "Not enough studies with a usable placebo arm for a pooled-placebo model ",
+    "(need >= 2; found ", nrow(study_map), "). With only one study, sigma_m ",
+    "has nothing to be estimated from -- check the manifest's study selection ",
+    "and route/evidence/compound/region filters."
+  )
+}
+
+if (!is.null(args$placebo_data_out)) {
+  saveRDS(placebo_rows, args$placebo_data_out)
+}
 
 cat("Pooled placebo model: ", nrow(placebo_rows), " placebo row(s) across ", nrow(study_map), " study/ies.\n", sep = "")
 
@@ -88,20 +123,28 @@ if (file.exists(args$cache) && !args$force) {
   samples <- readRDS(args$cache)
 } else {
   set.seed(as.integer(args$seed))
+  base_seed <- as.integer(args$seed) * 1000
+  y_mean <- mean(jags_data$y_pct, na.rm = TRUE)
 
-  init_fun <- function() {
+  # Deterministic per-chain RNG (.RNG.seed/.RNG.name), matching
+  # fit_bnma_model.R's own established convention for the main model's fit
+  # -- a plain single set.seed() call (this script's own original approach)
+  # doesn't guarantee reproducibility across JAGS's separately-spawned chain
+  # RNG streams the way an explicit per-chain seed does.
+  inits.list <- lapply(1:3, function(chain_num) {
     list(
-      m = rnorm(1, mean(jags_data$y_pct, na.rm = TRUE), 0.5),
+      .RNG.seed = base_seed + chain_num, .RNG.name = "base::Wichmann-Hill",
+      m = rnorm(1, y_mean, 0.5),
       sigma_m = runif(1, 0.3, 1),
-      mu = rnorm(jags_data$ns_bl, mean(jags_data$y_pct, na.rm = TRUE), 0.5)
+      mu = rnorm(jags_data$ns_bl, y_mean, 0.5)
     )
-  }
+  })
 
   model_path <- file.path(dirname(script_dir), "model_placebo_random.txt")
   cat("Compiling JAGS model from", model_path, "\n")
   jags_model <- jags.model(
     model_path, jags_data,
-    n.adapt = as.integer(args$n_adapt), n.chains = 3, inits = init_fun
+    n.adapt = as.integer(args$n_adapt), n.chains = 3, inits = inits.list
   )
 
   cat("Burn-in (", args$n_burnin, "iterations)...\n")
@@ -127,5 +170,21 @@ cat("Pooled placebo baseline: m =", round(m_row, 3),
     " (95% CrI", round(m_ci[1], 3), ",", round(m_ci[2], 3), ")",
     " sigma_m =", round(sigma_row, 3), "\n")
 
+# Convergence diagnostics -- always run, never skipped, same rule as every
+# other gate in this skill, AND persisted to disk (<cache>_diagnostics.yaml)
+# same as fit_bnma_model.R's own fit -- confirmed 2026-08-21 this file's
+# earlier version only printed the diagnostics, never wrote them, the one
+# fit in this skill that didn't leave a diagnostics artifact next to its cache.
 diag <- compute_convergence_diagnostics(samples)
 print_convergence_diagnostics(diag)
+diagnostics_path <- sub("\\.rds$", "_diagnostics.yaml", args$cache)
+yaml::write_yaml(
+  c(
+    list(generated_at = as.character(Sys.time()),
+         samples_file = normalizePath(args$cache, mustWork = FALSE)),
+    diag
+  ),
+  diagnostics_path
+)
+cat("Diagnostics written to:", diagnostics_path, "\n")
+
