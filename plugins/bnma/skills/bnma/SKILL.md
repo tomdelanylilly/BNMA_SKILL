@@ -22,6 +22,12 @@ but replaces every place that pipeline made a silent, hardcoded decision
 with an explicit step the user must confirm. See `DESIGN.md` in this skill's
 repo (or the project's `GUIDE_README.md`) for why each step exists.
 
+**Run this in a terminal, with the statistician's own working directory of
+their choice** (their own project folder under `programs/`/`output/shared/`,
+per `GUIDE_README.md`'s Flow 2 convention — not necessarily this skill's own
+repo checkout). Step 0 assumes exactly this: a folder that may already have
+PRD/QA data sitting in it, not a bare/empty directory.
+
 **Canonical reference for MCMC settings and model behavior:**
 `EliLillyCo/CMH.BNMA` (the real production Shiny app this skill's pipeline
 is meant to match) — provided in full, 2026-08-20. Where this skill's own
@@ -106,30 +112,36 @@ yes:
 
 If no, proceed with the base dataset as-is — Step 1 loads it normally.
 
-**0c. Create the run's `programs/` and `output/` folders.** As soon as the
-dataset (merged or not) is confirmed, silently create both folders in the
-background — before any BNMA-specific question (endpoint, route,
-heterogeneity, etc.) is asked in Step 3. Use the same
-`programs/YYYYMMDD_<slug>/` / `output/shared/YYYYMMDD_<slug>/` convention as
-Step 7 already uses for the driver script and forest plot — this just moves
-folder creation earlier so every intermediate artifact from Step 1 onward
-(merged data, naming report, manifest, cached samples, diagnostics) has a
-real home from the start instead of living in `/tmp` until Step 7. Derive
+**0c. Propose the run's `programs/` and `output/` folders — don't create
+them yet.** As soon as the dataset (merged or not) is confirmed, work out a
+proposed `<slug>` and both paths — `programs/YYYYMMDD_<slug>/` /
+`output/shared/YYYYMMDD_<slug>/`, the same convention Step 7 already uses
+for the driver script and forest plot — and carry them into Step 3's
+consolidated ask as a **Working folders** line, same as every other
+genuinely discretionary choice in that step (a proposed default, shown
+explicitly, not decided silently on the statistician's behalf). Derive
 `<slug>` from the dataset/endpoint (e.g. `cwm_wl_nont2d`, `ada_oral_full`) —
-ask the statistician for a short label if nothing obvious presents itself,
-rather than guessing one that won't mean anything on a re-read six months
-later. State the two paths plainly once created ("Working folder:
-`programs/<slug>/`, output folder: `output/shared/<slug>/`") so the
-statistician knows where things are landing — this is a background action,
-not a silent one.
+if nothing obvious presents itself, propose your best guess rather than
+leaving it blank; the statistician can rename it in their Step 3 reply.
+**Actually create both folders only once Step 3 is confirmed** (right before
+Step 4 writes the manifest into `programs/<slug>/`) — this moves folder
+creation earlier than Step 7 used to, so every intermediate artifact from
+Step 1 onward (merged data, naming report, manifest, cached samples,
+diagnostics) has a real home instead of living in `/tmp`, but it's still a
+confirmed action, not a background one: don't write anything to disk under
+a folder name the statistician hasn't seen and had the chance to change.
 
 ## Step 1 — Load & merge (runs automatically)
 
-Every `--out`/intermediate-artifact path in this and the following steps is
-shown below as `/tmp/bnma_*.rds` for brevity — since Step 0c already created
-this run's `programs/YYYYMMDD_<slug>/` folder, actually write these into
-that folder (e.g. `programs/YYYYMMDD_<slug>/merged.rds`), not `/tmp`. `/tmp`
-is fine only for a quick one-off exploration before Step 0c has run.
+Every `--out`/intermediate-artifact path in this step and Step 2/2.5 below is
+shown as `/tmp/bnma_*.rds` and genuinely does write there — the run's real
+`programs/YYYYMMDD_<slug>/` folder isn't created until Step 4 (Step 3 has to
+confirm the folder name first), so nothing durable exists yet. From Step 4
+onward, everything (manifest, cached samples, diagnostics) writes into the
+now-real `programs/<slug>/` folder instead. Losing `/tmp`'s merged data or
+naming report between here and Step 4 costs nothing — both are cheap,
+deterministic re-derivations from the source file(s), not something Step 7's
+driver script or a later re-run ever depends on existing in `/tmp`.
 
 ```bash
 scripts/run_r.sh scripts/load_merge_data.R \
@@ -314,12 +326,13 @@ actual data/report; never leave a placeholder):
 
   SCOPE
    1  Dataset           <path(s)>                                (detected)
-   2  Endpoint         ► weight loss (effect_col: pchg_wl_ee, se_col: se_wl_ee)
-   3  Route            ► both (oral + injectable)
-   4  Evidence         ► both (observed + prediction)
-   5  Region           ► global only
-   6  Heterogeneity    ► random-effects (rand_effect)
-   7  Effect to report ► placebo-adjusted (relative)
+   2  Working folders  ► programs/YYYYMMDD_<slug>/, output/shared/YYYYMMDD_<slug>/  (not yet created)
+   3  Endpoint         ► weight loss (effect_col: pchg_wl_ee, se_col: se_wl_ee)
+   4  Route            ► both (oral + injectable)
+   5  Evidence         ► both (observed + prediction)
+   6  Region           ► global only
+   7  Heterogeneity    ► random-effects (rand_effect)
+   8  Effect to report ► placebo-adjusted (relative)
 
   NAMING / POOLING  (N active flags)
    - <compound_a> vs <compound_b> -- proposed: <same|different>, because <signal>
@@ -345,6 +358,10 @@ actual data/report; never leave a placeholder):
 ```
 
 Notes:
+- **Working folders are a proposal, not yet created** — `<slug>` is your
+  best guess at a short, meaningful label for this run (see Step 0c); the
+  statistician can rename it in their reply. Nothing gets written to disk
+  under this name until Step 3 is confirmed (see Step 4).
 - **Endpoint defaults to weight loss** (`effect_col: pchg_wl_ee`,
   `se_col: se_wl_ee` — the QA/PRD schema's own effect-estimate/SE column
   pair) **only when the dataset's own columns match that schema** — check
@@ -387,9 +404,15 @@ Notes:
 
 ## Step 4 — Write the manifest
 
-Apply everything confirmed in Step 3. Write a YAML manifest capturing all
-of it — this is the traceable artifact that replaces a commented-out R
-vector. Example shape:
+Apply everything confirmed in Step 3. **First, actually create the working
+folders** — `programs/YYYYMMDD_<slug>/` and `output/shared/YYYYMMDD_<slug>/`
+(`<slug>` per Step 3's confirmed or renamed value, dated with today's date) —
+now that the statistician has seen and confirmed the name. Everything from
+here on (manifest, merged data, naming report, cached samples, diagnostics)
+writes into `programs/<slug>/`; forest plots go into `output/shared/<slug>/`
+(Step 6). Then write a YAML manifest capturing everything from Step 3 — this
+is the traceable artifact that replaces a commented-out R vector. Example
+shape:
 
 ```yaml
 created_at: "2026-08-14"
@@ -601,8 +624,8 @@ with no placebo row simply doesn't connect to the network. This isn't a gap
 earlier connectivity-aware bridging attempt this skill tried and reverted
 mid-session for having no such documentation anywhere.
 
-Save it under the dated `programs/YYYYMMDD_.../` folder for this run (ask the
-user for that folder if it's not obvious), e.g. `study_selection_manifest.yaml`.
+Save it into `programs/<slug>/` (created moments ago, above, per Step 3's
+confirmed name), e.g. `study_selection_manifest.yaml`.
 
 **Every study found in step 1's merged data must appear under `studies:`.**
 `build_batman_data.R` (step 5) enforces this itself and will refuse to run
