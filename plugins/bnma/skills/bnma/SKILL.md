@@ -132,10 +132,12 @@ leaving it blank; the statistician can rename it in their Step 3 reply.
 **Actually create both folders only once Step 3 is confirmed** (right before
 Step 4 writes the manifest into `programs/<slug>/`) — this moves folder
 creation earlier than Step 7 used to, so every intermediate artifact from
-Step 1 onward (merged data, naming report, manifest, cached samples)
+Step 1 onward (naming report, manifest, cached samples)
 has a real home instead of living in `/tmp`, but it's still a
 confirmed action, not a background one: don't write anything to disk under
 a folder name the statistician hasn't seen and had the chance to change.
+The merged dataset (Step 1) is the one exception — it never gets a
+persisted home, see Step 4.
 
 **Scratch mode is the opt-out alternative to the above, not a separate
 step** — alongside the `programs/`/`output/shared/` proposal, always state
@@ -353,6 +355,7 @@ actual data/report; never leave a placeholder):
    6  Region           ► global only
    7  Heterogeneity    ► random-effects (rand_effect)
    8  Effect to report ► placebo-adjusted (relative)
+   9  Project CLAUDE.md ► skip (default for a single run) -- reply "add CLAUDE.md" if this is a larger/ongoing project
 
   NAMING / POOLING  (N active flags)
    - <compound_a> vs <compound_b> -- proposed: <same|different>, because <signal>
@@ -429,6 +432,12 @@ Notes:
 - Echo back exactly what was locked in (defaults accepted + overrides +
   any free-form concerns folded in) once the statistician replies, before
   Step 4 writes the manifest.
+- **Project CLAUDE.md defaults to skip** — most runs are a single,
+  self-contained ask and don't need one. Accept "add CLAUDE.md" (or
+  anything that signals this is a bigger/ongoing initiative — a conference
+  submission, a project the statistician says they'll keep coming back to)
+  at face value rather than second-guessing it. If accepted, Step 7 writes
+  it alongside the driver script.
 
 ## Step 4 — Write the manifest
 
@@ -436,9 +445,13 @@ Apply everything confirmed in Step 3. **First, actually create the working
 folders** — `programs/YYYYMMDD_<slug>/` and `output/shared/YYYYMMDD_<slug>/`
 (`<slug>` per Step 3's confirmed or renamed value, dated with today's date) —
 now that the statistician has seen and confirmed the name. Everything from
-here on (manifest, merged data, naming report, cached samples)
+here on (manifest, naming report, cached samples)
 writes into `programs/<slug>/`; forest plots go into `output/shared/<slug>/`
-(Step 6). Then write a YAML manifest capturing everything from Step 3 — this
+(Step 6). **The merged dataset (Step 1's `load_merge_data.R` output) never
+moves in from `/tmp`** — per the workflow guide, the PRD+QA merge happens in
+code and leaves no separate merged file on the share; re-deriving it from
+the source file(s) is cheap and deterministic, so there's nothing worth
+persisting. Then write a YAML manifest capturing everything from Step 3 — this
 is the traceable artifact that replaces a commented-out R vector. Example
 shape:
 
@@ -672,7 +685,7 @@ otherwise — that's intentional, not a bug to work around.
 scripts/run_r.sh scripts/build_batman_data.R \
   --data /tmp/bnma_merged.rds --manifest <manifest.yaml> \
   --batman-out /tmp/bnma_batman.rds --arm-info-out /tmp/bnma_arm_info.rds \
-  --study-info-out /tmp/bnma_study_info.rds [--arm-rows-out /tmp/bnma_arm_rows.rds]
+  --study-info-out /tmp/bnma_study_info.rds --arm-rows-out /tmp/bnma_arm_rows.rds
 ```
 
 If this errors because studies are missing from the manifest, that's the
@@ -689,11 +702,14 @@ operator — a real single-arm study converged fine in testing, 2026-08-20),
 but it's dead weight (a `phi[i]` baseline node with zero relative-effect
 information) not worth carrying into the fit or its convergence scoring.
 
-`--arm-rows-out` is optional but recommended for every new run — it saves
-the real (non-phantom), study-level arm rows that Step 5's own
-`fit_pooled_placebo_model.R` needs (see below) for `effect_type: absolute`
-runs. Existing driver scripts that omit it keep working unchanged for
-`effect_type: relative`-only runs.
+`--arm-rows-out` is now part of the default command for every new run — it
+feeds two downstream steps: `fit_pooled_placebo_model.R` (see below, for
+`effect_type: absolute` runs) and `make_forest_plot.R`'s Step 6
+per-treatment "which studies fed this estimate" footnote breakdown.
+Existing driver scripts written before this were still fine omitting it —
+`fit_pooled_placebo_model.R` errors clearly if it's genuinely needed and
+missing, and `make_forest_plot.R` falls back to its older flat, plot-wide
+footnote when it's absent, rather than failing.
 
 `build_batman_data.R` also prints a **heterogeneity estimability** check —
 for every non-placebo treatment node, how many distinct studies feed it.
@@ -902,13 +918,20 @@ discard (Step 7a).
 scripts/run_r.sh scripts/make_forest_plot.R \
   --samples <cache.rds> --arm-info /tmp/bnma_arm_info.rds \
   --study-info /tmp/bnma_study_info.rds --manifest <manifest.yaml> \
+  --arm-rows /tmp/bnma_arm_rows.rds \
   --effect relative --out <output_folder>/forest_plot.png
 ```
 
-The script prints the footnote text (contributing studies, source data
-path(s), source program) it embedded in the plot — surface that back to the
-user so they can confirm it's traceable, per the workflow doc's footnote
-requirement. Save the plot into the matching dated `output/shared/YYYYMMDD_.../`
+The script prints the footnote text it embedded in the plot — surface that
+back to the user so they can confirm it's traceable, per the workflow doc's
+footnote requirement. With `--arm-rows` passed (the default per Step 5), the
+footnote breaks "Contributing studies" out **per treatment** — e.g.
+`semaglutide: surmount-1, surmount-4` on its own line — rather than one
+flat list for the whole plot, so a reviewer can tell which studies fed
+which specific estimate. Without it (older driver scripts), the footnote
+falls back to the old flat, plot-wide list. Either way it also includes the
+source data path(s) and source program. Save the plot into the matching
+dated `output/shared/YYYYMMDD_.../`
 folder, not next to the manifest in `programs/`.
 
 **Scratch run:** `--out /tmp/bnma_scratch_<slug>/forest_plot.png` instead.
@@ -1035,11 +1058,11 @@ sys2 <- function(command, args) system2(command, shQuote(args))
 build_data <- function() {
   sys2(file.path(skill_dir, "scripts/run_r.sh"), c(
     file.path(skill_dir, "scripts/load_merge_data.R"),
-    "--prd", "<prd_path.xlsx>", "--qa", "<qa_path.xlsx>", "--out", "<merged.rds>"
+    "--prd", "<prd_path.xlsx>", "--qa", "<qa_path.xlsx>", "--out", "/tmp/bnma_merged_<slug>.rds"
   ))
   sys2(file.path(skill_dir, "scripts/run_r.sh"), c(
     file.path(skill_dir, "scripts/build_batman_data.R"),
-    "--data", "<merged.rds>", "--manifest", manifest_path,
+    "--data", "/tmp/bnma_merged_<slug>.rds", "--manifest", manifest_path,
     "--batman-out", "<batman.rds>", "--arm-info-out", "<arm_info.rds>",
     "--study-info-out", "<study_info.rds>", "--arm-rows-out", "<arm_rows.rds>"
   ))
@@ -1058,7 +1081,8 @@ plot_forest <- function() {
   sys2(file.path(skill_dir, "scripts/run_r.sh"), c(
     file.path(skill_dir, "scripts/make_forest_plot.R"),
     "--samples", "<samples_<run_name>.rds>", "--arm-info", "<arm_info.rds>",
-    "--study-info", "<study_info.rds>", "--manifest", manifest_path,
+    "--study-info", "<study_info.rds>", "--arm-rows", "<arm_rows.rds>",
+    "--manifest", manifest_path,
     "--effect", "relative", "--out", "<forest_plot.png>", "--title", "<title>"
   ))
 }
@@ -1079,6 +1103,34 @@ data.
 Fill in every `<...>` placeholder with this run's literal paths/args (and
 the literal model-file contents) before writing the file — it must be
 directly `Rscript run_bnma_<slug>.R`-runnable with no further editing.
+
+**If Step 3's Project CLAUDE.md item was accepted**, write
+`programs/<slug>/CLAUDE.md` in the same turn as the driver script, and show
+its contents too (same "must be shown, not just written" rule). Populate it
+entirely from the manifest and Step 3's answers already in hand — this is
+not a new round of data collection:
+
+```markdown
+# <slug>
+
+<one-line purpose -- from Step 3's free-form context if the statistician
+gave one, else derived from the endpoint/dataset, e.g. "Weight-loss BNMA,
+oral compounds, for the ADA submission">
+
+## Data
+- Source: <manifest source_data.prd path> [+ <source_data.qa path>]
+- Endpoint: <effect_col> / <se_col>
+- Filters: route=<route_filter>, evidence=<evidence_filter>, region=<region_filter>
+
+## Key decisions
+- model_type: <model_type> <"(auto-corrected from X -- full star network)" if applicable>
+- Studies excluded: <list + reasons, from manifest, or "none">
+- Naming/pooling resolutions: <list, from manifest, or "none">
+
+## Re-running
+See `run_bnma_<slug>.R` in this folder — reproduces the fit and plot from
+scratch. Full decision record: `manifest.yaml`.
+```
 
 ## Step 7a — Promoting (or discarding) a scratch run
 

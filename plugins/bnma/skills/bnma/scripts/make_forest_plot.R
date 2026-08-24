@@ -8,7 +8,14 @@
 # Usage:
 #   Rscript make_forest_plot.R --samples <samples.rds> --arm-info <arm_info.rds> \
 #     --study-info <study_info.rds> --manifest <manifest.yaml> \
-#     --effect relative|absolute --out <plot.png> [--title "..."]
+#     --effect relative|absolute --out <plot.png> [--title "..."] \
+#     [--arm-rows <arm_rows.rds>]
+#
+# --arm-rows (build_batman_data.R's --arm-rows-out, Step 5) enables a
+# per-treatment "which studies fed this estimate" footnote breakdown instead
+# of one plot-wide list -- see contributing_studies below. Omit it (older
+# driver scripts that never passed --arm-rows-out) and the footnote falls
+# back to the flat plot-wide list, unchanged from before.
 
 suppressPackageStartupMessages({
   library(dplyr)
@@ -29,6 +36,7 @@ args <- parse_args(list(
   manifest         = list(required = TRUE),
   effect           = list(default = "relative"),
   placebo_samples  = list(default = NULL),
+  arm_rows         = list(default = NULL),
   out              = list(required = TRUE),
   title            = list(default = NULL),
   xlab             = list(default = NULL)
@@ -42,6 +50,7 @@ samples <- readRDS(args$samples)
 arm_info <- readRDS(args$arm_info)
 study_info <- readRDS(args$study_info)
 manifest <- yaml::read_yaml(args$manifest)
+arm_rows <- if (!is.null(args$arm_rows) && file.exists(args$arm_rows)) readRDS(args$arm_rows) else NULL
 
 samples_mat <- as.matrix(samples)
 
@@ -221,9 +230,38 @@ if (!is.null(subtitle_text)) {
   subtitle_text <- paste(strwrap(subtitle_text, width = subtitle_wrap_width), collapse = "\n")
 }
 
-contributing_studies <- paste(sort(study_info$study_name), collapse = ", ")
+#' Per-treatment "which studies fed this estimate" breakdown, per the
+#' workflow guide (Flow 2 step 5: show which studies fed *each* treatment
+#' estimate, not just the pooled result) -- needs arm_rows.rds's real,
+#' study-level (study_ind x arm_ind) rows, since arm_info.rds is
+#' deliberately collapsed to one row per arm_ind during
+#' build_batman_data.R and has no per-study detail left to recover here.
+#' Falls back to the old flat, plot-wide list when --arm-rows wasn't passed
+#' (older driver scripts that predate --arm-rows-out) -- same footnote as
+#' before, not a breaking change.
+if (!is.null(arm_rows)) {
+  by_treatment <- arm_rows %>%
+    filter(treatment %in% c(plot_treatments, "placebo")) %>%
+    distinct(treatment, study_name) %>%
+    group_by(treatment) %>%
+    summarise(studies = paste(sort(study_name), collapse = ", "), .groups = "drop")
+  by_treatment <- by_treatment[match(c(plot_treatments, "placebo"), by_treatment$treatment), ]
+  by_treatment <- by_treatment[!is.na(by_treatment$treatment), ]
+  contributing_lines <- c(
+    "Contributing studies by treatment:",
+    unlist(lapply(seq_len(nrow(by_treatment)), function(i) {
+      strwrap(
+        paste0(by_treatment$treatment[i], ": ", by_treatment$studies[i]),
+        width = footnote_wrap_width
+      )
+    }))
+  )
+} else {
+  contributing_studies <- paste(sort(study_info$study_name), collapse = ", ")
+  contributing_lines <- strwrap(paste0("Contributing studies: ", contributing_studies), width = footnote_wrap_width)
+}
 footnote_lines <- c(
-  strwrap(paste0("Contributing studies: ", contributing_studies), width = footnote_wrap_width),
+  contributing_lines,
   strwrap(
     paste0(
       "Source data: ", manifest$source_data$prd %||% "(not recorded)",
