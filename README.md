@@ -18,10 +18,10 @@ current-state findings, and the skill architecture.
 
 ## What's included
 
-- `skills/bnma/SKILL.md` — the skill itself: the full step-by-step
+- `plugins/bnma/skills/bnma/SKILL.md` — the skill itself: the full step-by-step
   workflow (locate data → load/merge → naming/pooling QA → one consolidated
   confirmation → build model input → fit → forest plot → driver script).
-- `skills/bnma/scripts/` — the deterministic R steps behind each
+- `plugins/bnma/skills/bnma/scripts/` — the deterministic R steps behind each
   of those stages (data load/merge, the naming/route pooling-risk QA gate,
   BATMAN augmentation, the JAGS fit, the forest plot). `run_with_jags.sh`
   wraps the JAGS-fitting step so the `jags`
@@ -33,16 +33,15 @@ current-state findings, and the skill architecture.
   separate, standalone pooled-placebo model that supplies the baseline for
   `--effect absolute` forest plots, independent of `model_type` (adopted
   from the real production package, `EliLillyCo/CMH.BNMA`).
-- `skills/bnma/compound_registry.yaml` — persisted naming-QA
+- `plugins/bnma/skills/bnma/compound_registry.yaml` — persisted naming-QA
   decisions, so a resolved compound-name pair is never re-flagged.
-- `skills/bnma/tests/` — a synthetic fixture with deliberately
+- `plugins/bnma/skills/bnma/tests/` — a synthetic fixture with deliberately
   seeded edge cases (near-duplicate compound names, a route-pooling
   collision, a Phase 2 study, a study with no placebo arm, a closed loop)
   and the manifest used to smoke-test the full
   pipeline end-to-end, including an actual JAGS fit.
-- `.claude-plugin/marketplace.json` / `.claude-plugin/plugin.json`
-  — this repo is both the plugin source and its own marketplace (a
-  single-plugin repo: the marketplace's one entry points back at `./`).
+- `.claude-plugin/marketplace.json` / `plugins/bnma/.claude-plugin/plugin.json`
+  — this repo is both the plugin source and its own marketplace.
 
 ## Prerequisites
 
@@ -89,7 +88,7 @@ standalone workbook.
 
 Third-party marketplaces (this one included) don't auto-update, so both
 steps are needed to pick up a new version after a `git push` to this repo.
-`.claude-plugin/plugin.json`'s `version` is bumped on every
+`plugins/bnma/.claude-plugin/plugin.json`'s `version` is bumped on every
 meaningful change — that's the only signal `/plugin marketplace update` has
 that anything changed.
 

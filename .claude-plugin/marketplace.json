@@ -7,7 +7,7 @@
   "plugins": [
     {
       "name": "bnma",
-      "source": "./",
+      "source": "./plugins/bnma",
       "description": "Obesity-landscape BNMA: BATMAN + JAGS + forest plots with a forced study-selection/naming-QA gate."
     }
   ]
