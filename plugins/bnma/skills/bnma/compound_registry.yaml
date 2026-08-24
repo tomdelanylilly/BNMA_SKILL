@@ -52,3 +52,43 @@ resolved_pairs:
       Same underlying molecule, different route -- kept as distinct compound
       entries rather than merged, since route is tracked via the compound
       string here rather than aom for these two. Confirmed 2026-08-17.
+  - a: dapagliflozin
+    b: empagliflozin
+    decision: different
+    note: >
+      Low similarity; both real, distinct SGLT2 inhibitors. Confirmed
+      2026-08-21 (cwm_wl_t2d run).
+  - a: exenatide
+    b: exenatide qw
+    decision: same
+    note: >
+      Dosing-frequency suffix, not a distinct compound. Relabel "exenatide
+      qw" -> "exenatide" via a run's compound_relabels. Confirmed 2026-08-21
+      (cwm_wl_t2d run).
+  - a: oralsemaglutide
+    b: semaglutide
+    decision: different
+    note: >
+      "oralsemaglutide" is a missing-space variant of "oral semaglutide"
+      (see that pair above, already resolved "different" from semaglutide).
+      Relabel "oralsemaglutide" -> "oral semaglutide" via a run's
+      compound_relabels -- do not merge with semaglutide. Confirmed
+      2026-08-21 (cwm_wl_t2d run).
+  - a: maridebartcafraglutide
+    b: maritide
+    decision: same
+    note: >
+      maritide is Amgen's public name for AMG133/maridebartcafraglutide.
+      Not caught by the automated edit-distance check (below threshold);
+      found by manual review. Relabel "maridebartcafraglutide" -> "maritide"
+      (canonical spelling, see known_compounds) via a run's
+      compound_relabels. Confirmed 2026-08-21 (cwm_wl_t2d run).
+  - a: insuglar
+    b: insulin glargine
+    decision: same
+    note: >
+      "insuglar" appears only as a comparator-arm compound (e.g. surpass-4);
+      real-world comparator is insulin glargine. Not caught by the automated
+      edit-distance check (no substring/high-similarity signal); found by
+      manual review. Relabel "insuglar" -> "insulin glargine" via a run's
+      compound_relabels. Confirmed 2026-08-21 (cwm_wl_t2d run).
