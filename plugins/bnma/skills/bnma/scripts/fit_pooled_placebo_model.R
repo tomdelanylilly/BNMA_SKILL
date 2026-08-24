@@ -170,21 +170,3 @@ cat("Pooled placebo baseline: m =", round(m_row, 3),
     " (95% CrI", round(m_ci[1], 3), ",", round(m_ci[2], 3), ")",
     " sigma_m =", round(sigma_row, 3), "\n")
 
-# Convergence diagnostics -- always run, never skipped, same rule as every
-# other gate in this skill, AND persisted to disk (<cache>_diagnostics.yaml)
-# same as fit_bnma_model.R's own fit -- confirmed 2026-08-21 this file's
-# earlier version only printed the diagnostics, never wrote them, the one
-# fit in this skill that didn't leave a diagnostics artifact next to its cache.
-diag <- compute_convergence_diagnostics(samples)
-print_convergence_diagnostics(diag)
-diagnostics_path <- sub("\\.rds$", "_diagnostics.yaml", args$cache)
-yaml::write_yaml(
-  c(
-    list(generated_at = as.character(Sys.time()),
-         samples_file = normalizePath(args$cache, mustWork = FALSE)),
-    diag
-  ),
-  diagnostics_path
-)
-cat("Diagnostics written to:", diagnostics_path, "\n")
-

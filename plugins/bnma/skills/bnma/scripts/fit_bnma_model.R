@@ -175,21 +175,3 @@ s <- summary(samples)
 d_rows <- grepl("^d\\[", rownames(s[[1]]))
 print(round(cbind(s[[1]][d_rows, "Mean", drop = FALSE], s[[2]][d_rows, c("2.5%", "97.5%")]), 2))
 
-# Convergence diagnostics -- always run, never skipped (same rule as every
-# other gate in this skill). Written next to the cache file so it survives
-# alongside the samples it describes; re-derived every time (cheap), even
-# when loading a cached fit, so an old run that was never checked still
-# gets checked on its next use.
-diagnostics_path <- sub("\\.rds$", "_diagnostics.yaml", args$cache)
-diag <- compute_convergence_diagnostics(samples)
-print_convergence_diagnostics(diag)
-yaml::write_yaml(
-  c(
-    list(generated_at = as.character(Sys.time()),
-         samples_file = normalizePath(args$cache, mustWork = FALSE)),
-    diag
-  ),
-  diagnostics_path
-)
-cat("Diagnostics written to:", diagnostics_path, "\n")
-

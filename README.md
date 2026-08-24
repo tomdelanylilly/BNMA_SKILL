@@ -9,7 +9,9 @@ It replaces a hardcoded, hand-edited study list with a guided, one-round-trip
 workflow: it computes everything it can from the data, asks you to confirm
 every genuinely discretionary choice in one consolidated message, then runs
 straight through to a forest plot, hard-stopping only on a real gate failure
-(non-convergence, a broken network, a study missing from the manifest).
+(a study missing from the manifest). It does not run any automated
+post-fit diagnostics (no Rhat/ESS, no DIC/consistency check) — matching
+the real production `EliLillyCo/CMH.BNMA` app's own behavior.
 
 See [DESIGN.md](DESIGN.md) for the full design rationale — problem statement,
 current-state findings, and the skill architecture.
@@ -18,12 +20,11 @@ current-state findings, and the skill architecture.
 
 - `plugins/bnma/skills/bnma/SKILL.md` — the skill itself: the full step-by-step
   workflow (locate data → load/merge → naming/pooling QA → one consolidated
-  confirmation → build model input → fit → convergence/network diagnostics →
-  forest plot → driver script).
+  confirmation → build model input → fit → forest plot → driver script).
 - `plugins/bnma/skills/bnma/scripts/` — the deterministic R steps behind each
   of those stages (data load/merge, the naming/route pooling-risk QA gate,
-  BATMAN augmentation, the JAGS fit, convergence/network/DIC diagnostics, the
-  forest plot). `run_with_jags.sh` wraps the JAGS-fitting step so the `jags`
+  BATMAN augmentation, the JAGS fit, the forest plot). `run_with_jags.sh`
+  wraps the JAGS-fitting step so the `jags`
   environment module gets loaded first (`rjags` fails to link without it).
 - `model_random.txt` / `model_fixed.txt` / `model_simultaneous.txt` /
   `model_simultaneous_fixed.txt` — the JAGS model specs, selected per run by
@@ -36,8 +37,8 @@ current-state findings, and the skill architecture.
   decisions, so a resolved compound-name pair is never re-flagged.
 - `plugins/bnma/skills/bnma/tests/` — a synthetic fixture with deliberately
   seeded edge cases (near-duplicate compound names, a route-pooling
-  collision, a Phase 2 study, a study with no placebo arm, a closed loop for
-  the consistency/DIC gate) and the manifest used to smoke-test the full
+  collision, a Phase 2 study, a study with no placebo arm, a closed loop)
+  and the manifest used to smoke-test the full
   pipeline end-to-end, including an actual JAGS fit.
 - `.claude-plugin/marketplace.json` / `plugins/bnma/.claude-plugin/plugin.json`
   — this repo is both the plugin source and its own marketplace.
@@ -49,7 +50,7 @@ HPC/Positron environment needs, before first use:
 - `module load R` and `module load jags` on `PATH` (or `Rscript` directly on
   `PATH` — `scripts/_resolve_rscript.sh` tries both, in that order)
 - R packages: `dplyr`, `readxl`, `writexl`, `ggplot2`, `ggtext`, `coda`,
-  `igraph`, `netmeta`, `yaml`, `rjags`
+  `yaml`, `rjags`
 
 ## Install
 
@@ -108,8 +109,7 @@ there:
    plot's treatment list — each with a stated default. Reply with just what
    you want to change; everything else proceeds on the shown default/proposal.
 4. It writes a YAML manifest recording every decision, builds the model
-   input, fits the model via JAGS, runs convergence and network/consistency/
-   DIC diagnostics (hard-stopping only on an actual `FAIL`), and renders the
+   input, fits the model via JAGS, and renders the
    forest plot with a traceable footnote (source data, source program,
    contributing studies).
 5. It writes a driver script next to the manifest that reproduces the whole

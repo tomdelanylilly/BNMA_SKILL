@@ -48,11 +48,17 @@ statistician accept-all/override/add free-form concerns in a single reply,
 then run straight through to the plot with no further stops.
 
 **The one thing that always still interrupts, even after that reply: a hard
-gate failure** — convergence `FAIL` (Step 5.5), network/consistency/DIC
-`FAIL` (Step 5.6), or `build_batman_data.R` refusing to run because a study
-is missing from the manifest. Continuing silently past one of these would
-defeat the actual purpose of the skill, not just its UX — a `WARN` is worth
-mentioning in the final summary but does not stop the run.
+gate failure** — `build_batman_data.R` refusing to run because a study is
+missing from the manifest. Continuing silently past that would defeat the
+actual purpose of the skill, not just its UX.
+
+**This skill does not run any automated post-fit diagnostics** (no Rhat/ESS
+convergence check, no network-connectivity/consistency/DIC check) — matches
+the real production `EliLillyCo/CMH.BNMA` app's own behavior (confirmed
+2026-08-24: it fits and plots with no such checks). If a fit's plausibility
+needs verifying, inspect the posterior manually (`coda::gelman.diag()`,
+`coda::effectiveSize()` on the cached `samples.rds`) rather than expecting
+this skill to flag it.
 
 ## Step 0 — Locate the data, offer to merge new data, set up the run folders
 
@@ -126,8 +132,8 @@ leaving it blank; the statistician can rename it in their Step 3 reply.
 **Actually create both folders only once Step 3 is confirmed** (right before
 Step 4 writes the manifest into `programs/<slug>/`) — this moves folder
 creation earlier than Step 7 used to, so every intermediate artifact from
-Step 1 onward (merged data, naming report, manifest, cached samples,
-diagnostics) has a real home instead of living in `/tmp`, but it's still a
+Step 1 onward (merged data, naming report, manifest, cached samples)
+has a real home instead of living in `/tmp`, but it's still a
 confirmed action, not a background one: don't write anything to disk under
 a folder name the statistician hasn't seen and had the chance to change.
 
@@ -137,7 +143,7 @@ Every `--out`/intermediate-artifact path in this step and Step 2/2.5 below is
 shown as `/tmp/bnma_*.rds` and genuinely does write there — the run's real
 `programs/YYYYMMDD_<slug>/` folder isn't created until Step 4 (Step 3 has to
 confirm the folder name first), so nothing durable exists yet. From Step 4
-onward, everything (manifest, cached samples, diagnostics) writes into the
+onward, everything (manifest, cached samples) writes into the
 now-real `programs/<slug>/` folder instead. Losing `/tmp`'s merged data or
 naming report between here and Step 4 costs nothing — both are cheap,
 deterministic re-derivations from the source file(s), not something Step 7's
@@ -408,7 +414,7 @@ Apply everything confirmed in Step 3. **First, actually create the working
 folders** — `programs/YYYYMMDD_<slug>/` and `output/shared/YYYYMMDD_<slug>/`
 (`<slug>` per Step 3's confirmed or renamed value, dated with today's date) —
 now that the statistician has seen and confirmed the name. Everything from
-here on (manifest, merged data, naming report, cached samples, diagnostics)
+here on (manifest, merged data, naming report, cached samples)
 writes into `programs/<slug>/`; forest plots go into `output/shared/<slug>/`
 (Step 6). Then write a YAML manifest capturing everything from Step 3 — this
 is the traceable artifact that replaces a commented-out R vector. Example
@@ -563,8 +569,9 @@ to converge, even after a large iteration increase — that's a real
 possibility, not just a hypothetical.** Found 2026-08-20 on a real T2D
 HbA1c landscape run: two studies (`duration6`, a 2-node isolated pair;
 `pioneer plus`, a 3-node isolated triangle) had zero connection to the main
-72-node network. Phantom-bridging both produced a hard convergence `FAIL`
-(Rhat 8.3–36, ESS 6–10) — refitting with 5x the adaptation/burn-in/
+72-node network. Phantom-bridging both produced hard non-convergence on
+manual inspection (`coda::gelman.diag()` Rhat 8.3–36, `coda::effectiveSize()`
+6–10) — refitting with 5x the adaptation/burn-in/
 iterations *did not fix it*, it just moved which node looked worst. Root
 cause: the phantom placebo's `se=1` is a very weak anchor, and when the
 bridged component's own treatments are themselves single-study nodes with
@@ -575,8 +582,9 @@ iterations resolves. Bridging a *single disconnected study* whose
 treatments already have other real network connections is the well-behaved
 case this feature was originally built for; bridging a study that is
 itself the *entire* isolated component is a materially different, weaker
-case. If a `FAIL` persists after a substantial iteration increase (not just
-the first refit) following a phantom bridge, treat that as a signal to
+case. If non-convergence persists after a substantial iteration increase
+(not just the first refit) following a phantom bridge — check manually,
+since this isn't caught automatically — treat that as a signal to
 fall back to excluding the study/studies rather than continuing to push
 iterations — surface this explicitly rather than silently excluding, since
 it reverses an already-confirmed decision.
@@ -655,9 +663,10 @@ but it's dead weight (a `phi[i]` baseline node with zero relative-effect
 information) not worth carrying into the fit or its convergence scoring.
 
 `--arm-rows-out` is optional but recommended for every new run — it saves
-the real (non-phantom), study-level arm rows that Step 5.6's network/
-consistency/DIC diagnostics gate needs. Existing driver scripts that omit
-it keep working unchanged; Step 5.6 simply isn't runnable without it.
+the real (non-phantom), study-level arm rows that Step 5's own
+`fit_pooled_placebo_model.R` needs (see below) for `effect_type: absolute`
+runs. Existing driver scripts that omit it keep working unchanged for
+`effect_type: relative`-only runs.
 
 `build_batman_data.R` also prints a **heterogeneity estimability** check —
 for every non-placebo treatment node, how many distinct studies feed it.
@@ -719,8 +728,8 @@ the baseline (`phi`, and `m` for `model_simultaneous.txt`/
 treatment-effect (`d`) nodes and chains 2–3 drawing from those same nodes'
 own vague priors (Normal(0, SD=100)) — all built into `fit_bnma_model.R`
 itself, nothing to configure per run. Override via `--n_adapt`/`--n_burnin`/
-`--n_iter`/`--thin` if a specific run's convergence diagnostics (Step 5.5)
-call for more.
+`--n_iter`/`--thin` if a specific run needs more (e.g. after manually
+inspecting the posterior and finding it under-mixed).
 
 
 `model_random.txt`/`model_fixed.txt` are copied verbatim from the real
@@ -856,95 +865,6 @@ Give the cache file a run-specific name (per the workflow doc's "cached MCMC
 samples are expensive to regenerate, version-specific name" rule) — don't
 reuse another run's cache path.
 
-## Step 5.5 — Convergence diagnostics (automatic, never skipped)
-
-`fit_bnma_model.R` runs MCMC convergence diagnostics itself, right after
-every fit (fresh or loaded from cache) — nothing to invoke separately, and
-no way to opt out, same "no silent skip" rule as every other gate. It
-prints a summary and writes `<cache-name>_diagnostics.yaml` next to the
-samples file, e.g. `samples.rds` → `samples_diagnostics.yaml`.
-
-Thresholds come from the BayesianAgent plugin's `model-diagnostics` skill
-(its own JAGS/R2jags bar — looser than the 1.01/400 it quotes for Stan/NUTS,
-since a Gibbs sampler's per-iteration efficiency isn't comparable):
-
-| Metric | Good | Concern (fails) |
-|---|---|---|
-| Rhat (max across nodes) | ≤ 1.01 | > 1.10 |
-| ESS (min across nodes) | ≥ 400 | < 100 |
-
-Verdict is `pass`, `warn`, or `fail`. The fixed reference treatment (`d[1]`)
-and any other zero-variance node (e.g. `model_fixed.txt`'s deterministic
-`delta[i,j]`) are excluded from scoring — they're not actually sampled, so
-their ESS is mathematically 0 and would force a false `fail` on every run
-otherwise.
-
-**A `fail` verdict must be surfaced to the user before Step 6** — show them
-the printed summary and get an explicit decision (re-fit with more
-`--n_iter`/`--n_burnin`, or proceed anyway with the caveat documented in the
-footnote) rather than quietly producing a forest plot from a fit that didn't
-converge. A `warn` is worth mentioning but not blocking.
-
-To re-check an already-cached run without refitting (e.g. after changing
-thresholds), run the diagnostics standalone:
-```bash
-scripts/run_r.sh scripts/check_convergence.R --samples <cache.rds> --out <diagnostics.yaml>
-```
-
-## Step 5.6 — Network/consistency/DIC diagnostics gate (automatic, `--skip-dic` to opt out)
-
-Adapted from a colleague's parallel `atlas` skill's `diagnostics.R`
-(cherry-picked 2026-08-19) — four checks on top of Step 5.5's convergence
-check, together forming a single combined gate:
-
-```bash
-scripts/run_with_jags.sh scripts/check_network_diagnostics.R \
-  --batman <batman.rds> --arm-rows <arm_rows.rds> --arm-info <arm_info.rds> \
-  --samples <cache.rds> --out <network_diagnostics.yaml> [--gate] [--skip-dic]
-```
-
-Requires `--arm-rows-out` to have been passed to Step 5's
-`build_batman_data.R` call — the checks below need the real, non-phantom
-study-level rows, not the BATMAN-augmented version. Runs via
-`run_with_jags.sh` unless `--skip-dic` is passed (then plain `run_r.sh`
-works, since only the DIC check needs a second `rjags` fit).
-
-1. **Network** — `igraph`: is the network one connected component? Which
-   treatments have no *direct* placebo comparison (indirect-only, wider by
-   construction)? `FAIL` if disconnected, `WARN` if any node is
-   indirect-only.
-2. **Uncertainty** — flags every single-study ("fragile") arm via its CrI
-   width and study count. `WARN` if any exist — expected and common for the
-   obesity landscape data, not usually a reason to stop, but worth knowing
-   which specific arms are provisional.
-3. **Consistency** (node-splitting, `netmeta::netsplit()`) — for every
-   loop-informed comparison (one with both direct and indirect evidence),
-   compares the two; `FAIL` if any disagree at p<0.05. Reports `N/A` for a
-   star-shaped network (no loops to test — add a head-to-head study to
-   enable this) or `SKIP` if the real-evidence network splits into
-   disconnected sub-networks that only phantom-placebo bridging connects
-   (those cross-sub-network estimates lean on the imputed placebo and can't
-   be genuinely consistency-checked).
-4. **DIC inconsistency** (NICE DSU TSD4) — fits a second, unrelated-mean-
-   effects (UME) model and compares DIC to the ordinary consistency model.
-   `FAIL` if the consistency model's DIC exceeds the UME model's by more
-   than 5, `WARN` if by more than 2 (ideally the difference is negative —
-   consistency preferred). **Always uses `model_random.txt` for its own
-   internal comparison, regardless of which model the main analysis
-   fit used** — both sides of a DIC comparison must share the same
-   baseline structure (flat/independent `phi[i]`, matching the UME model's
-   own hardcoded baseline) or the DIC difference would partly reflect a
-   baseline mismatch instead of purely the consistency question being
-   tested. `--model` can override this default deliberately (e.g. to test
-   a different baseline's own consistency profile), but never to reuse
-   whatever `--model` the main fit happened to pass as a shortcut.
-
-Overall verdict is the worst of these four plus Step 5.5's convergence
-check. Written to YAML (`<out>`), printed to console per-check. `--gate`
-exits non-zero (status 2) on an overall `FAIL` — **surface a `FAIL` to the
-user and get explicit sign-off before Step 6**, same rule as every other
-gate in this skill; a `WARN` is worth mentioning but not blocking.
-
 ## Step 6 — Forest plot + footnote
 
 ```bash
@@ -1011,10 +931,10 @@ Once the manifest-driven run is finished (BATMAN built, model fit, plot(s)
 rendered) and the user is happy with the plot, write a driver script into
 the same dated `programs/YYYYMMDD_.../` folder, e.g. `run_bnma_<slug>.R`,
 that reproduces the run from scratch by calling this skill's own tested
-scripts — not a flattened rewrite of their logic (the naming/pooling QA gate,
-the star-network model_type auto-correction, and the convergence/network/DIC
-gates all live in those scripts precisely so no run — including a driver
-script re-run six months later on refreshed data — can silently skip them.
+scripts — not a flattened rewrite of their logic (the naming/pooling QA gate
+and the star-network model_type auto-correction live in those scripts
+precisely so no run — including a driver script re-run six months later on
+refreshed data — can silently skip them.
 A hand-rolled reimplementation, however well-organized, would quietly drop
 every one of those checks).
 
@@ -1151,7 +1071,7 @@ already been fit — not part of the numbered pipeline above.
   reference tool specifically, not a structural limitation of
   `model_random.txt`/`model_fixed.txt` — CMH.BNMA (the newer, preferred
   reference — confirmed 2026-08-20) has one via this separate model.
-- No formal node-splitting-vs-DIC reconciliation logic — Step 5.6 reports
-  both independently; when they diverge (a real, informative disagreement,
-  not a bug), trace the node-split flags back to their source study by hand
-  before deciding whether to exclude, relabel, or accept the result.
+- No automated post-fit diagnostics — no Rhat/ESS convergence check, no
+  network-connectivity/consistency/DIC check (removed 2026-08-24, matching
+  `EliLillyCo/CMH.BNMA`'s own behavior). A fit's plausibility is on the
+  analyst to verify by hand if there's reason to doubt it.

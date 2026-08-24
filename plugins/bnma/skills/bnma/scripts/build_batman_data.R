@@ -502,10 +502,10 @@ data_recon <- data_sel %>%
 
 # Real (non-phantom), study-level arm rows -- snapshot taken here, before
 # phantom-placebo bridging below can add synthetic rows. Consumed by
-# check_network_diagnostics.R (network/consistency/DIC checks need to know
-# which studies *actually* reported which arms, not the BATMAN-augmented
-# version that would misrepresent a phantom-bridged study as having real
-# placebo evidence). Optional output -- existing driver scripts that don't
+# fit_pooled_placebo_model.R (needs to know which studies *actually*
+# reported which arms, not the BATMAN-augmented version that would
+# misrepresent a phantom-bridged study as having real placebo evidence).
+# Optional output -- existing driver scripts that don't
 # pass --arm-rows-out keep working unchanged.
 if (!is.null(args$arm_rows_out)) {
   arm_rows <- data_recon %>%

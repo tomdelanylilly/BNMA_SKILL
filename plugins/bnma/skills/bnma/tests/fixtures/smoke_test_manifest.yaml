@@ -88,7 +88,7 @@ studies:
     phase: "phase 3"
     data_type: observed
     include: true
-    reason: "exercises case 10 -- closes a loop with canaflig-1/canafligizon-1 for the network/consistency/DIC diagnostics gate to have a real (non-N/A) result to report."
+    reason: "exercises case 10 -- closes a loop with canaflig-1/canafligizon-1, exercising build_batman_data.R's multi-arm/loop data prep."
 plot_treatments:
   - canaflig 10mg qw
   - canafligizon 10mg qw

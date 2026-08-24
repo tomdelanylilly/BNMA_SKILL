@@ -29,9 +29,8 @@
 #      canafligizon 10mg qw -- each already independently connected to
 #      placebo via canaflig-1/canafligizon-1 (case 1), so this creates a
 #      genuine closed loop (direct evidence AND an indirect path through
-#      placebo) for check_network_diagnostics.R's consistency/DIC checks to
-#      exercise. Every other case is star-shaped from placebo; without this
-#      one, those checks only ever report N/A/SKIP, never a real result.
+#      placebo) -- exercises build_batman_data.R's multi-arm/loop handling.
+#      Every other case is star-shaped from placebo.
 #
 # Usage: Rscript tests/make_fixture.R --out tests/fixtures/prd_fixture.xlsx
 
