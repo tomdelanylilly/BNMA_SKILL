@@ -1158,3 +1158,340 @@ already been fit — not part of the numbered pipeline above.
   network-connectivity/consistency/DIC check (removed 2026-08-24, matching
   `EliLillyCo/CMH.BNMA`'s own behavior). A fit's plausibility is on the
   analyst to verify by hand if there's reason to doubt it.
+
+---
+
+## Appendix A — JAGS Model Text (embedded, no external files needed)
+
+These are the exact model definitions this skill uses. During the session,
+write the chosen model to a temp file via `cat('...', file = model_path)`.
+In the standalone driver script (Step 7), paste it inline the same way.
+
+### A1. Random-effects, flat baselines (DEFAULT — `model_random.txt`)
+
+Use for: placebo-adjusted forest (the standard deliverable). Production default.
+
+```jags
+model{
+    for(i in 1:ns){
+        phi[i]~dnorm(0.0, 0.0001)
+    }
+    for(i in 1:ns){
+        for(j in 1:na[i]){
+            y[i,j]~dnorm(eta[i,j], 1/se[i,j]^2)
+            dev[i,j] <- (y[i,j]-eta[i,j])*(y[i,j]-eta[i,j])*(1/se[i,j]^2)
+        }
+        devstudy[i] <- sum(dev[i,1:na[i]])
+    }
+    for(i in 1:ns){
+        eta[i,1]<-phi[i]+delta[i,1]
+        for(j in 2:na[i]){
+            eta[i,j]<-phi[i] + delta[i,j]
+        }
+    }
+    for(i in 1:ns){
+        w[i,1]<-0
+        delta[i,1]<-0
+        for(j in 2:na[i]){
+            delta[i,j]~dnorm((d[trt[i,j]]-d[trt[i,1]])+sw[i,j], tau2d[i,j])
+            tau2d[i,j]<-tau2*2*(j-1)/j
+            w[i,j]<-delta[i,j]-d[trt[i,j]] + d[trt[i,1]]
+            sw[i,j]<-sum(w[i,1:(j-1)])/(j-1)
+        }
+    }
+    Dbar <- sum(devstudy[])
+    d[1]<-0
+    for(k in 2:M){
+        d[k]~dnorm(0,1e-04)
+    }
+    sigma~dunif(0,8)
+    sigma2<-sigma*sigma
+    tau2<-1/sigma2
+}
+```
+
+### A2. Fixed-effect, flat baselines (`model_fixed.txt`)
+
+Use for: star networks where sigma can't be estimated, or as sensitivity check.
+Only difference from A1: `delta[i,j]` is deterministic (`<-`), not stochastic (`~dnorm`).
+
+```jags
+model{
+    for(i in 1:ns){
+        phi[i]~dnorm(0.0, 0.0001)
+    }
+    for(i in 1:ns){
+        for(j in 1:na[i]){
+            y[i,j]~dnorm(eta[i,j], 1/se[i,j]^2)
+            dev[i,j] <- (y[i,j]-eta[i,j])*(y[i,j]-eta[i,j])*(1/se[i,j]^2)
+        }
+        devstudy[i] <- sum(dev[i,1:na[i]])
+    }
+    for(i in 1:ns){
+        eta[i,1]<-phi[i]+delta[i,1]
+        for(j in 2:na[i]){
+            eta[i,j]<-phi[i] + delta[i,j]
+        }
+    }
+    for(i in 1:ns){
+        w[i,1]<-0
+        delta[i,1]<-0
+        for(j in 2:na[i]){
+            tau2d[i,j]<-tau2*2*(j-1)/j
+            delta[i, j] <- (d[trt[i, j]]-d[trt[i, 1]])+sw[i, j]
+            w[i,j]<-delta[i,j]-d[trt[i,j]] + d[trt[i,1]]
+            sw[i,j]<-sum(w[i,1:(j-1)])/(j-1)
+        }
+    }
+    Dbar <- sum(devstudy[])
+    d[1]<-0
+    for(k in 2:M){
+        d[k]~dnorm(0,1e-04)
+    }
+    sigma~dunif(0,8)
+    sigma2<-sigma*sigma
+    tau2<-1/sigma2
+}
+```
+
+### A3. Random-effects, exchangeable/pooled baselines (`model_simultaneous.txt`)
+
+Use for: absolute-effect forest (`m + d[k]`). Has `m`, `sigma_m`, `mu_new`.
+
+```jags
+model{
+    for(i in 1:ns){
+      phi[i] ~ dnorm(m, tau2_m)
+    }
+    m ~ dnorm(0, 1e-04)
+    tau2_m   <- 1 / sigma2_m
+    sigma2_m <- sigma_m * sigma_m
+    sigma_m  ~ dunif(0, 8)
+
+    for(i in 1:ns){
+      for(j in 1:na[i]){
+        y[i,j] ~ dnorm(eta[i,j], 1 / se[i,j]^2)
+        dev[i,j] <- (y[i,j] - eta[i,j])^2 * (1 / se[i,j]^2)
+      }
+      devstudy[i] <- sum(dev[i, 1:na[i]])
+    }
+    for(i in 1:ns){
+      eta[i,1] <- phi[i] + delta[i,1]
+      for(j in 2:na[i]){
+        eta[i,j] <- phi[i] + delta[i,j]
+      }
+    }
+    for(i in 1:ns){
+      w[i,1]     <- 0
+      delta[i,1] <- 0
+      for(j in 2:na[i]){
+        delta[i,j] ~ dnorm((d[trt[i,j]] - d[trt[i,1]]) + sw[i,j], tau2d[i,j])
+        tau2d[i,j] <- tau2 * 2 * (j-1) / j
+        w[i,j]     <- delta[i,j] - d[trt[i,j]] + d[trt[i,1]]
+        sw[i,j]    <- sum(w[i, 1:(j-1)]) / (j-1)
+      }
+    }
+    Dbar <- sum(devstudy[])
+    d[1] <- 0
+    for(k in 2:M){
+      d[k] ~ dnorm(0, 1e-04)
+    }
+    sigma  ~ dunif(0, 8)
+    sigma2 <- sigma * sigma
+    tau2   <- 1 / sigma2
+    mu_new ~ dnorm(m, 1 / sigma_m^2)
+}
+```
+
+### A4. Pooled-placebo meta-analysis (`model_placebo_random.txt`)
+
+Use for: estimating the overall placebo effect + predicting a new study's placebo.
+
+```jags
+model{
+    for(i in 1:n_obs){
+      y_pct[i] ~ dnorm(mu[study_idx[i]], 1/se_pct[i]^2)
+    }
+    for(i in 1:ns_bl){
+      mu[i] ~ dnorm(m, 1/sigma2_m)
+    }
+    m        ~ dnorm(0, 1e-04)
+    sigma_m  ~ dunif(0, 10)
+    sigma2_m <- sigma_m * sigma_m
+    mu_new   ~ dnorm(m, 1/sigma2_m)
+}
+```
+
+---
+
+## Appendix B — R Code Patterns (the standalone script follows these exactly)
+
+### B1. The `run_nma()` helper (data → BATMAN matrices → fit/cache → results)
+
+```r
+run_nma <- function(data_subset, rds_tag) {
+  data_sel <- data_subset %>%
+    filter(!study %in% EXCLUDED_STUDIES, !is.na(se)) %>%
+    mutate(se = as.numeric(se),
+           treat = ifelse(treat %in% PLACEBO_VARIANTS, "Placebo", treat))
+
+  study_list <- unique(data_sel$study)
+  treat_list <- unique(data_sel$treat)
+  treat_list <- c("Placebo", setdiff(treat_list, "Placebo"))
+
+  data_recon <- data_sel %>%
+    select(-any_of(c("study_ind", "arm_ind"))) %>%
+    left_join(data.frame(study = study_list) %>% mutate(study_ind = seq_along(study_list)), by = "study") %>%
+    left_join(data.frame(treat = treat_list) %>% mutate(arm_ind = seq_along(treat_list)), by = "treat")
+
+  na_list <- data_recon %>%
+    group_by(study_ind) %>%
+    mutate(na = length(arm_ind)) %>%
+    select(study_ind, na) %>%
+    unique() %>% ungroup() %>% select(na) %>% c()
+
+  ns    <- max(data_recon$study_ind)
+  M     <- max(data_recon$arm_ind)
+  max_a <- max(na_list$na)
+
+  trt_m <- matrix(NA, ns, max_a)
+  y_m   <- matrix(NA, ns, max_a)
+  se_m  <- matrix(NA, ns, max_a)
+
+  for (i in seq_len(ns)) {
+    temp_t <- data_recon[data_recon$study_ind == i, "arm_ind"]
+    temp_y <- data_recon[data_recon$study_ind == i, "y"]
+    temp_s <- data_recon[data_recon$study_ind == i, "se"]
+    for (j in seq_len(max_a)) {
+      trt_m[i, j] <- as.numeric(temp_t[j, ])
+      y_m[i,   j] <- as.numeric(temp_y[j, ])
+      se_m[i,  j] <- as.numeric(temp_s[j, ])
+    }
+  }
+
+  jd <- list(na = na_list$na, M = M, ns = ns, trt = trt_m, y = y_m, se = se_m)
+
+  rds_path <- file.path(out_dir, paste0("samples_", rds_tag, ".rds"))
+  if (file.exists(rds_path)) {
+    cat("Loading cached samples:", rds_path, "\n")
+    samples <- readRDS(rds_path)
+  } else {
+    cat("Fitting JAGS:", rds_tag, "\n")
+    jm <- jags.model(model_path, jd, n.adapt = 10000, n.chains = 3, inits = inits.list)
+    update(jm, 10000)
+    samples <- coda.samples(jm, 20000, variable.names = c("d", "phi", "delta"), thin = 10)
+    saveRDS(samples, rds_path)
+    cat("Saved:", rds_path, "\n")
+  }
+
+  BNMA_out <- data.frame(
+    node      = row.names(summary(samples)[[1]]),
+    mean      = summary(samples)[[1]][, "Mean"],
+    val2.5pc  = summary(samples)[[2]][, "2.5%"],
+    val97.5pc = summary(samples)[[2]][, "97.5%"])
+
+  arm_info <- data_recon %>%
+    mutate(node = paste0("d[", arm_ind, "]")) %>%
+    select(node, Treatment = treat, Compound) %>%
+    distinct()
+
+  list(BNMA_out = BNMA_out, arm_info = arm_info)
+}
+```
+
+### B2. The `make_forest()` helper (results → forest plot)
+
+```r
+make_forest <- function(res, trt_levels, plot_file, title = NULL) {
+  data_plot <- res$arm_info %>%
+    left_join(res$BNMA_out, by = "node") %>%
+    filter(Treatment %in% trt_levels) %>%
+    arrange(match(Treatment, trt_levels)) %>%
+    mutate(Label = paste0(round(mean, 1), " (", round(val2.5pc, 1), ", ", round(val97.5pc, 1), ")"))
+
+  compounds <- sort(unique(na.omit(data_plot$Compound)))
+  ref_colours <- c("red", "dodgerblue4", "orange", "black", "brown4", "steelblue1",
+                   "green4", "purple4", "burlywood4", "darkgrey", "chocolate3", "darkorange2")
+  colour_map <- setNames(ref_colours[seq_along(compounds)], compounds)
+
+  n_trts <- length(trt_levels)
+  y_lo <- floor(min(data_plot$val2.5pc, na.rm = TRUE) / 5) * 5
+  y_lo <- min(y_lo, -30)
+
+  plot_title <- if (!is.null(title)) title else "Percent Body Weight Reduction"
+
+  p <- ggplot(data_plot,
+    aes(x = factor(Treatment, levels = rev(trt_levels)),
+        y = mean, ymin = val2.5pc, ymax = val97.5pc)) +
+    ylim(y_lo, 7) +
+    geom_pointrange(aes(col = Compound), size = 0.5, linewidth = 0.5) +
+    geom_hline(yintercept = 0, linewidth = 1, linetype = 2) +
+    coord_flip() + xlab("") +
+    ylab("Mean & 95% CI of Pbo-adj Percent Change in Body Weight (%)") +
+    ggtitle(plot_title) +
+    scale_color_manual(values = colour_map) +
+    theme_bw() +
+    theme(axis.title = element_text(size = 18), axis.text = element_text(size = 18),
+          plot.title = element_text(size = 14, face = "bold", hjust = 0.5),
+          legend.text = element_text(size = 18), legend.title = element_text(size = 18)) +
+    geom_text(aes(y = mean, label = Label), show.legend = FALSE, vjust = 1.6, size = 4.5) +
+    labs(caption = paste0("Source: ", basename(data_file),
+      "\nestimand = ee | random-effects | ", format(Sys.Date(), "%Y-%m-%d"))) +
+    theme(plot.caption = element_text(size = 9, hjust = 0, face = "italic"))
+
+  ggsave(file.path(out_dir, plot_file), p, width = 14,
+         height = max(8, 0.45 * n_trts + 2), dpi = 150)
+  message("Saved: ", file.path(out_dir, plot_file))
+  invisible(p)
+}
+```
+
+### B3. Manifest template (YAML)
+
+```yaml
+created_at: "YYYY-MM-DD"
+source_data:
+  prd: <path to PRD xlsx>
+  qa: <path to QA xlsx, or null>
+effect_col: pchg_wl_ee
+se_col: se_wl_ee
+effect_label: "Body Weight"
+effect_direction: decrease_is_better
+route_filter: both
+evidence_filter: both
+region_filter: [global]
+model_type: rand_effect
+effect_type: relative
+studies:
+  - study_name: <name>
+    phase: "phase 3"
+    data_type: observed
+    include: true
+    reason: "<why>"
+compound_relabels: []
+row_exclusions: []
+placebo_consolidation: []
+plot_treatments:
+  - <treatment 1>
+  - <treatment 2>
+```
+
+---
+
+## Appendix C — Named Contrast (utility, not part of the numbered pipeline)
+
+To compute a head-to-head contrast from an already-fitted run without
+hardcoded posterior indices:
+
+```r
+# After fitting, with `samples` as the mcmc.list and `arm_info` lookup:
+named_contrast <- function(samples, arm_info, treat1, treat2) {
+  S <- as.matrix(samples)
+  idx1 <- arm_info$arm_ind[arm_info$Treatment == treat1]
+  idx2 <- arm_info$arm_ind[arm_info$Treatment == treat2]
+  d1 <- if (idx1 == 1) rep(0, nrow(S)) else S[, paste0("d[", idx1, "]")]
+  d2 <- if (idx2 == 1) rep(0, nrow(S)) else S[, paste0("d[", idx2, "]")]
+  contrast <- d1 - d2
+  c(mean = mean(contrast), lo = quantile(contrast, 0.025), hi = quantile(contrast, 0.975))
+}
+```
