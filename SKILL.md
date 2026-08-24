@@ -1,13 +1,15 @@
 ---
-name: bnma
+name: cmh-ci
 description: >
-  Run an obesity/diabetes-landscape Bayesian network meta-analysis (BNMA) on
-  any single continuous endpoint (weight loss, HbA1c, physical function,
-  etc.) from the QA/PRD dataset, with forced study-selection confirmation and
-  a naming/route pooling-risk QA gate, instead of a hardcoded, hand-edited
-  study list. Use this skill whenever the user wants to run, update, or
-  refresh a BNMA forest plot from a QA/PRD dataset, or mentions "/bnma",
-  "run the meta-analysis", "BATMAN", or a compound landscape forest plot.
+  Run a Cardiometabolic Health competitive-intelligence Bayesian network
+  meta-analysis (BNMA) on any single continuous endpoint (weight loss, HbA1c,
+  physical function, etc.) from the QA/PRD dataset, with forced
+  study-selection confirmation and a naming/route pooling-risk QA gate,
+  instead of a hardcoded, hand-edited study list. Use this skill whenever
+  the user wants to run, update, or refresh a BNMA forest plot from a
+  QA/PRD dataset, or mentions "/cmh-ci", "run the BNMA", "run the
+  meta-analysis", "BATMAN", "landscape forest plot", or "competitive
+  intelligence deck figures".
 ---
 
 # /bnma
