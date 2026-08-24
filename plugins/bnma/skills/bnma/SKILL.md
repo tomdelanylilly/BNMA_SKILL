@@ -137,6 +137,17 @@ has a real home instead of living in `/tmp`, but it's still a
 confirmed action, not a background one: don't write anything to disk under
 a folder name the statistician hasn't seen and had the chance to change.
 
+**Scratch mode is the opt-out alternative to the above, not a separate
+step** — alongside the `programs/`/`output/shared/` proposal, always state
+explicitly that replying "scratch" or "dry run" instead keeps this entire
+run inside `/tmp` (`/tmp/bnma_scratch_<slug>/`) with nothing written to the
+shared drive — no `programs/`/`output/shared/` folders, no
+`compound_registry.yaml` update (Step 2), no driver script (Step 7). Useful
+for prototyping/demoing the skill itself without leaving files behind on a
+share that has no version control to clean them up. See Step 4 onward for
+how each step's destination changes, and Step 7a for promoting a scratch
+run to a real one afterward.
+
 ## Step 1 — Load & merge (runs automatically)
 
 Every `--out`/intermediate-artifact path in this step and Step 2/2.5 below is
@@ -241,7 +252,10 @@ Once an answer is confirmed (in Step 3), persist compound-name resolutions
 to `compound_registry.yaml` (Edit tool, this skill's own repo copy) so the
 same pair is never re-flagged; pooling-flag resolutions go in the manifest
 only (Step 4), since they're data-specific rather than a general
-compound-identity fact.
+compound-identity fact. **Skip the `compound_registry.yaml` write entirely
+for a scratch run** (Step 0c/3) — the resolution still applies to this
+run's own manifest, it just isn't remembered for next time, same as every
+other artifact a scratch run doesn't persist.
 
 The report also lists `placebo_naming_flags` (Check 4a) — rows where
 `compound == "placebo"` but `treatment` isn't literally `"placebo"` (real
@@ -332,7 +346,7 @@ actual data/report; never leave a placeholder):
 
   SCOPE
    1  Dataset           <path(s)>                                (detected)
-   2  Working folders  ► programs/YYYYMMDD_<slug>/, output/shared/YYYYMMDD_<slug>/  (not yet created)
+   2  Working folders  ► programs/YYYYMMDD_<slug>/, output/shared/YYYYMMDD_<slug>/  (not yet created; reply "scratch" for a /tmp-only dry run)
    3  Endpoint         ► weight loss (effect_col: pchg_wl_ee, se_col: se_wl_ee)
    4  Route            ► both (oral + injectable)
    5  Evidence         ► both (observed + prediction)
@@ -368,6 +382,14 @@ Notes:
   best guess at a short, meaningful label for this run (see Step 0c); the
   statistician can rename it in their reply. Nothing gets written to disk
   under this name until Step 3 is confirmed (see Step 4).
+- **Replying "scratch" or "dry run" instead of accepting/renaming the
+  folders** keeps the whole run in `/tmp/bnma_scratch_<slug>/` —
+  `manifest.yaml`, the JAGS cache, and the forest plot all land there
+  instead of `programs/`/`output/shared/`, Step 2's naming resolution
+  (below) is never written to `compound_registry.yaml`, and Step 7's driver
+  script is skipped in favor of an explicit promote-or-discard offer (Step
+  7a). Everything else about the run — the fit, the plot, the footnote — is
+  identical either way.
 - **Endpoint defaults to weight loss** (`effect_col: pchg_wl_ee`,
   `se_col: se_wl_ee` — the QA/PRD schema's own effect-estimate/SE column
   pair) **only when the dataset's own columns match that schema** — check
@@ -419,6 +441,11 @@ writes into `programs/<slug>/`; forest plots go into `output/shared/<slug>/`
 (Step 6). Then write a YAML manifest capturing everything from Step 3 — this
 is the traceable artifact that replaces a commented-out R vector. Example
 shape:
+
+**Scratch run:** skip folder creation entirely. Create one directory,
+`/tmp/bnma_scratch_<slug>/`, and write `manifest.yaml` there instead — same
+content, same schema below, only the destination differs. Steps 5/6 point
+their own outputs at this same directory (see each step).
 
 ```yaml
 created_at: "2026-08-14"
@@ -705,6 +732,7 @@ scripts/run_with_jags.sh scripts/fit_bnma_model.R \
   --batman /tmp/bnma_batman.rds --model model_random.txt \
   --cache <programs_folder>/samples_<run_name>.rds
 ```
+**Scratch run:** `--cache /tmp/bnma_scratch_<slug>/samples.rds` instead.
 
 **Which model file to use is driven by the manifest's `model_type` field**
 (see Step 4's example) — pass the matching file here:
@@ -863,7 +891,10 @@ baseline model) so it isn't mistaken for a directly-observed value.
 
 Give the cache file a run-specific name (per the workflow doc's "cached MCMC
 samples are expensive to regenerate, version-specific name" rule) — don't
-reuse another run's cache path.
+reuse another run's cache path. For a scratch run this is the *only* copy
+of the fit (not just pre-Step-4 scratch space) — don't let anything delete
+`/tmp/bnma_scratch_<slug>/` until the statistician decides promote or
+discard (Step 7a).
 
 ## Step 6 — Forest plot + footnote
 
@@ -879,6 +910,11 @@ path(s), source program) it embedded in the plot — surface that back to the
 user so they can confirm it's traceable, per the workflow doc's footnote
 requirement. Save the plot into the matching dated `output/shared/YYYYMMDD_.../`
 folder, not next to the manifest in `programs/`.
+
+**Scratch run:** `--out /tmp/bnma_scratch_<slug>/forest_plot.png` instead.
+**Display the image itself either way** (Read tool, same as Step 7 already
+requires for the driver script) — a scratch run's entire point is seeing
+the result, just without persisting it.
 
 Every plotted treatment label carries a superscript marking its evidence
 type — `°` for observed, `ᵖ` for projection, `°ᵖ` for an arm fed by both
@@ -915,9 +951,14 @@ don't just hardcode a one-off run's colors elsewhere.
 
 ## Step 7 — Generate the driver script
 
-**Do this for every run, without being asked — a run is not finished until
-this step happens and its output is shown.** Found by a colleague testing
-this skill (2026-08-20, twice in one session, `godwill-bnma` branch): once a
+**Applies to persisted runs only.** For a scratch run (Step 0c/3), skip this
+step entirely — a driver script pointing at `/tmp` paths that vanish on
+reboot isn't reproducible, so there's nothing useful to generate yet. End
+the turn instead with the promote-or-discard offer in Step 7a.
+
+**Do this for every persisted run, without being asked — a run is not
+finished until this step happens and its output is shown.** Found by a
+colleague testing this skill (2026-08-20, twice in one session, `godwill-bnma` branch): once a
 plot is on screen it's easy to treat the turn as done and skip straight to
 summarizing results — this step was silently dropped entirely on one run,
 and even after being reinstated, the next run wrote the file but never
@@ -1038,6 +1079,37 @@ data.
 Fill in every `<...>` placeholder with this run's literal paths/args (and
 the literal model-file contents) before writing the file — it must be
 directly `Rscript run_bnma_<slug>.R`-runnable with no further editing.
+
+## Step 7a — Promoting (or discarding) a scratch run
+
+For a scratch run, end the turn with an explicit summary instead of Step 7's
+driver script:
+
+> **SCRATCH RUN** — nothing written to `programs/`, `output/shared/`, or
+> `compound_registry.yaml`. Artifacts are in `/tmp/bnma_scratch_<slug>/` and
+> won't survive a reboot. Reply **promote** to write this exact run for
+> real, or just move on and it's discarded automatically.
+
+**If the statistician replies "promote":**
+1. Create `programs/YYYYMMDD_<slug>/` and `output/shared/YYYYMMDD_<slug>/`
+   now (same naming Step 4 would have used had this not been a scratch
+   run).
+2. Copy `manifest.yaml` and `samples.rds` from `/tmp/bnma_scratch_<slug>/`
+   into `programs/<slug>/`; copy `forest_plot.png` into
+   `output/shared/<slug>/`. **No refitting** — a scratch run's outputs are
+   byte-identical to what a persisted run would have produced, since
+   nothing in Steps 1-6 branches on where the file ends up, only on what
+   path gets passed. Promoting is a filesystem operation, not a re-run.
+3. If Step 2 held back a naming-registry resolution for this run, persist
+   it now (Edit tool → `compound_registry.yaml`) — it's no longer a
+   throwaway decision.
+4. Run Step 7 for real: generate and show the driver script.
+
+This is also the answer to "I want to redo this without documenting a
+failed attempt" — a scratch run *is* that undocumented iteration space.
+Nothing about a discarded scratch run needs mentioning again; there is no
+partial artifact on the shared drive to explain away, unlike a persisted
+run that turned out wrong.
 
 ## Utilities (not numbered pipeline steps)
 
