@@ -5,11 +5,14 @@ network meta-analyses (BNMA) on a single continuous endpoint — weight loss,
 HbA1c, physical function, etc. — from a QA/PRD dataset or a standalone
 workbook.
 
-It replaces a hardcoded, hand-edited study list with a guided, one-round-trip
-workflow: it computes everything it can from the data, asks you to confirm
-every genuinely discretionary choice in one consolidated message, then runs
-straight through to a forest plot, hard-stopping only on a real gate failure
-(a study missing from the manifest). It does not run any automated
+It replaces a hardcoded, hand-edited study list with a guided workflow: it
+always introduces what's in the data before asking you to decide anything,
+computes everything it can from the data, asks you to confirm every
+genuinely discretionary scope/naming/study-selection choice in one
+consolidated message, confirms the resulting subset is actually sufficient
+(offering to bring in custom data if not) before touching disk, then runs
+straight through to a forest plot, hard-stopping only on a real gate
+failure (a study missing from the manifest). It does not run any automated
 post-fit diagnostics (no Rhat/ESS, no DIC/consistency check) — matching
 the real production `EliLillyCo/CMH.BNMA` app's own behavior.
 
@@ -100,7 +103,11 @@ there:
 
 1. **Point it at your data** — an exact QA/PRD file path, a folder to search,
    or a standalone workbook that isn't in the QA/PRD schema (it adapts those
-   automatically rather than silently misreading them).
+   automatically rather than silently misreading them). It always introduces
+   what's actually in the data first — studies, compounds, phases, evidence
+   tiers — before asking you to decide anything. If you're just exploring,
+   it stays conversational here; no folders or manifest until you say you
+   want to move toward a run.
 2. It loads/merges the data and runs a naming/route pooling-risk QA check
    automatically — no stop here, the results feed into the next step.
 3. **One consolidated message** — endpoint, route, evidence tier, region,
@@ -108,11 +115,16 @@ there:
    1/2 and no-placebo-arm studies always called out individually), and the
    plot's treatment list — each with a stated default. Reply with just what
    you want to change; everything else proceeds on the shown default/proposal.
-4. It writes a YAML manifest recording every decision, builds the model
+4. **A follow-up confirms the subset is sufficient** and offers to bring in
+   custom/external data not yet in QA/PRD — new data defaults to a
+   temporary, project-only addition (not written to the shared QA file
+   unless you explicitly ask to promote it). This is also where working
+   folders and an optional project CLAUDE.md are proposed.
+5. It writes a YAML manifest recording every decision, builds the model
    input, fits the model via JAGS, and renders the
    forest plot with a traceable footnote (source data, source program,
    contributing studies).
-5. It writes a driver script next to the manifest that reproduces the whole
+6. It writes a driver script next to the manifest that reproduces the whole
    run from scratch — re-running it later just reloads the cached JAGS
    samples unless you delete them.
 

@@ -37,8 +37,12 @@ months later) can see exactly why each study is in the network.
 
 Invoke it with `/bnma` in Claude Code. It will walk you through, in order:
 
-1. **Locate the data** — you give it a PRD file path (and a QA path if
-   there's newer unpromoted data).
+1. **Introduce the data** — you point it at a PRD file/folder (and a QA
+   path if there's newer unpromoted data), and it tells you what's actually
+   in it — studies, compounds, phases, evidence tiers — before asking you to
+   decide anything. If you're just exploring, it stays conversational from
+   here: no folders, no manifest, no naming-gate resolution demanded, until
+   you say you want to move toward an actual run.
 2. **Naming/pooling QA gate** — it flags near-duplicate compound spellings
    and oral/injectable route-pooling risk, and makes you resolve every flag
    explicitly before moving on. Resolutions are persisted so the same pair
@@ -51,18 +55,28 @@ Invoke it with `/bnma` in Claude Code. It will walk you through, in order:
    Phase 1/2 and prediction studies stand out, and you explicitly include or
    exclude each one with a one-line reason. Nothing gets a default you
    didn't state.
-5. **Manifest written** — every decision above becomes a YAML file. This is
+5. **Confirm the subset, optionally add custom data, propose folders** —
+   once your subset is chosen, it asks whether it's sufficient or whether
+   you want to bring in something not yet in QA/PRD (a press release, a
+   hand-digitized slide, a subset from another workbook). New data defaults
+   to a **temporary, project-only addition** — not written to the shared QA
+   file unless you explicitly ask to promote it, since PRD only updates
+   twice a year and most custom data is specific to one analysis. This is
+   also where working folders (and an optional project CLAUDE.md) are
+   proposed — not before, so exploring the data never drags you into
+   project setup you didn't ask for.
+6. **Manifest written** — every decision above becomes a YAML file. This is
    the audit trail; nothing downstream is inferred from a conversation you'd
    have to re-read.
-6. **BATMAN build + JAGS fit** — deterministic scripts, not model judgment.
+7. **BATMAN build + JAGS fit** — deterministic scripts, not model judgment.
    Fits either the real production BNMA model (`model_random.txt` /
    `model_fixed.txt`, matching the actual CMH BNMA Shiny app's own
    specification) or the legacy hierarchical model, per the manifest's
    `model_type`.
-7. **Forest plot + footnote** — every plotted arm is superscript-marked
+8. **Forest plot + footnote** — every plotted arm is superscript-marked
    observed (`ᵒ`) vs. projection (`ᵖ`), and the footnote lists every
    contributing study plus the exact source file path.
-8. **Driver script** — a small, directly re-runnable R script that
+9. **Driver script** — a small, directly re-runnable R script that
    reproduces the whole run from scratch by calling the skill's own scripts
    with this run's literal arguments baked in.
 

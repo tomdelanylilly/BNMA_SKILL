@@ -39,15 +39,39 @@ and the single-arm-study/`pbo`-alias notes below); `BNMA_forest_plot-main.zip`
 (confirmed 2026-08-17) remains the source for the JAGS model files
 themselves, which CMH.BNMA's own model files match verbatim.
 
+**Workflow at a glance** (see DESIGN.md's second design iteration for why
+this order is enforced, per the team's 2026-08-25 discussion): introduce
+the data before asking for decisions, force study selection before any
+analysis, and don't drag someone toward folders/manifests/custom-data talk
+just because they located a file.
+
+```
+Step 0   Introduce what's in the PRD dataset & locate it (always first)
+Step 1   Load & merge                          (automatic)
+Step 2   Naming/pooling QA gate                (automatic, proposes resolutions)
+Step 2.5 Compound-first entry point            (if requested)
+Step 3   The one consolidated ask              (scope + naming flags + studies)
+Step 3.5 Confirm subset sufficiency, offer custom data, propose folders
+Step 3.6 Custom/external data intake           (only if requested in 3.5)
+Step 4   Write the manifest, create folders
+Step 5   Build BATMAN data, fit the model
+Step 6   Forest plot + footnote
+Step 7   Generate the driver script            (persisted runs only)
+Step 7a  Promote or discard a scratch run
+```
+
 **Do not skip steps or assume defaults on the user's behalf on anything
 genuinely discretionary.** The whole point of this skill is that a low-dose
 Phase 2 study or an oral/injectable mix-up must never enter a model silently
-again — but that doesn't require an interview. **One round trip is the
-target** (2026-08-19, per explicit direction): compute everything that can
-be computed from the data first, present ONE consolidated message with a
-stated, safe default for every genuinely discretionary choice, let the
-statistician accept-all/override/add free-form concerns in a single reply,
-then run straight through to the plot with no further stops.
+again — but that doesn't require an interview. **Step 3 stays a single
+round trip** for its own scope filters and naming flags (2026-08-19, per
+explicit direction): compute everything that can be computed from the data
+first, present ONE consolidated message with a stated, safe default for
+every genuinely discretionary choice, let the statistician
+accept-all/override/add free-form concerns in a single reply. Step 3.5 adds
+one more, deliberate checkpoint after that — confirming the subset is
+actually sufficient and offering custom data — before anything is written
+to disk; it is not an attempt to re-litigate Step 3's own answers.
 
 **The one thing that always still interrupts, even after that reply: a hard
 gate failure** — `build_batman_data.R` refusing to run because a study is
@@ -62,14 +86,18 @@ needs verifying, inspect the posterior manually (`coda::gelman.diag()`,
 `coda::effectiveSize()` on the cached `samples.rds`) rather than expecting
 this skill to flag it.
 
-## Step 0 — Locate the data, offer to merge new data, set up the run folders
+## Step 0 — Introduce the PRD dataset & locate it
 
-Runs at the very start of every trigger, before Step 1 — the entry
+Runs at the very start of every trigger, before Step 1. This is the entry
 experience for someone opening this skill against a folder that already has
 PRD/QA data sitting in it (the common case: a statistician's own project
-directory). Adapted 2026-08-21 from a colleague's independent restructuring
-of this step (the `godwill-bnma` branch) — the locate-the-data logic below
-is unchanged from before; 0b/0c are the new parts.
+directory) — and, per the team's 2026-08-25 workflow-ordering discussion
+(Ran, Tom, Godwill, Xiang, Xian Yao; see DESIGN.md's second design
+iteration), the mandatory first stop for *everyone*, whether they already
+know exactly what they want or are just asking "what's in this data?" This
+step never proposes folders, never asks about custom data, and never
+demands a study-selection decision — those all move to Step 3.5/3.6, so
+someone who only wants to look around never gets dragged into project setup.
 
 **0a. Locate the base dataset.** Only ask if the initial prompt didn't
 already make this clear. Two ways a statistician can point at it — both
@@ -95,146 +123,47 @@ valid, use whichever fits what they actually gave you:
 If neither a path nor a directory came with the initial prompt, ask which
 the statistician wants to use before doing anything else.
 
-**0b. Ask if there's new data to append to QA.** Once the base dataset
-(PRD) is confirmed, always ask — in the same message, not a separate round
-trip — whether there's new data (a press release, a new readout, a
-hand-digitized slide, a subset from another workbook) to add to QA before
-the BNMA is fit. Never assume "no" just because the prompt didn't mention
-it.
+**0b. Introduce what's actually in it.** Once the base dataset is located,
+run Step 1's load (`load_merge_data.R`) immediately — same script, same
+`/tmp/bnma_merged.rds` output, nothing new — and use its printed summary to
+give the statistician a real answer to "what's available here" *before*
+asking them to decide anything: distinct studies, compounds, phases,
+evidence tiers (observed vs. prediction row counts), and regions present.
+This is always shown, even when the initial prompt already named specific
+studies/compounds — it's a one- or two-sentence preamble folded into
+whatever message comes next (Step 2.5's resolution or Step 3's ask), not a
+separate round trip when the rest of the request already lets the
+conversation move forward.
 
-The **proper path for real new data is always QA** — QA is the living
-working copy that new entries land in; PRD is read-only in practice. New
-data can never go directly into PRD. It appears in QA first, then
-eventually gets promoted to PRD through the normal team process.
+**0c. Explore, or set up a run?** Only ask this explicitly when the initial
+prompt gave no run signal at all — no endpoint, no named studies/compounds,
+no mention of a BNMA/forest plot, just "what data do we have" or similar.
+(If the prompt already signals run-intent, skip straight to Step 1/2/2.5/3
+after the 0b preamble — don't manufacture a question where the intent is
+already clear.)
 
-If yes — follow this sequence (all before Step 1's `load_merge_data.R`):
-
-1. **Get the new data.** Accept it in any of three forms:
-   - **Pasted into the prompt** — rows given inline (study, treatment,
-     compound, y, se, etc.). Parse into a data.frame matching the QA
-     schema; fill as many columns as possible from context (`aom`, `phase`,
-     `data_type`, `source`, `time_entry` = today's date), leave the rest NA
-     (optional metadata columns like `curator_note`, `qc_name` are
-     routinely blank in real QA files).
-   - **A file path** (xlsx, csv, rds) — read it and extract the relevant
-     rows. If the schema doesn't match QA (e.g. a standalone workbook with
-     `Study`/`Treatment`/`y`/`se` columns instead of `study_name`/
-     `treatment`/`pchg_wl_ee`/`se_wl_ee`), map the columns into the QA
-     schema the same way the standalone-workbook adapter does (Step 1's
-     note) — but write the result to QA, not `/tmp`.
-   - **A subset of another file** — "take the X data from this dataset."
-     Read that file, filter to the named studies/treatments, map into QA
-     schema if needed.
-
-2. **Identify the corresponding QA file.** Convention:
-   - PRD at `/lillyce/prd/diabetes/bnma/obesity/data/shared/weight/
-     cwm_wl_nont2d_prd_YYYYMMDD.xlsx`
-   - → QA at `/lillyce/qa/diabetes/bnma/obesity/data/shared/weight/
-     cwm_wl_nont2d_qa_YYYYMMDD.xlsx`
-   - (Swap `/prd/` → `/qa/` in the directory path; `_prd_` → `_qa_` in the
-     filename. Same date suffix, same `wl`/`t2d`/`nont2d` segment.)
-   - If the user already provided a QA path (in the initial prompt or
-     alongside the PRD), use it directly — don't guess.
-   - **If the QA file doesn't exist yet:** ask the user whether to create
-     it (with the PRD's own column schema — sheets `Observed`/`Prediction`,
-     same columns, zero data rows) or to provide a different path. **Never
-     auto-create silently** — this is a write to a shared drive with no
-     version control.
-   - Sometimes the QA file exists but is empty (just headers / the schema
-     with no data rows) — that's the normal "waiting for entries" state,
-     not an error.
-
-3. **Show the user exactly what rows will be appended** — a table with all
-   populated columns. This is the confirmation gate: the user sees the data
-   before it touches the shared file. Include:
-   - `study_name`, `treatment`, `compound`, `effect_col`/`se_col` values
-   - `aom`, `phase`, `data_type`, `source` (if known)
-   - Which sheet they'll land on (`Observed` or `Prediction` — derive from
-     context if unambiguous, e.g. a study name containing "Prediction";
-     ask if genuinely ambiguous).
-   - `time_entry` = today's date (the QA schema's own "when was this
-     entered" field).
-
-4. **Ask the user to confirm the append.** This is a write to a shared
-   file on the `/lillyce/qa/` mount — never silent, never automatic. A
-   clear "I'll append these N rows to `<qa_path>`, sheet `<sheet>` — confirm?"
-
-5. **Once confirmed: append rows to the QA xlsx in-place** via
-   `append_to_qa.R` (see Appendix B). The script reads the existing
-   workbook, appends to the target sheet, writes back. No backup copy (the
-   mount has no version control anyway — but the manifest records exactly
-   which rows were added and when, so the audit trail is the manifest +
-   `time_entry`, not file versions).
-
-6. **Show an append summary:** N rows added, which studies, which sheet,
-   total rows now in that sheet.
-
-7. **Proceed to Step 1 normally:** `load_merge_data.R --prd <prd> --qa
-   <qa> --out /tmp/bnma_merged.rds` — the newly-appended data flows in
-   through the standard QA-wins merge path, same as if a human had opened
-   Excel and typed it in.
-
-8. **Run `check_naming_pooling.R` against the merged result right away** —
-   new data appended to QA is precisely when a naming collision or route
-   mismatch is most likely (a newly-added study using a slightly different
-   spelling for an existing compound, or the wrong `aom` tag). Surface any
-   new flags now, folded into Step 3's consolidated ask alongside whatever
-   Step 2 finds on the rest of the data — don't defer this to a second
-   pass through Step 2.
-
-**If no new data:** proceed with the base dataset as-is — Step 1's
-`load_merge_data.R` loads PRD (and QA if one was already provided or found
-at the conventional path) normally.
-
-**`supplementary_data` (Step 4) remains as a fallback** for the rare case
-where data truly can't or shouldn't go to QA — e.g. a hypothetical
-sensitivity-test value, or a scratch run where no shared file should be
-touched. But the primary path for real new data is always "append to QA
-first, then fit" — `supplementary_data` is the exception, not the default.
-
-**0c. Propose the run's `programs/` and `output/` folders — don't create
-them yet.** As soon as the dataset (merged or not) is confirmed, work out a
-proposed `<slug>` and both paths — `programs/YYYYMMDD_<slug>/` /
-`output/shared/YYYYMMDD_<slug>/`, the same convention Step 7 already uses
-for the driver script and forest plot — and carry them into Step 3's
-consolidated ask as a **Working folders** line, same as every other
-genuinely discretionary choice in that step (a proposed default, shown
-explicitly, not decided silently on the statistician's behalf). Derive
-`<slug>` from the dataset/endpoint (e.g. `cwm_wl_nont2d`, `ada_oral_full`) —
-if nothing obvious presents itself, propose your best guess rather than
-leaving it blank; the statistician can rename it in their Step 3 reply.
-**Actually create both folders only once Step 3 is confirmed** (right before
-Step 4 writes the manifest into `programs/<slug>/`) — this moves folder
-creation earlier than Step 7 used to, so every intermediate artifact from
-Step 1 onward (naming report, manifest, cached samples)
-has a real home instead of living in `/tmp`, but it's still a
-confirmed action, not a background one: don't write anything to disk under
-a folder name the statistician hasn't seen and had the chance to change.
-The merged dataset (Step 1) is the one exception — it never gets a
-persisted home, see Step 4.
-
-**Scratch mode is the opt-out alternative to the above, not a separate
-step** — alongside the `programs/`/`output/shared/` proposal, always state
-explicitly that replying "scratch" or "dry run" instead keeps this entire
-run inside `/tmp` (`/tmp/bnma_scratch_<slug>/`) with nothing written to the
-shared drive — no `programs/`/`output/shared/` folders, no
-`compound_registry.yaml` update (Step 2), no driver script (Step 7). Useful
-for prototyping/demoing the skill itself without leaving files behind on a
-share that has no version control to clean them up. See Step 4 onward for
-how each step's destination changes, and Step 7a for promoting a scratch
-run to a real one afterward.
+- **If exploring:** stay conversational. Answer whatever breakdowns they
+  ask for — studies by phase, compounds by route, coverage by region — using
+  the already-loaded data (Step 1's output, Step 2's naming/pooling report
+  if it's relevant to what they're asking). Do not run Step 3's consolidated
+  ask, do not propose folders, do not mention the manifest. Only move into
+  the guided-selection pipeline once the statistician explicitly signals
+  they want to move toward a run (e.g. "ok, let's set up a BNMA using
+  these studies").
+- **If setting up a run:** proceed to Step 1 normally.
 
 ## Step 1 — Load & merge (runs automatically)
 
 Every `--out`/intermediate-artifact path in this step and Step 2/2.5 below is
 shown as `/tmp/bnma_*.rds` and genuinely does write there — the run's real
-`programs/YYYYMMDD_<slug>/` folder isn't created until Step 4 (Step 3 has to
-confirm the folder name first), so nothing durable exists yet. From Step 4
-onward, everything (manifest, cached samples) writes into the
-now-real `programs/<slug>/` folder instead. Losing `/tmp`'s merged data or
-naming report between here and Step 4 costs nothing — both are cheap,
-deterministic re-derivations from the source file(s), not something Step 7's
-driver script or a later re-run ever depends on existing in `/tmp`.
+`programs/YYYYMMDD_<slug>/` folder isn't created until Step 4 (Step 3.5 has
+to confirm the folder name and subset sufficiency first), so nothing
+durable exists yet. From Step 4 onward, everything (manifest, cached
+samples) writes into the now-real `programs/<slug>/` folder instead.
+Losing `/tmp`'s merged data or naming report between here and Step 4 costs
+nothing — both are cheap, deterministic re-derivations from the source
+file(s), not something Step 7's driver script or a later re-run ever
+depends on existing in `/tmp`.
 
 Materialize Appendix D's wrappers and Appendix B.1/B.2 (`lib_common.R`,
 `load_merge_data.R`) to this session's lib dir (e.g. `/tmp/cmh_ci_lib/`
@@ -246,8 +175,11 @@ scripts/run_r.sh scripts/load_merge_data.R \
   --prd <prd_path.xlsx> [--qa <qa_path.xlsx>] --out /tmp/bnma_merged.rds
 ```
 
-No stop here — the printed summary (row/study/compound counts) feeds
-directly into Step 3's consolidated message, not a separate confirmation.
+This is the same invocation Step 0b already ran to build the "what's in
+this data" introduction — don't run it twice in one session. Its printed
+summary (row/study/compound counts) feeds both Step 0b's intro and, later,
+directly into Step 3's consolidated message — no separate confirmation
+here.
 
 **If the user attaches a standalone workbook instead of a QA/PRD path**
 (confirmed real case, 2026-08-20: `Global_ADA_Oral_KAI7535_*.xlsx`, sheets
@@ -337,7 +269,7 @@ to `compound_registry.yaml` (Edit tool, this skill's own repo copy) so the
 same pair is never re-flagged; pooling-flag resolutions go in the manifest
 only (Step 4), since they're data-specific rather than a general
 compound-identity fact. **Skip the `compound_registry.yaml` write entirely
-for a scratch run** (Step 0c/3) — the resolution still applies to this
+for a scratch run** (Step 3.5/3) — the resolution still applies to this
 run's own manifest, it just isn't remembered for next time, same as every
 other artifact a scratch run doesn't persist.
 
@@ -430,14 +362,12 @@ actual data/report; never leave a placeholder):
 
   SCOPE
    1  Dataset           <path(s)>                                (detected)
-   2  Working folders  ► programs/YYYYMMDD_<slug>/, output/shared/YYYYMMDD_<slug>/  (not yet created; reply "scratch" for a /tmp-only dry run)
-   3  Endpoint         ► weight loss (effect_col: pchg_wl_ee, se_col: se_wl_ee)
-   4  Route            ► both (oral + injectable)
-   5  Evidence         ► both (observed + prediction)
-   6  Region           ► global only
-   7  Heterogeneity    ► random-effects (rand_effect)
-   8  Effect to report ► placebo-adjusted (relative)
-   9  Project CLAUDE.md ► skip (default for a single run) -- reply "add CLAUDE.md" if this is a larger/ongoing project
+   2  Endpoint         ► weight loss (effect_col: pchg_wl_ee, se_col: se_wl_ee)
+   3  Route            ► both (oral + injectable)
+   4  Evidence         ► both (observed + prediction)
+   5  Region           ► global only
+   6  Heterogeneity    ► random-effects (rand_effect)
+   7  Effect to report ► placebo-adjusted (relative)
 
   NAMING / POOLING  (N active flags)
    - <compound_a> vs <compound_b> -- proposed: <same|different>, because <signal>
@@ -463,18 +393,6 @@ actual data/report; never leave a placeholder):
 ```
 
 Notes:
-- **Working folders are a proposal, not yet created** — `<slug>` is your
-  best guess at a short, meaningful label for this run (see Step 0c); the
-  statistician can rename it in their reply. Nothing gets written to disk
-  under this name until Step 3 is confirmed (see Step 4).
-- **Replying "scratch" or "dry run" instead of accepting/renaming the
-  folders** keeps the whole run in `/tmp/bnma_scratch_<slug>/` —
-  `manifest.yaml`, the JAGS cache, and the forest plot all land there
-  instead of `programs/`/`output/shared/`, Step 2's naming resolution
-  (below) is never written to `compound_registry.yaml`, and Step 7's driver
-  script is skipped in favor of an explicit promote-or-discard offer (Step
-  7a). Everything else about the run — the fit, the plot, the footnote — is
-  identical either way.
 - **Endpoint defaults to weight loss** (`effect_col: pchg_wl_ee`,
   `se_col: se_wl_ee` — the QA/PRD schema's own effect-estimate/SE column
   pair) **only when the dataset's own columns match that schema** — check
@@ -513,21 +431,168 @@ Notes:
   Step 4."
 - Echo back exactly what was locked in (defaults accepted + overrides +
   any free-form concerns folded in) once the statistician replies, before
-  Step 4 writes the manifest.
+  moving to Step 3.5's sufficiency check. Folder proposals and the Project
+  CLAUDE.md offer are **not** part of this ask — see Step 3.5, which only
+  happens once the statistician is actually committed to a run rather than
+  still exploring the data (Step 0c).
+
+## Step 3.5 — Confirm the subset is sufficient, offer custom data, propose folders
+
+This is the checkpoint the team's 2026-08-25 workflow discussion added: study
+selection is confirmed (Step 3), but nothing has been written to disk and no
+custom data has been asked about yet. One more consolidated message, in
+reply to the statistician's Step 3 answer:
+
+```
+╭──────────────────────────────────────────────────────────────────╮
+│  /cmh-ci · subset confirmed -- anything else before we run?        │
+├──────────────────────────────────────────────────────────────────┤
+│  Locked in: <one-line recap of Step 3's confirmed scope + study   │
+│  count>.                                                          │
+╰──────────────────────────────────────────────────────────────────╯
+
+  Is this subset sufficient, or is there external/custom data (a press
+  release, a new readout, a hand-digitized slide, a subset from another
+  workbook) you'd like added before running? Reply "add data" to bring
+  something in (Step 3.6) -- otherwise this proceeds as-is.
+
+  Working folders  ► programs/YYYYMMDD_<slug>/, output/shared/YYYYMMDD_<slug>/
+                      (not yet created; reply "scratch" for a /tmp-only dry run)
+  Project CLAUDE.md ► skip (default for a single run) -- reply "add CLAUDE.md"
+                      if this is a larger/ongoing project
+```
+
+Notes:
+- **Working folders are a proposal, not yet created** — `<slug>` is your
+  best guess at a short, meaningful label for this run, derived from the
+  dataset/endpoint (e.g. `cwm_wl_nont2d`, `ada_oral_full`); if nothing
+  obvious presents itself, propose your best guess rather than leaving it
+  blank. Nothing gets written to disk under this name until this step is
+  confirmed (see Step 4).
+- **Replying "scratch" or "dry run" instead of accepting/renaming the
+  folders** keeps the whole run in `/tmp/bnma_scratch_<slug>/` —
+  `manifest.yaml`, the JAGS cache, and the forest plot all land there
+  instead of `programs/`/`output/shared/`, Step 2's naming resolution is
+  never written to `compound_registry.yaml`, and Step 7's driver script is
+  skipped in favor of an explicit promote-or-discard offer (Step 7a).
+  Everything else about the run — the fit, the plot, the footnote — is
+  identical either way.
 - **Project CLAUDE.md defaults to skip** — most runs are a single,
   self-contained ask and don't need one. Accept "add CLAUDE.md" (or
   anything that signals this is a bigger/ongoing initiative — a conference
   submission, a project the statistician says they'll keep coming back to)
   at face value rather than second-guessing it. If accepted, Step 7 writes
   it alongside the driver script.
+- **If the statistician wants to add custom/external data**, go to Step
+  3.6, then come back to this same sufficiency question once it's merged
+  in — loop until they confirm the subset (base + any custom additions) is
+  actually sufficient. Only then does the folder name/CLAUDE.md answer in
+  this message get locked in and carried to Step 4.
+- **If sufficient with no custom data**, this message's folder/CLAUDE.md
+  answers are exactly what Step 4 uses — proceed there directly.
+
+## Step 3.6 — Custom/external data intake (only if requested in Step 3.5)
+
+Per the team's 2026-08-25 discussion (see DESIGN.md's second design
+iteration): PRD is only updated on a semi-annual cadence, so the default
+here is a **temporary, project-scoped merge** — data reused for this run's
+manifest only, not written to any shared file — rather than the old
+default of appending straight to the shared QA workbook. Promoting into QA
+for the whole team to reuse later is still available, just explicit and
+opt-in now.
+
+1. **Get the new data.** Accept it in any of three forms:
+   - **Pasted into the prompt** — rows given inline (study, treatment,
+     compound, y, se, etc.). Parse into a data.frame matching the QA
+     schema; fill as many columns as possible from context (`aom`, `phase`,
+     `data_type`, `source`), leave the rest NA (optional metadata columns
+     like `curator_note`, `qc_name` are routinely blank in real QA files).
+   - **A file path** (xlsx, csv, rds) — read it and extract the relevant
+     rows. If the schema doesn't match QA (e.g. a standalone workbook with
+     `Study`/`Treatment`/`y`/`se` columns instead of `study_name`/
+     `treatment`/`pchg_wl_ee`/`se_wl_ee`), map the columns into the QA
+     schema the same way the standalone-workbook adapter does (Step 1's
+     note).
+   - **A subset of another file** — "take the X data from this dataset."
+     Read that file, filter to the named studies/treatments, map into QA
+     schema if needed.
+
+2. **Show the user exactly what rows will be added** — a table with all
+   populated columns, same confirmation gate as any other data-affecting
+   decision in this skill:
+   - `study_name`, `treatment`, `compound`, this run's `effect_col`/`se_col`
+     values
+   - `aom`, `phase`, `data_type`, `source` (if known)
+   - A `reason` (why this data is being added — matches
+     `supplementary_data`'s own required field, see Step 4).
+
+3. **Default: add as `supplementary_data` in this run's manifest.** These
+   rows flow through the entire normal pipeline exactly as documented under
+   Step 4's `supplementary_data` field (row_exclusions, relabels,
+   `placebo_clamp`, `route_filter`/`compound_filter`/`region_filter` all
+   apply) — nothing new to build, this is the existing fallback mechanism
+   promoted to the default path for genuinely new/custom data. No shared
+   file is touched; a scratch run's own `/tmp` manifest carries it exactly
+   the same way a persisted run's `programs/<slug>/manifest.yaml` does.
+
+4. **Offer to promote instead (or in addition).** State plainly: "if you
+   want this saved to the shared QA file so future runs see it too, reply
+   'promote to QA' — otherwise this stays with this run only." If accepted,
+   follow the QA-append path:
+   - **Identify the corresponding QA file.** Convention:
+     - PRD at `/lillyce/prd/diabetes/bnma/obesity/data/shared/weight/
+       cwm_wl_nont2d_prd_YYYYMMDD.xlsx`
+     - → QA at `/lillyce/qa/diabetes/bnma/obesity/data/shared/weight/
+       cwm_wl_nont2d_qa_YYYYMMDD.xlsx`
+     - (Swap `/prd/` → `/qa/` in the directory path; `_prd_` → `_qa_` in
+       the filename. Same date suffix, same `wl`/`t2d`/`nont2d` segment.)
+     - If the user already provided a QA path, use it directly — don't
+       guess.
+     - **If the QA file doesn't exist yet:** ask the user whether to
+       create it (with the PRD's own column schema — sheets
+       `Observed`/`Prediction`, same columns, zero data rows) or to
+       provide a different path. **Never auto-create silently** — this is
+       a write to a shared drive with no version control.
+     - Sometimes the QA file exists but is empty (just headers) — that's
+       the normal "waiting for entries" state, not an error.
+   - Add `time_entry` = today's date to the rows shown in step 2 above (the
+     QA schema's own "when was this entered" field — only relevant once
+     something is actually going to QA).
+   - **Ask the user to confirm the write.** A clear "I'll append these N
+     rows to `<qa_path>`, sheet `<sheet>` — confirm?"
+   - **Once confirmed: append rows to the QA xlsx in-place** via
+     `append_to_qa.R` (see Appendix B). The script reads the existing
+     workbook, appends to the target sheet, writes back. No backup copy
+     (the mount has no version control anyway — but the manifest records
+     exactly which rows were added and when, so the audit trail is the
+     manifest + `time_entry`, not file versions).
+   - **Show an append summary:** N rows added, which studies, which sheet,
+     total rows now in that sheet.
+   - The promoted rows still also flow into this run via
+     `supplementary_data` (or a re-run of Step 1's load against the updated
+     QA file, if simpler) — promoting to QA is about *future* runs seeing
+     it, not a substitute for this run actually using it.
+
+5. **Re-run `check_naming_pooling.R` against the combined data right
+   away** — newly-added data is precisely when a naming collision or route
+   mismatch is most likely (a new study using a slightly different
+   spelling for an existing compound, or the wrong `aom` tag). Surface any
+   new flags in a short follow-up, resolved the same way Step 2/3 resolve
+   any other flag — don't silently skip this just because Step 3's main
+   naming/pooling pass already happened.
+
+6. **Loop back to Step 3.5's sufficiency question.** The statistician may
+   want to add more data, or confirm the (now-enlarged) subset is
+   sufficient and move on.
 
 ## Step 4 — Write the manifest
 
-Apply everything confirmed in Step 3. **First, actually create the working
-folders** — `programs/YYYYMMDD_<slug>/` and `output/shared/YYYYMMDD_<slug>/`
-(`<slug>` per Step 3's confirmed or renamed value, dated with today's date) —
-now that the statistician has seen and confirmed the name. Everything from
-here on (manifest, naming report, cached samples)
+Apply everything confirmed in Step 3/3.5. **First, actually create the
+working folders** — `programs/YYYYMMDD_<slug>/` and
+`output/shared/YYYYMMDD_<slug>/` (`<slug>` per Step 3.5's confirmed or
+renamed value, dated with today's date) — now that the statistician has
+seen and confirmed the name and confirmed the subset is sufficient.
+Everything from here on (manifest, naming report, cached samples)
 writes into `programs/<slug>/`; forest plots go into `output/shared/<slug>/`
 (Step 6). **The merged dataset (Step 1's `load_merge_data.R` output) never
 moves in from `/tmp`** — per the workflow guide, the PRD+QA merge happens in
@@ -715,13 +780,15 @@ it reverses an already-confirmed decision.
 hasn't been promoted into the QA/PRD workbook yet — e.g. a hand-digitized
 dose-response series pulled from a slide deck, the same situation
 `bnma-nonadj-11AUG2026.R` handles by `bind_rows()`-ing a hand-typed tibble
-straight into its analysis with no traceability at all. This is a stopgap,
-not a permanent home for the data — the row should still get entered as a
-real QA row via the project CLAUDE.md's Flow 1 once it's ready, same
-"QA is the live working copy" principle as everywhere else in this
-workspace. Each entry requires `study_name`, `treatment`, `compound`, this
-run's `effect_col`/`se_col` values, and `reason`; `aom`/`region` are
-optional:
+straight into its analysis with no traceability at all. **This is the
+default destination for custom/external data brought in via Step 3.6** —
+temporary and project-scoped by design (PRD/QA are the team's shared,
+persistent tiers; this manifest field is this run's own). The row can still
+be promoted to a real QA row later (Step 3.6's "promote to QA" option, or
+the project CLAUDE.md's Flow 1) once it's ready for the whole team to
+reuse — but that's opt-in, not required. Each entry requires `study_name`,
+`treatment`, `compound`, this run's `effect_col`/`se_col` values, and
+`reason`; `aom`/`region` are optional:
 ```yaml
 supplementary_data:
   - study_name: "GZMD+GZMU"
@@ -754,7 +821,7 @@ with no placebo row simply doesn't connect to the network. This isn't a gap
 earlier connectivity-aware bridging attempt this skill tried and reverted
 mid-session for having no such documentation anywhere.
 
-Save it into `programs/<slug>/` (created moments ago, above, per Step 3's
+Save it into `programs/<slug>/` (created moments ago, above, per Step 3.5's
 confirmed name), e.g. `study_selection_manifest.yaml`.
 
 **Every study found in step 1's merged data must appear under `studies:`.**
@@ -1081,7 +1148,7 @@ don't just hardcode a one-off run's colors elsewhere.
 
 ## Step 7 — Generate the driver script
 
-**Applies to persisted runs only.** For a scratch run (Step 0c/3), skip this
+**Applies to persisted runs only.** For a scratch run (Step 3.5/3), skip this
 step entirely — a driver script pointing at `/tmp` paths that vanish on
 reboot isn't reproducible, so there's nothing useful to generate yet. End
 the turn instead with the promote-or-discard offer in Step 7a.
@@ -1170,10 +1237,10 @@ frozen, already-validated result that comes out the other end.
 Fill in every value from the actual run — no `<...>` placeholders left. It
 must be directly `Rscript run_bnma_<slug>.R`-runnable with no editing.
 
-**If Step 3's Project CLAUDE.md item was accepted**, write
+**If Step 3.5's Project CLAUDE.md item was accepted**, write
 `programs/<slug>/CLAUDE.md` in the same turn as the driver script, and show
 its contents too (same "must be shown, not just written" rule). Populate it
-entirely from the manifest and Step 3's answers already in hand — this is
+entirely from the manifest and Step 3/3.5's answers already in hand — this is
 not a new round of data collection:
 
 ```markdown
@@ -1757,16 +1824,17 @@ cat(
 
 ### B2b. `append_to_qa.R`
 
-Step 0b — appends new rows to an existing QA workbook in-place (or creates one from a PRD schema if the user confirmed). Called once per session when new data is being added to QA before fitting.
+Step 3.6's "promote to QA" path — appends new rows to an existing QA workbook in-place (or creates one from a PRD schema if the user confirmed). Called once per session when new data is being promoted to the shared QA file before fitting.
 
 ```r
 #!/usr/bin/env Rscript
-# Step 0b of the /bnma skill: append new rows to the QA workbook.
+# Step 3.6 of the /bnma skill (the "promote to QA" branch): append new rows
+# to the QA workbook.
 #
 # The QA file is the living working copy of the landscape data. New entries
 # (from press releases, digitized slides, subsets of other workbooks) land
 # here first, then eventually get promoted to PRD through the normal team
-# process. This script handles the physical append; the skill's Step 0b
+# process. This script handles the physical append; the skill's Step 3.6
 # handles the logic of what to append and getting user confirmation.
 #
 # Usage:

@@ -290,48 +290,60 @@
 
         <div class="step-row">
           <div class="step-num">1</div>
-          <div class="step-body">Load QA + PRD, merge with full traceability <span class="tag">load_merge_data.R</span></div>
+          <div class="step-body">Introduce what's in the PRD dataset, then locate it <span class="tag">Step 0</span></div>
         </div>
         <div class="step-connector"></div>
 
         <div class="step-row">
           <div class="step-num">2</div>
-          <div class="step-body">Naming &amp; route-pooling QA gate — catch drift before it fits <span class="tag">check_naming_pooling.R</span></div>
+          <div class="step-body">Load QA + PRD, merge with full traceability <span class="tag">load_merge_data.R</span></div>
         </div>
         <div class="step-connector"></div>
 
         <div class="step-row">
           <div class="step-num">3</div>
-          <div class="step-body">Route / evidence / region scope, confirmed up front <span class="tag">Step 2.5</span></div>
+          <div class="step-body">Naming &amp; route-pooling QA gate — catch drift before it fits <span class="tag">check_naming_pooling.R</span></div>
         </div>
         <div class="step-connector"></div>
 
         <div class="step-row">
           <div class="step-num">4</div>
-          <div class="step-body">Every study explicitly included or excluded, with a reason <span class="tag">Step 3</span></div>
+          <div class="step-body">Route / evidence / region scope, confirmed up front <span class="tag">Step 2.5</span></div>
         </div>
         <div class="step-connector"></div>
 
         <div class="step-row">
           <div class="step-num">5</div>
-          <div class="step-body">Decisions written to a reviewable YAML manifest <span class="tag">manifest.yaml</span></div>
+          <div class="step-body">Every study explicitly included or excluded, with a reason <span class="tag">Step 3</span></div>
         </div>
         <div class="step-connector"></div>
 
         <div class="step-row">
           <div class="step-num">6</div>
-          <div class="step-body">BATMAN + JAGS fit — the real production model <span class="tag">model_random.txt</span></div>
+          <div class="step-body">Confirm the subset is sufficient, offer custom data, propose folders <span class="tag">Step 3.5</span></div>
         </div>
         <div class="step-connector"></div>
 
         <div class="step-row">
           <div class="step-num">7</div>
-          <div class="step-body">Forest plot, footnoted back to source data <span class="tag">make_forest_plot.R</span></div>
+          <div class="step-body">Decisions written to a reviewable YAML manifest <span class="tag">manifest.yaml</span></div>
         </div>
         <div class="step-connector"></div>
 
         <div class="step-row">
           <div class="step-num">8</div>
+          <div class="step-body">BATMAN + JAGS fit — the real production model <span class="tag">model_random.txt</span></div>
+        </div>
+        <div class="step-connector"></div>
+
+        <div class="step-row">
+          <div class="step-num">9</div>
+          <div class="step-body">Forest plot, footnoted back to source data <span class="tag">make_forest_plot.R</span></div>
+        </div>
+        <div class="step-connector"></div>
+
+        <div class="step-row">
+          <div class="step-num">10</div>
           <div class="step-body">A driver script that reproduces the run from scratch <span class="tag">run_bnma_*.R</span></div>
         </div>
 

@@ -184,3 +184,62 @@ Contributing studies + source program path, generated from the manifest.
   forest plot as the current script when given the same selection that
   script currently hardcodes, and (e) writes a manifest documenting both the
   naming/pooling resolutions and the study selection.
+
+## Second design iteration: workflow ordering (August 2026 meeting)
+
+By the time the skill had grown through Steps 0–7a (see SKILL.md), it
+already forced explicit study selection and a naming/pooling QA gate — the
+two problems this doc originally scoped. But the team (Ran Liao, Tom
+Delany, Godwill Zulu, Xiang Zhang, Xian Yao Gwee) met on 2026-08-25 and
+identified a third, structural problem: a session could go from "here's a
+data file" straight to a full BNMA with no guided introduction to what the
+data actually contained, and folder/manifest setup happened as soon as a
+dataset was located — before the statistician had even seen what was
+available, let alone decided whether they wanted to run anything at all.
+
+**Ran's core argument:** workflow *order* is the requirement, not just the
+presence of a confirmation gate somewhere in the pipeline. Users need to be
+guided through introduce → select → review subset → confirm sufficiency →
+optionally augment → run, in that order — not asked to make discretionary
+decisions before they've been told what they're choosing from.
+
+**Agreed changes, implemented as Step 0's rewrite + two new steps
+(3.5/3.6) in SKILL.md:**
+
+1. **Introduce the data before asking for anything.** Step 0 now always
+   shows a summary of what's in the located PRD/QA data (studies,
+   compounds, phases, evidence tiers) before Step 3's consolidated ask —
+   even when the initial prompt was already specific, so the guided order
+   is consistent for everyone, not just users who show up without a plan.
+2. **An explicit explore-vs-run fork.** Xian Yao and Xiang's clarifying
+   questions surfaced that some users just want to browse the PRD data with
+   no intention of running a BNMA at all. Step 0c now asks this directly
+   when the initial prompt gives no run signal, and exploring never
+   triggers folder/manifest/naming-gate-resolution pressure.
+3. **Folder creation moved later, to Step 3.5.** Previously proposed as
+   soon as a dataset was located (old Step 0c) — now proposed only once the
+   study subset is confirmed and the statistician has said the subset is
+   sufficient. Matches Tom's point in the meeting that folder setup
+   shouldn't precede knowing whether there's even a run to set up for.
+4. **Custom/external data moved after subset confirmation, to Step 3.6.**
+   Previously offered immediately after locating the base dataset (old Step
+   0b), before any PRD-only selection happened. Xiang's framing — filter
+   PRD first, then merge additional project-specific data — is now the
+   literal order: Step 3's ask covers the PRD-only subset; Step 3.5 asks
+   whether it's sufficient; only if not does Step 3.6 bring in anything
+   else.
+5. **Custom data defaults to a temporary, project-scoped merge, not a
+   shared-QA write.** Ran's clarification: PRD is only updated semi-annually,
+   so most custom data belongs to one project, not the shared tier. Step
+   3.6 now defaults to the existing `supplementary_data` manifest field
+   (manifest-local, no shared file touched) and treats writing to the
+   shared QA workbook as an explicit opt-in ("promote to QA"), reversing
+   the old default (QA-append first, `supplementary_data` as the rare
+   exception).
+
+**Explicitly not changed:** the statistical pipeline (BATMAN, JAGS models,
+forest plot), the naming/pooling QA gate's own logic, and Step 3's
+"one consolidated round trip" principle for its own scope/naming/study
+items — Godwill's point that the skill already supported most of what was
+being discussed, just not in the right order, held up: this was a
+reordering and one new gate, not a rewrite.
