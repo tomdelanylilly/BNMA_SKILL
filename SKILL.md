@@ -95,30 +95,102 @@ valid, use whichever fits what they actually gave you:
 If neither a path nor a directory came with the initial prompt, ask which
 the statistician wants to use before doing anything else.
 
-**0b. Ask if there's new data to merge in.** Once the base dataset is
-confirmed, always ask — in the same message, not a separate round trip —
-whether there's new data (a new readout, a hand-digitized slide, a
-standalone workbook, an updated QA file) to merge into this run before the
-BNMA is fit. Never assume "no" just because the prompt didn't mention it. If
-yes:
-1. Get the new data's path (or inline content, if small enough to paste —
-   treat that the same as `supplementary_data`, see Step 4).
-2. Merge it into the base dataset via `load_merge_data.R` (QA-wins-over-PRD
-   logic already documented in Step 1) — or, if its schema doesn't match
-   the QA/PRD shape, via the standalone-workbook adapter procedure (see
-   Step 1's own note on this). Show a merge summary: rows added, studies
-   added, studies updated (an existing `(study_name, treatment)` pair whose
-   values changed) — a merge that silently changes an existing row's value
-   is exactly the kind of undetected drift this skill exists to prevent.
-3. **Run `check_naming_pooling.R` against the merged result right away** —
-   new data merging in is precisely when a naming collision or route
+**0b. Ask if there's new data to append to QA.** Once the base dataset
+(PRD) is confirmed, always ask — in the same message, not a separate round
+trip — whether there's new data (a press release, a new readout, a
+hand-digitized slide, a subset from another workbook) to add to QA before
+the BNMA is fit. Never assume "no" just because the prompt didn't mention
+it.
+
+The **proper path for real new data is always QA** — QA is the living
+working copy that new entries land in; PRD is read-only in practice. New
+data can never go directly into PRD. It appears in QA first, then
+eventually gets promoted to PRD through the normal team process.
+
+If yes — follow this sequence (all before Step 1's `load_merge_data.R`):
+
+1. **Get the new data.** Accept it in any of three forms:
+   - **Pasted into the prompt** — rows given inline (study, treatment,
+     compound, y, se, etc.). Parse into a data.frame matching the QA
+     schema; fill as many columns as possible from context (`aom`, `phase`,
+     `data_type`, `source`, `time_entry` = today's date), leave the rest NA
+     (optional metadata columns like `curator_note`, `qc_name` are
+     routinely blank in real QA files).
+   - **A file path** (xlsx, csv, rds) — read it and extract the relevant
+     rows. If the schema doesn't match QA (e.g. a standalone workbook with
+     `Study`/`Treatment`/`y`/`se` columns instead of `study_name`/
+     `treatment`/`pchg_wl_ee`/`se_wl_ee`), map the columns into the QA
+     schema the same way the standalone-workbook adapter does (Step 1's
+     note) — but write the result to QA, not `/tmp`.
+   - **A subset of another file** — "take the X data from this dataset."
+     Read that file, filter to the named studies/treatments, map into QA
+     schema if needed.
+
+2. **Identify the corresponding QA file.** Convention:
+   - PRD at `/lillyce/prd/diabetes/bnma/obesity/data/shared/weight/
+     cwm_wl_nont2d_prd_YYYYMMDD.xlsx`
+   - → QA at `/lillyce/qa/diabetes/bnma/obesity/data/shared/weight/
+     cwm_wl_nont2d_qa_YYYYMMDD.xlsx`
+   - (Swap `/prd/` → `/qa/` in the directory path; `_prd_` → `_qa_` in the
+     filename. Same date suffix, same `wl`/`t2d`/`nont2d` segment.)
+   - If the user already provided a QA path (in the initial prompt or
+     alongside the PRD), use it directly — don't guess.
+   - **If the QA file doesn't exist yet:** ask the user whether to create
+     it (with the PRD's own column schema — sheets `Observed`/`Prediction`,
+     same columns, zero data rows) or to provide a different path. **Never
+     auto-create silently** — this is a write to a shared drive with no
+     version control.
+   - Sometimes the QA file exists but is empty (just headers / the schema
+     with no data rows) — that's the normal "waiting for entries" state,
+     not an error.
+
+3. **Show the user exactly what rows will be appended** — a table with all
+   populated columns. This is the confirmation gate: the user sees the data
+   before it touches the shared file. Include:
+   - `study_name`, `treatment`, `compound`, `effect_col`/`se_col` values
+   - `aom`, `phase`, `data_type`, `source` (if known)
+   - Which sheet they'll land on (`Observed` or `Prediction` — derive from
+     context if unambiguous, e.g. a study name containing "Prediction";
+     ask if genuinely ambiguous).
+   - `time_entry` = today's date (the QA schema's own "when was this
+     entered" field).
+
+4. **Ask the user to confirm the append.** This is a write to a shared
+   file on the `/lillyce/qa/` mount — never silent, never automatic. A
+   clear "I'll append these N rows to `<qa_path>`, sheet `<sheet>` — confirm?"
+
+5. **Once confirmed: append rows to the QA xlsx in-place** via
+   `append_to_qa.R` (see Appendix B). The script reads the existing
+   workbook, appends to the target sheet, writes back. No backup copy (the
+   mount has no version control anyway — but the manifest records exactly
+   which rows were added and when, so the audit trail is the manifest +
+   `time_entry`, not file versions).
+
+6. **Show an append summary:** N rows added, which studies, which sheet,
+   total rows now in that sheet.
+
+7. **Proceed to Step 1 normally:** `load_merge_data.R --prd <prd> --qa
+   <qa> --out /tmp/bnma_merged.rds` — the newly-appended data flows in
+   through the standard QA-wins merge path, same as if a human had opened
+   Excel and typed it in.
+
+8. **Run `check_naming_pooling.R` against the merged result right away** —
+   new data appended to QA is precisely when a naming collision or route
    mismatch is most likely (a newly-added study using a slightly different
    spelling for an existing compound, or the wrong `aom` tag). Surface any
    new flags now, folded into Step 3's consolidated ask alongside whatever
-   Step 2 finds on the rest of the data — don't defer this to a second pass
-   through Step 2.
+   Step 2 finds on the rest of the data — don't defer this to a second
+   pass through Step 2.
 
-If no, proceed with the base dataset as-is — Step 1 loads it normally.
+**If no new data:** proceed with the base dataset as-is — Step 1's
+`load_merge_data.R` loads PRD (and QA if one was already provided or found
+at the conventional path) normally.
+
+**`supplementary_data` (Step 4) remains as a fallback** for the rare case
+where data truly can't or shouldn't go to QA — e.g. a hypothetical
+sensitivity-test value, or a scratch run where no shared file should be
+touched. But the primary path for real new data is always "append to QA
+first, then fit" — `supplementary_data` is the exception, not the default.
 
 **0c. Propose the run's `programs/` and `output/` folders — don't create
 them yet.** As soon as the dataset (merged or not) is confirmed, work out a
@@ -1680,6 +1752,146 @@ cat(
   sum(merged$source_tier == "qa"), "from QA ).\n",
   "Studies:", n_distinct(merged$study_name), "  Compounds:", n_distinct(merged$compound), "\n",
   "Written to:", args$out, "\n"
+)
+```
+
+### B2b. `append_to_qa.R`
+
+Step 0b — appends new rows to an existing QA workbook in-place (or creates one from a PRD schema if the user confirmed). Called once per session when new data is being added to QA before fitting.
+
+```r
+#!/usr/bin/env Rscript
+# Step 0b of the /bnma skill: append new rows to the QA workbook.
+#
+# The QA file is the living working copy of the landscape data. New entries
+# (from press releases, digitized slides, subsets of other workbooks) land
+# here first, then eventually get promoted to PRD through the normal team
+# process. This script handles the physical append; the skill's Step 0b
+# handles the logic of what to append and getting user confirmation.
+#
+# Usage:
+#   Rscript append_to_qa.R --qa <path.xlsx> --sheet <Observed|Prediction> \
+#     --rows <rows.rds> [--create-from <prd_path.xlsx>]
+#
+# --qa:          path to the QA workbook (will be overwritten in place)
+# --sheet:       which sheet to append to (Observed or Prediction)
+# --rows:        RDS file containing a data.frame of new rows. Columns must
+#                be a subset of the target sheet's schema; missing columns
+#                are filled with NA (optional metadata like curator_note,
+#                qc_name are routinely blank).
+# --create-from: if --qa doesn't exist, create it using this PRD file's
+#                column schema (same sheets: Observed, Prediction — zero
+#                rows each, columns from the PRD's own Observed/Prediction
+#                sheets). Errors if --qa doesn't exist and --create-from is
+#                not given (the skill should have asked the user first).
+
+suppressPackageStartupMessages({
+  library(openxlsx)
+  library(readxl)
+  library(dplyr)
+})
+
+script_path <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE)[1])
+source(file.path(dirname(normalizePath(script_path)), "lib_common.R"))
+
+args <- parse_args(list(
+  qa          = list(required = TRUE),
+  sheet       = list(required = TRUE),
+  rows        = list(required = TRUE),
+  create_from = list(default = NULL)
+))
+
+# Validate --sheet
+if (!args$sheet %in% c("Observed", "Prediction")) {
+  stop("--sheet must be 'Observed' or 'Prediction', got: ", args$sheet)
+}
+
+# Load new rows
+if (!file.exists(args$rows)) stop("--rows file not found: ", args$rows)
+new_rows <- readRDS(args$rows)
+if (!is.data.frame(new_rows) || nrow(new_rows) == 0) {
+  stop("--rows must be a non-empty data.frame, got ", nrow(new_rows), " rows.")
+}
+
+# If QA file doesn't exist, create from PRD schema
+if (!file.exists(args$qa)) {
+  if (is.null(args$create_from)) {
+    stop("QA file does not exist (", args$qa, ") and --create-from was not provided.\n",
+         "The skill should ask the user before creating a new QA file.")
+  }
+  if (!file.exists(args$create_from)) {
+    stop("--create-from file not found: ", args$create_from)
+  }
+
+  cat("Creating new QA workbook from PRD schema:", args$create_from, "\n")
+
+  # Read PRD sheet schemas (column names only)
+  prd_obs_cols <- names(read_excel(args$create_from, sheet = "Observed", n_max = 0))
+  prd_pred_cols <- tryCatch(
+    names(read_excel(args$create_from, sheet = "Prediction", n_max = 0)),
+    error = function(e) prd_obs_cols  # fallback: same schema as Observed
+ )
+
+  wb <- createWorkbook()
+  addWorksheet(wb, "Observed")
+  writeData(wb, "Observed",
+            as.data.frame(matrix(nrow = 0, ncol = length(prd_obs_cols),
+                                 dimnames = list(NULL, prd_obs_cols))))
+  addWorksheet(wb, "Prediction")
+  writeData(wb, "Prediction",
+            as.data.frame(matrix(nrow = 0, ncol = length(prd_pred_cols),
+                                 dimnames = list(NULL, prd_pred_cols))))
+
+  # Create directory if needed
+  dir.create(dirname(args$qa), recursive = TRUE, showWarnings = FALSE)
+  saveWorkbook(wb, args$qa, overwrite = TRUE)
+  cat("Created:", args$qa, "\n")
+}
+
+# Load existing QA workbook
+wb <- loadWorkbook(args$qa)
+sheets <- names(wb)
+if (!args$sheet %in% sheets) {
+  stop("Sheet '", args$sheet, "' not found in ", args$qa,
+       ". Available sheets: ", paste(sheets, collapse = ", "))
+}
+
+# Read existing data from target sheet
+existing <- read.xlsx(wb, sheet = args$sheet)
+if (is.null(existing)) existing <- data.frame()
+
+# Align new_rows columns to existing schema (add missing cols as NA)
+existing_cols <- names(existing)
+for (col in existing_cols) {
+  if (!col %in% names(new_rows)) {
+    new_rows[[col]] <- NA
+  }
+}
+# Keep only columns that exist in the target sheet (drop any extras from new_rows)
+new_rows <- new_rows[, intersect(names(new_rows), existing_cols), drop = FALSE]
+# Reorder to match existing column order
+new_rows <- new_rows[, existing_cols, drop = FALSE]
+
+# Append
+combined <- bind_rows(existing, new_rows)
+
+# Write back to the same sheet (clear and rewrite)
+removeWorksheet(wb, args$sheet)
+addWorksheet(wb, args$sheet)
+writeData(wb, args$sheet, combined)
+
+# Preserve sheet order (Observed before Prediction)
+desired_order <- intersect(c("Summary", "Observed", "Prediction"), names(wb))
+remaining <- setdiff(names(wb), desired_order)
+worksheetOrder(wb) <- match(c(desired_order, remaining), names(wb))
+
+saveWorkbook(wb, args$qa, overwrite = TRUE)
+
+cat(
+  "Appended", nrow(new_rows), "rows to sheet '", args$sheet, "' of ", args$qa, ".\n",
+  "New studies:", paste(unique(new_rows$study_name), collapse = ", "), "\n",
+  "Total rows in '", args$sheet, "' now:", nrow(combined), "\n",
+  sep = ""
 )
 ```
 
