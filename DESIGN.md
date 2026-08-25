@@ -238,8 +238,29 @@ decisions before they've been told what they're choosing from.
    exception).
 
 **Explicitly not changed:** the statistical pipeline (BATMAN, JAGS models,
-forest plot), the naming/pooling QA gate's own logic, and Step 3's
-"one consolidated round trip" principle for its own scope/naming/study
-items — Godwill's point that the skill already supported most of what was
-being discussed, just not in the right order, held up: this was a
-reordering and one new gate, not a rewrite.
+forest plot), the naming/pooling QA gate's own logic, and (at the time)
+Step 3's "one consolidated round trip" principle for its own scope/naming/
+study items — Godwill's point that the skill already supported most of
+what was being discussed, just not in the right order, held up: this was a
+reordering and one new gate, not a rewrite. See the third iteration below
+for why that last point didn't hold for long.
+
+## Third design iteration: scope questions as a sequence, not a form (August 2026)
+
+One day after the second iteration shipped, explicit direction reversed
+the "one consolidated round trip" principle for Step 3's SCOPE items
+specifically: endpoint, route, evidence, region, heterogeneity, and effect
+type are now asked as individual questions, one at a time, each waited on
+before the next is asked — not bundled into one message with a stated
+default per line. The examples given were concrete: "do you want oral/
+injectable," "analysis type (placebo-adjusted or absolute)" — genuine
+questions, not declarative defaults to override.
+
+This only applies to the small, closed-choice scope items (now Step 3a).
+The naming/pooling flags and the study list (now Step 3b) stay a grouped
+confirmation — those are variable-length and data-dependent (potentially
+dozens of studies on a real landscape run), so a question-per-item
+treatment isn't practical there the way it is for six closed-choice scope
+questions. Step 3.5/3.6 (subset sufficiency, custom data, folders) are
+unaffected — they were never part of the original "one round trip" scope
+anyway.

@@ -16,7 +16,7 @@ description: >
 
 Guided BNMA workflow for the obesity/diabetes-landscape QA/PRD dataset,
 generalized across endpoints (weight loss, HbA1c, physical function, etc. --
-see Step 3's Endpoint question and Step 4's `effect_col`/`se_col` manifest
+see Step 3a's Endpoint question and Step 4's `effect_col`/`se_col` manifest
 fields). Reuses the
 existing BATMAN-augmentation + JAGS + forest-plot pipeline (see the misc5
 project's R scripts for the reference implementation this was built from),
@@ -50,7 +50,7 @@ Step 0   Introduce what's in the PRD dataset & locate it (always first)
 Step 1   Load & merge                          (automatic)
 Step 2   Naming/pooling QA gate                (automatic, proposes resolutions)
 Step 2.5 Compound-first entry point            (if requested)
-Step 3   The one consolidated ask              (scope + naming flags + studies)
+Step 3   Scope questions (one at a time), then study confirmation
 Step 3.5 Confirm subset sufficiency, offer custom data, propose folders
 Step 3.6 Custom/external data intake           (only if requested in 3.5)
 Step 4   Write the manifest, create folders
@@ -63,15 +63,18 @@ Step 7a  Promote or discard a scratch run
 **Do not skip steps or assume defaults on the user's behalf on anything
 genuinely discretionary.** The whole point of this skill is that a low-dose
 Phase 2 study or an oral/injectable mix-up must never enter a model silently
-again — but that doesn't require an interview. **Step 3 stays a single
-round trip** for its own scope filters and naming flags (2026-08-19, per
-explicit direction): compute everything that can be computed from the data
-first, present ONE consolidated message with a stated, safe default for
-every genuinely discretionary choice, let the statistician
-accept-all/override/add free-form concerns in a single reply. Step 3.5 adds
-one more, deliberate checkpoint after that — confirming the subset is
-actually sufficient and offering custom data — before anything is written
-to disk; it is not an attempt to re-litigate Step 3's own answers.
+again. **Step 3a asks its scope items (endpoint, route, evidence, region,
+heterogeneity, effect type) as individual questions, one at a time** —
+each with a stated, recommended default so a quick reply is enough, but
+each is a real question waited on before the next is asked (2026-08-26, per
+explicit direction, superseding the prior single-consolidated-message
+design for these items specifically). Step 3b then presents the
+naming/pooling flags and the study list as one grouped confirmation, since
+those are variable-length and data-dependent rather than a small closed
+set of choices — a study-by-study interview isn't practical on a 70+ study
+landscape run. Step 3.5 adds one more, deliberate checkpoint after that —
+confirming the subset is actually sufficient and offering custom data —
+before anything is written to disk.
 
 **The one thing that always still interrupts, even after that reply: a hard
 gate failure** — `build_batman_data.R` refusing to run because a study is
@@ -131,7 +134,8 @@ asking them to decide anything: distinct studies, compounds, phases,
 evidence tiers (observed vs. prediction row counts), and regions present.
 This is always shown, even when the initial prompt already named specific
 studies/compounds — it's a one- or two-sentence preamble folded into
-whatever message comes next (Step 2.5's resolution or Step 3's ask), not a
+whatever message comes next (Step 2.5's resolution or Step 3a's first
+question), not a
 separate round trip when the rest of the request already lets the
 conversation move forward.
 
@@ -145,8 +149,9 @@ already clear.)
 - **If exploring:** stay conversational. Answer whatever breakdowns they
   ask for — studies by phase, compounds by route, coverage by region — using
   the already-loaded data (Step 1's output, Step 2's naming/pooling report
-  if it's relevant to what they're asking). Do not run Step 3's consolidated
-  ask, do not propose folders, do not mention the manifest. Only move into
+  if it's relevant to what they're asking). Do not run Step 3's scope
+  questions or study confirmation, do not propose folders, do not mention
+  the manifest. Only move into
   the guided-selection pipeline once the statistician explicitly signals
   they want to move toward a run (e.g. "ok, let's set up a BNMA using
   these studies").
@@ -178,7 +183,7 @@ scripts/run_r.sh scripts/load_merge_data.R \
 This is the same invocation Step 0b already ran to build the "what's in
 this data" introduction — don't run it twice in one session. Its printed
 summary (row/study/compound counts) feeds both Step 0b's intro and, later,
-directly into Step 3's consolidated message — no separate confirmation
+directly into Step 3a's first question — no separate confirmation
 here.
 
 **If the user attaches a standalone workbook instead of a QA/PRD path**
@@ -250,7 +255,7 @@ scripts/run_r.sh scripts/check_naming_pooling.R \
 
 Read the JSON report, but **do not stop here to resolve flags one at a
 time** — for every active (non-suppressed) `compound_flags`/`pooling_flags`
-entry, work out a proposed resolution to carry into Step 3's single message
+entry, work out a proposed resolution to carry into Step 3b's message
 instead:
 - A compound-name flag: propose `different` unless the substring/prefix
   signal is strong (one name is literally a substring of the other — the
@@ -260,11 +265,11 @@ instead:
   routes into one arm is almost never the intended outcome.
 
 These are proposals the statistician can override in their one reply, not
-silent auto-resolutions — Step 3 must show every active flag and its
+silent auto-resolutions — Step 3b must show every active flag and its
 proposed resolution explicitly. If there are zero active flags, note that
-plainly in Step 3's message rather than a separate line here.
+plainly in Step 3b's message rather than a separate line here.
 
-Once an answer is confirmed (in Step 3), persist compound-name resolutions
+Once an answer is confirmed (in Step 3b), persist compound-name resolutions
 to `compound_registry.yaml` (Edit tool, this skill's own repo copy) so the
 same pair is never re-flagged; pooling-flag resolutions go in the manifest
 only (Step 4), since they're data-specific rather than a general
@@ -281,7 +286,7 @@ qw"`). This is not cosmetic — `arm_ind` is derived from the treatment string
 alone, so each differently-worded placebo row becomes its own disconnected,
 single-study network node instead of sharing the one placebo reference arm
 every other study anchors to. Propose a `treatment_relabels` entry to
-`"placebo"` for each variant in Step 3, same "shown, never silently applied"
+`"placebo"` for each variant in Step 3b, same "shown, never silently applied"
 treatment as any other naming flag. `build_batman_data.R` hard-errors if a
 `compound == "placebo"` row ever reaches arm assignment under a
 non-canonical treatment string — the backstop if this proposal is skipped
@@ -296,7 +301,7 @@ comes up "in some analyses" — an isolated head-to-head trial with no placebo
 arm is the common case): those two model types leave such a study
 disconnected from the network by default, matching the real production
 tool's own behavior, unless explicitly opted into phantom-bridging. Carry
-every flagged study into Step 3 individually, same "no silent default"
+every flagged study into Step 3b individually, same "no silent default"
 treatment as a phase 1/2 study — propose "leave disconnected" (the default,
 and the one that matches production behavior) but require an explicit
 per-study answer, not a blanket accept. If there are zero flagged studies
@@ -330,44 +335,91 @@ silently, but don't manufacture a question where the match is actually
 clear either.
 
 Derive the distinct compound list from the resolved treatments and carry it
-into Step 3 as the proposed `compound_filter` (a list of compound names).
+into Step 3b as the proposed `compound_filter` (a list of compound names).
 `build_batman_data.R` applies this as a **row-level** filter (drop any row
 whose `compound` isn't in the list), not a study-level one — a study mixing
 a wanted compound with an unwanted one keeps its wanted-compound rows and
 drops the rest. Placebo rows are always exempt, same as the route filter.
-Every study is still enumerated in Step 3 for an explicit decision even
+Every study is still enumerated in Step 3b for an explicit decision even
 under a compound filter — a study with no requested compound usually still
 has its placebo row survive (compound-exempt), so it still needs a decision;
 batch these with a shared proposed reason ("not one of the requested
 compounds for this run").
 
 If the initial prompt did not name specific compounds, propose the default
-in Step 3: every treatment surviving the other filters, in the order first
+in Step 3b: every treatment surviving the other filters, in the order first
 seen.
 
-## Step 3 — The one consolidated ask
+## Step 3 — Scope questions, then study confirmation
 
-Present everything computed in Steps 1/2/2.5 as **one message**, each item
-with a stated, safe default — this is the single round trip the
-statistician answers once. Use this structure (fill in every value from the
-actual data/report; never leave a placeholder):
+Per explicit 2026-08-26 direction, the SCOPE items are no longer bundled
+into one wall-of-text message — ask each as its own short question, one at
+a time, and wait for a reply before asking the next. Once all of them are
+answered, present the naming/pooling + study confirmation as a single
+grouped message (Step 3b) — those depend on the scope answers (route/
+evidence/region filters change which studies are even in scope), so they
+can't come first, and a study-by-study interview would be impractical on a
+70+ study landscape run.
+
+### Step 3a — Scope questions (one at a time)
+
+Ask these in order. Each names its recommended default in the same message
+so a quick "yes"/"default" reply is enough, but each is a genuine question
+the statistician answers before you move to the next — not a line item in
+a bundled ask. Fill in every value from the actual data/report; never leave
+a placeholder.
+
+1. **Endpoint** — e.g. "This looks like a weight-loss dataset (`effect_col:
+   pchg_wl_ee`, `se_col: se_wl_ee`) — is that the endpoint you want, or a
+   different one?" **Only state it plainly instead of asking** when the
+   dataset's own columns unambiguously match a known schema *and* the
+   initial prompt already made the endpoint clear — otherwise always ask,
+   since this determines `effect_col`/`se_col`/`effect_label`/
+   `effect_direction` for everything downstream. For any endpoint other
+   than weight loss (HbA1c, physical function, etc.), state the real
+   column names in the question itself — e.g. "HbA1c (`effect_col:
+   chg_hba1c`, `se_col: se_chg_hba1c`) — sound right?" — and also propose
+   an `effect_label` (a short phrase for the plot's axis/title) and, if
+   `placebo_clamp` might be used this run, an `effect_direction`
+   (`decrease_is_better` | `increase_is_better` — weight loss and HbA1c
+   reduction are `decrease_is_better`; a physical-function score where
+   higher is healthier would be `increase_is_better`).
+2. **Route** — "Oral, injectable, or both?" State the default (usually
+   "both," if the data has both routes present).
+3. **Evidence** — "Observed only, prediction only, or both?"
+4. **Region** — "Global only, or include `<other regions actually found in
+   the data>`?"
+5. **Heterogeneity** — "Random-effects or fixed-effects?" Default
+   random-effects (`rand_effect`) unless something about the data already
+   suggests otherwise. (Step 5's star-network check can still surface an
+   explicit override request later, after the real network structure is
+   known — this question is the up-front default, not the final word.)
+6. **Effect to report** — "Placebo-adjusted (relative), or absolute?"
+
+Once all six are answered, echo the locked-in scope back in one line before
+moving to Step 3b.
+
+### Step 3b — Naming/pooling + study confirmation
+
+Present everything computed in Steps 1/2/2.5, filtered by Step 3a's now-
+confirmed scope, as **one message** — this part stays a grouped
+confirmation rather than one question per item, since the naming/pooling
+flags and the study list are both variable-length and data-dependent
+(potentially dozens of studies on a real landscape run), not a small closed
+set of choices like Step 3a's items:
 
 ```
 ╭──────────────────────────────────────────────────────────────────╮
-│  /cmh-ci · review & confirm                                        │
+│  /cmh-ci · study confirmation                                     │
 ├──────────────────────────────────────────────────────────────────┤
 │  Reply with just what you want to change, plus anything else to   │
 │  flag -- everything else proceeds on the default/proposal shown.  │
 ╰──────────────────────────────────────────────────────────────────╯
 
-  SCOPE
-   1  Dataset           <path(s)>                                (detected)
-   2  Endpoint         ► weight loss (effect_col: pchg_wl_ee, se_col: se_wl_ee)
-   3  Route            ► both (oral + injectable)
-   4  Evidence         ► both (observed + prediction)
-   5  Region           ► global only
-   6  Heterogeneity    ► random-effects (rand_effect)
-   7  Effect to report ► placebo-adjusted (relative)
+  SCOPE (confirmed in Step 3a)
+   Dataset <path(s)> -- Endpoint <effect_col>/<se_col> -- Route <route> --
+   Evidence <evidence> -- Region <region> -- Heterogeneity <model_type> --
+   Effect <relative|absolute>
 
   NAMING / POOLING  (N active flags)
    - <compound_a> vs <compound_b> -- proposed: <same|different>, because <signal>
@@ -393,31 +445,12 @@ actual data/report; never leave a placeholder):
 ```
 
 Notes:
-- **Endpoint defaults to weight loss** (`effect_col: pchg_wl_ee`,
-  `se_col: se_wl_ee` — the QA/PRD schema's own effect-estimate/SE column
-  pair) **only when the dataset's own columns match that schema** — check
-  the actual column names in the merged data (Step 1) before proposing this
-  default; don't assume every workbook is a weight-loss one just because
-  that's the common case. For any other endpoint (HbA1c, physical function,
-  etc.), state the real column names as the proposal instead — e.g. "HbA1c
-  (`effect_col: chg_hba1c`, `se_col: se_chg_hba1c`)" — and also propose an
-  `effect_label` (a short phrase for the plot's axis/title — e.g. `"HbA1c
-  (%)"`) and, if `placebo_clamp` might be used this run, an `effect_direction`
-  (`decrease_is_better` | `increase_is_better` — controls which sign
-  `placebo_clamp` treats as "wrong direction"; weight loss and HbA1c
-  reduction are `decrease_is_better`, a physical-function score where higher
-  is healthier would be `increase_is_better`). This is a genuinely
-  discretionary, data-dependent choice like Route/Evidence/Region — propose
-  a default, but always state it explicitly rather than leaving it implicit.
 - **Phase 1/2 and prediction-tier studies never get a silent proposed
   decision baked into the default path** — list each one individually and
   require the statistician to actually say include or exclude, even though
-  everything else above is a normal accept-the-default item. This is the
-  one place the "one round trip" goal does not mean "one fewer thing to
-  decide" — it means "asked once, together with everything else," not
-  "decided for you." (A *proposed reason* is fine to show for when they do
-  decide to include one, per Step 4's manifest schema — the decision itself
-  is never pre-filled.)
+  everything else above is a normal accept-the-default item. (A *proposed
+  reason* is fine to show for when they do decide to include one, per Step
+  4's manifest schema — the decision itself is never pre-filled.)
 - **Studies without a placebo arm get the same individual, no-silent-default
   treatment**, but with a stated default (leave disconnected) they can
   accept in bulk by saying nothing — unlike phase 1/2 studies, this one has
@@ -429,12 +462,12 @@ Notes:
   about that should be excluded, a data-quality concern, a specific
   treatment format — say so now or after the fact; I'll fold it in before
   Step 4."
-- Echo back exactly what was locked in (defaults accepted + overrides +
-  any free-form concerns folded in) once the statistician replies, before
-  moving to Step 3.5's sufficiency check. Folder proposals and the Project
-  CLAUDE.md offer are **not** part of this ask — see Step 3.5, which only
-  happens once the statistician is actually committed to a run rather than
-  still exploring the data (Step 0c).
+- Echo back exactly what was locked in (Step 3a's scope answers + Step 3b's
+  defaults accepted/overrides + any free-form concerns folded in) once the
+  statistician replies, before moving to Step 3.5's sufficiency check.
+  Folder proposals and the Project CLAUDE.md offer are **not** part of this
+  ask — see Step 3.5, which only happens once the statistician is actually
+  committed to a run rather than still exploring the data (Step 0c).
 
 ## Step 3.5 — Confirm the subset is sufficient, offer custom data, propose folders
 
@@ -577,8 +610,8 @@ opt-in now.
    away** — newly-added data is precisely when a naming collision or route
    mismatch is most likely (a new study using a slightly different
    spelling for an existing compound, or the wrong `aom` tag). Surface any
-   new flags in a short follow-up, resolved the same way Step 2/3 resolve
-   any other flag — don't silently skip this just because Step 3's main
+   new flags in a short follow-up, resolved the same way Step 2/3b resolve
+   any other flag — don't silently skip this just because Step 3b's main
    naming/pooling pass already happened.
 
 6. **Loop back to Step 3.5's sufficiency question.** The statistician may
@@ -612,15 +645,15 @@ created_at: "2026-08-14"
 source_data:
   prd: /lillyce/prd/diabetes/bnma/obesity/data/shared/weight/cwm_wl_nont2d_prd_20260805.xlsx
   qa: null
-effect_col: pchg_wl_ee # from Step 3's Endpoint question -- the QA/PRD column holding this run's effect estimate; omit = pchg_wl_ee (weight loss), unchanged for every existing manifest
-se_col: se_wl_ee # from Step 3 -- the matching SE column; omit = se_wl_ee (weight loss), unchanged for every existing manifest
+effect_col: pchg_wl_ee # from Step 3a's Endpoint question -- the QA/PRD column holding this run's effect estimate; omit = pchg_wl_ee (weight loss), unchanged for every existing manifest
+se_col: se_wl_ee # from Step 3a -- the matching SE column; omit = se_wl_ee (weight loss), unchanged for every existing manifest
 effect_label: "Body Weight" # optional -- short phrase for the plot's default axis/title text (e.g. "HbA1c", "Physical Function Score"); omit = "Body Weight" only when effect_col is pchg_wl_ee, else falls back to the raw effect_col name (unpolished but not wrong) -- --xlab/--title on make_forest_plot.R always override regardless
-effect_direction: decrease_is_better # decrease_is_better | increase_is_better -- from Step 3, only matters if placebo_clamp is used; controls which sign placebo_clamp treats as "wrong direction". omit = decrease_is_better (weight loss/HbA1c-reduction convention), unchanged for every existing manifest
+effect_direction: decrease_is_better # decrease_is_better | increase_is_better -- from Step 3a, only matters if placebo_clamp is used; controls which sign placebo_clamp treats as "wrong direction". omit = decrease_is_better (weight loss/HbA1c-reduction convention), unchanged for every existing manifest
 source_program: <path to whatever script/session produced this run>
-route_filter: both # oral | injectable | both -- from Step 3; omit or "both" = no route filtering
-evidence_filter: both # observed | prediction | both -- from Step 3; omit or "both" = no evidence filtering
+route_filter: both # oral | injectable | both -- from Step 3a; omit or "both" = no route filtering
+evidence_filter: both # observed | prediction | both -- from Step 3a; omit or "both" = no evidence filtering
 compound_filter: null # optional list of compound names -- from Step 2.5's compound-first entry point; omit/null = no compound filtering
-region_filter: [global] # list of regions to include -- from Step 3; omit = ["global"] only, unlike route/evidence_filter's "both" default
+region_filter: [global] # list of regions to include -- from Step 3a; omit = ["global"] only, unlike route/evidence_filter's "both" default
 naming_pooling_resolutions:
   - kind: compound_flag
     compound_a: canaflig
@@ -658,12 +691,12 @@ row_exclusions:
 placebo_clamp: false # optional -- set true to force any placebo row's wrong-direction (per effect_direction) effect_col value to 0; requires placebo_clamp_reason
 se_fallback: false # optional -- set true to derive se_col = se_fallback_sd/sqrt(n) for rows missing se_col but with a known n; requires se_fallback_reason
 supplementary_data: [] # optional -- literal rows for data not yet in the QA/PRD workbook; see below
-model_type: rand_effect # rand_effect (recommended default for new runs) | fixed_effect | simultaneous (legacy) | simultaneous_fixed (legacy, fixed-effect delta -- use instead of simultaneous whenever effect_type: absolute + a full star network, see Step 5) -- from Step 3; omit or "simultaneous" = today's unconditional phantom-bridging behavior, unchanged; see Step 5
+model_type: rand_effect # rand_effect (recommended default for new runs) | fixed_effect | simultaneous (legacy) | simultaneous_fixed (legacy, fixed-effect delta -- use instead of simultaneous whenever effect_type: absolute + a full star network, see Step 5) -- from Step 3a; omit or "simultaneous" = today's unconditional phantom-bridging behavior, unchanged; see Step 5
 plot_treatments:
   - tirzepatide 5mg qw
   - tirzepatide 10mg qw
   - tirzepatide 15mg qw
-effect_type: relative # from Step 3
+effect_type: relative # from Step 3a
 ```
 
 `compound_relabels` is for a naming-QA flag resolved as "these rows were
@@ -733,7 +766,7 @@ every no-placebo study unconditionally, unaffected by this field). A real,
 recurring judgment call (confirmed 2026-08-20, comes up "in some analyses" —
 e.g. an isolated head-to-head trial that would otherwise sit outside the
 network entirely), not a one-off — every study listed here must be one
-Step 2's `no_placebo_flags` actually found and Step 3 surfaced individually;
+Step 2's `no_placebo_flags` actually found and Step 3b surfaced individually;
 `build_batman_data.R` errors on an unrecognized study name (spelling
 mismatch against `study_name`) rather than silently ignoring it. Same
 hard-error-if-no-reason pattern as `placebo_clamp`/`se_fallback` — a phantom
@@ -748,7 +781,7 @@ phantom_placebo_reason: "Head-to-head-only trial with no placebo arm --
 ```
 Omit or leave empty (the default) — every no-placebo study stays
 disconnected, contributing a baseline (`phi`) estimate only, no
-relative-effect information. This is still a stated decision from Step 3,
+relative-effect information. This is still a stated decision from Step 3b,
 not a silent fallthrough, even when nothing is listed here.
 
 **Phantom-bridging a fully isolated *multi-node* component can still fail
@@ -866,7 +899,7 @@ footnote when it's absent, rather than failing.
 `build_batman_data.R` also prints a **heterogeneity estimability** check —
 for every non-placebo treatment node, how many distinct studies feed it.
 This is the checkpoint for the fixed-vs-random-effects question asked in
-Step 3: if it reports a **star network** (zero nodes with ≥2 contributing
+Step 3a: if it reports a **star network** (zero nodes with ≥2 contributing
 studies — the exact situation in `pf_nma.R`, a physical-function
 sub-network where every comparison has exactly one supporting study),
 between-study heterogeneity literally cannot be estimated from the data, and
@@ -887,7 +920,7 @@ the user plainly:
   the inflated CIs to reflect genuine uncertainty about heterogeneity even
   when it can't be estimated).
 
-**Do NOT auto-correct.** The user's Step 3 answer stands unless they
+**Do NOT auto-correct.** The user's Step 3a answer stands unless they
 explicitly change it after seeing the star-network finding. If they confirm
 `rand_effect` despite the warning, fit with `model_random.txt` as requested
 and note in the footnote that the network is a full star and `sigma` is
@@ -959,7 +992,7 @@ keeps working unchanged.
 corrected 2026-08-19 to match the NMA Output Review Process Guide's explicit
 spec for this parameter) stays as a legacy option — it's the only one with a
 pooled baseline `m` node, which is required if you need `effect_type: absolute`
-(see Step 3); the real production tool has no absolute-effect view at all,
+(see Step 3a); the real production tool has no absolute-effect view at all,
 since a non-hierarchical model has no single global baseline to compute one
 from.
 
@@ -1246,7 +1279,7 @@ not a new round of data collection:
 ```markdown
 # <slug>
 
-<one-line purpose -- from Step 3's free-form context if the statistician
+<one-line purpose -- from Step 3b's free-form context if the statistician
 gave one, else derived from the endpoint/dataset, e.g. "Weight-loss BNMA,
 oral compounds, for the ADA submission">
 
@@ -2259,11 +2292,11 @@ if (length(placebo_variants) > 0) {
 # leaves such a study disconnected from the network by default (matches the
 # real production tool's own documented behavior), unless the manifest opts
 # it into phantom-bridging via `phantom_placebo_studies` (see SKILL.md Step
-# 3/4). Computed here (pre-study-selection, pre-model_type-finalization) so
-# every such study can be surfaced in Step 3's one consolidated ask rather
+# 3b/4). Computed here (pre-study-selection, pre-model_type-finalization) so
+# every such study can be surfaced in Step 3b's study confirmation rather
 # than discovered only once build_batman_data.R runs. A study excluded from
-# this run entirely (Step 3 studies: list) makes this moot for it, same as
-# any other flag here -- the skill conversation reconciles that at Step 3,
+# this run entirely (Step 3b studies: list) makes this moot for it, same as
+# any other flag here -- the skill conversation reconciles that at Step 3b,
 # not this script.
 #
 # Keyed off `compound == "placebo"`, NOT the literal treatment string --
@@ -2320,7 +2353,7 @@ cat(
   "  Integrity flags (placebo mistagging):", report$summary$n_integrity_flags, "\n",
   "  Placebo naming variants (need a treatment_relabels entry):", report$summary$n_placebo_naming_flags, "\n",
   "  Studies with no placebo arm:", report$summary$n_no_placebo_flags,
-  "(relevant only if model_type ends up rand_effect/fixed_effect -- see SKILL.md Step 3)\n"
+  "(relevant only if model_type ends up rand_effect/fixed_effect -- see SKILL.md Step 3a)\n"
 )
 ```
 
@@ -2330,7 +2363,7 @@ Steps 3+4/5 — applies the confirmed manifest (filters, relabels, exclusions, p
 
 ```r
 #!/usr/bin/env Rscript
-# Step 3+4 of the /bnma skill: apply a confirmed study-selection manifest to
+# Step 3b+4 of the /bnma skill: apply a confirmed study-selection manifest to
 # the merged data, then BATMAN-augment and build the JAGS input matrices.
 #
 # The manifest (written by the skill conversation after the user explicitly
@@ -2377,7 +2410,7 @@ if (is.null(manifest$studies) || length(manifest$studies) == 0) {
 # and SE. Default to the weight-loss schema's own column pair so every
 # existing manifest (none of which set these fields) keeps working
 # unchanged; a run against a different endpoint (HbA1c, physical function,
-# etc.) states its own real column names here instead (see SKILL.md Step 3's
+# etc.) states its own real column names here instead (see SKILL.md Step 3a's
 # Endpoint question). effect_direction only matters for placebo_clamp below
 # -- which sign counts as "wrong direction" depends on whether a decrease or
 # an increase is the desired treatment effect for this endpoint.
@@ -2778,7 +2811,7 @@ data_sel <- data_sel %>%
 # Real case, 2026-08-20: a T2D HbA1c workbook recorded placebo arms as
 # "oral placebo qd"/"injectable placebo qw"/etc in several studies --
 # check_naming_pooling.R's placebo_naming_flags surfaces these upfront so
-# Step 3 can propose a treatment_relabels entry, but this is the backstop
+# Step 3b can propose a treatment_relabels entry, but this is the backstop
 # that actually stops the run if that proposal was skipped or missed,
 # rather than silently fragmenting the network.
 bad_placebo <- data_sel %>% filter(compound == "placebo", treat != "placebo")
@@ -2901,7 +2934,7 @@ if (length(studies_without_placebo) > 0) {
     # per study here, same hard-error-if-no-reason pattern as placebo_clamp/
     # se_fallback below -- a phantom placebo (se=1, y=NA) is a fabricated,
     # zero-information data point, not something to default silently either
-    # way. The skill conversation surfaces every no-placebo study in Step 3
+    # way. The skill conversation surfaces every no-placebo study in Step 3b
     # (whether or not this field ends up used) so "leave disconnected" is
     # always a stated decision, not a silent fallthrough.
     bridge_requested <- manifest$phantom_placebo_studies %||% list()

@@ -47,13 +47,17 @@ Invoke it with `/bnma` in Claude Code. It will walk you through, in order:
    and oral/injectable route-pooling risk, and makes you resolve every flag
    explicitly before moving on. Resolutions are persisted so the same pair
    is never re-flagged.
-3. **Scope filters** — route of administration (oral / injectable / both),
-   evidence type (observed / prediction / both), region, and optionally a
-   specific list of treatments you want (a "compound-first" entry point,
-   e.g. "I need these 21 treatments").
-4. **Study selection** — every distinct study in scope is listed, grouped so
-   Phase 1/2 and prediction studies stand out, and you explicitly include or
-   exclude each one with a one-line reason. Nothing gets a default you
+3. **Scope questions, asked one at a time** — endpoint, route of
+   administration (oral / injectable / both), evidence type (observed /
+   prediction / both), region, heterogeneity model, and effect type
+   (placebo-adjusted vs. absolute) — each a short question with a stated
+   default, answered one at a time rather than bundled into one message.
+   (If you already named specific treatments up front — "I need these 21
+   treatments" — that's resolved separately, before these questions.)
+4. **Study confirmation** — every distinct study in scope is listed, grouped so
+   Phase 1/2 and prediction studies stand out, alongside every naming/pooling
+   flag, in one grouped review message. You explicitly include or exclude
+   each flagged study with a one-line reason. Nothing gets a default you
    didn't state.
 5. **Confirm the subset, optionally add custom data, propose folders** —
    once your subset is chosen, it asks whether it's sufficient or whether
