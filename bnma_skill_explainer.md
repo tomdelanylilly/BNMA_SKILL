@@ -37,52 +37,72 @@ months later) can see exactly why each study is in the network.
 
 Invoke it with `/bnma` in Claude Code. It will walk you through, in order:
 
-1. **Introduce the data** — you point it at a PRD file/folder (and a QA
-   path if there's newer unpromoted data), and it tells you what's actually
-   in it — studies, compounds, phases, evidence tiers — before asking you to
-   decide anything. If you're just exploring, it stays conversational from
-   here: no folders, no manifest, no naming-gate resolution demanded, until
-   you say you want to move toward an actual run.
-2. **Naming/pooling QA gate** — it flags near-duplicate compound spellings
-   and oral/injectable route-pooling risk, and makes you resolve every flag
-   explicitly before moving on. Resolutions are persisted so the same pair
-   is never re-flagged.
-3. **Scope questions, asked one at a time** — endpoint, route of
-   administration (oral / injectable / both), evidence type (observed /
-   prediction / both), region, heterogeneity model, and effect type
-   (placebo-adjusted vs. absolute) — each a short question with a stated
-   default, answered one at a time rather than bundled into one message.
-   (If you already named specific treatments up front — "I need these 21
-   treatments" — that's resolved separately, before these questions.)
-4. **Study confirmation** — every distinct study in scope is listed, grouped so
-   Phase 1/2 and prediction studies stand out, alongside every naming/pooling
-   flag, in one grouped review message. You explicitly include or exclude
-   each flagged study with a one-line reason. Nothing gets a default you
-   didn't state.
-5. **Confirm the subset, optionally add custom data, propose folders** —
-   once your subset is chosen, it asks whether it's sufficient or whether
-   you want to bring in something not yet in QA/PRD (a press release, a
-   hand-digitized slide, a subset from another workbook). New data defaults
-   to a **temporary, project-only addition** — not written to the shared QA
-   file unless you explicitly ask to promote it, since PRD only updates
-   twice a year and most custom data is specific to one analysis. This is
-   also where working folders (and an optional project CLAUDE.md) are
-   proposed — not before, so exploring the data never drags you into
-   project setup you didn't ask for.
-6. **Manifest written** — every decision above becomes a YAML file. This is
-   the audit trail; nothing downstream is inferred from a conversation you'd
-   have to re-read.
-7. **BATMAN build + JAGS fit** — deterministic scripts, not model judgment.
-   Fits either the real production BNMA model (`model_random.txt` /
-   `model_fixed.txt`, matching the actual CMH BNMA Shiny app's own
-   specification) or the legacy hierarchical model, per the manifest's
-   `model_type`.
-8. **Forest plot + footnote** — every plotted arm is superscript-marked
-   observed (`ᵒ`) vs. projection (`ᵖ`), and the footnote lists every
-   contributing study plus the exact source file path.
-9. **Driver script** — a small, directly re-runnable R script that
-   reproduces the whole run from scratch by calling the skill's own scripts
-   with this run's literal arguments baked in.
+1. **Introduce and explain the available PRD dataset** — you point it at a
+   PRD file/folder (and a QA path if there's newer unpromoted data), and it
+   tells you what's actually in it — studies, compounds, phases, evidence
+   tiers — before asking you to decide anything (it also runs the
+   naming/pooling QA gate automatically here, mentioning the flag count —
+   full resolution comes later). If you're just exploring, it stays
+   conversational from here: no folders, no manifest, no naming-gate
+   resolution demanded, until you say you want to move toward an actual
+   run.
+2. **Ask which studies you're interested in** — name specific studies (e.g.
+   "ATTAIN-1 vs. SURMOUNT-4") and/or compounds/treatments up front if you
+   already know what you want ("I need these 21 treatments"); either gets
+   resolved first, and a study you name this way still shows up in step 3's
+   full review with "include, per your request" as its stated reason —
+   naming it doesn't skip the confirmation, it just sets the proposed
+   answer. Then endpoint, route of administration (oral / injectable /
+   both), evidence type (observed / prediction / both), and region — each a
+   short question with a stated default, answered one at a time rather than
+   bundled into one message.
+3. **Create and review a subset of the PRD data based on those
+   selections** — every distinct study in scope is listed, grouped so
+   Phase 1/2 and prediction studies stand out, alongside every
+   naming/pooling flag, in one grouped review message. You explicitly
+   include or exclude each flagged study with a one-line reason. Nothing
+   gets a default you didn't state.
+4. **Ask whether additional, non-PRD data should be incorporated** — once
+   your subset is chosen, it asks whether it's sufficient or whether you
+   want to bring in something not yet in QA/PRD (a press release, a
+   hand-digitized slide, a subset from another workbook).
+5. **Convert and structure any additional data into the QA format** (only
+   if step 4 said yes) — pasted rows, a file, or a subset of another
+   workbook, mapped into the QA schema and shown for confirmation.
+6. **Merge the supplemental data with the selected PRD subset** — new data
+   defaults to a **temporary, project-only addition** — not written to the
+   shared QA file unless you explicitly ask to promote it, since PRD only
+   updates twice a year and most custom data is specific to one analysis.
+   Loops back to step 4 until the (possibly enlarged) subset is confirmed
+   sufficient.
+7. **Confirm whether to proceed to a BNMA run** — your goal for this session
+   might genuinely have been just reviewing the data or getting your own
+   data into QA, and that's a complete outcome, not a shortfall. Only a
+   "yes, let's run it" moves on to the next step — this is a distinct,
+   later checkpoint from step 1's explore-or-run fork, since intent can
+   become clear (or narrow) only after you've actually seen the data and
+   made your selections.
+8. **Generate the BNMA using the prepared dataset** — working folders (and
+   an optional project CLAUDE.md) are proposed here, not before, so
+   exploring or updating the data never drags you into project setup you
+   didn't ask for; then the manifest is written and the BATMAN model-input
+   structure is built.
+9. **Collect modelling preferences** — heterogeneity (random- vs.
+   fixed-effects) and effect type (placebo-adjusted vs. absolute), asked
+   *after* step 8 has already built the real network structure, so the
+   recommendation is stated directly (e.g. "this network is a full star,
+   fixed-effects is recommended") instead of asked blind and corrected
+   later.
+10. **Produce analysis outputs and visualisations** — deterministic
+    scripts, not model judgment, fit either the real production BNMA model
+    (`model_random.txt` / `model_fixed.txt`, matching the actual CMH BNMA
+    Shiny app's own specification) or the legacy hierarchical model, per
+    the manifest's `model_type`; render the forest plot (every plotted arm
+    superscript-marked observed (`ᵒ`) vs. projection (`ᵖ`), footnote listing
+    every contributing study plus the exact source file path); and write a
+    driver script — a small, directly re-runnable R script that reproduces
+    the whole run from scratch by calling the skill's own scripts with this
+    run's literal arguments baked in.
 
 ## What lands on disk when it's done
 
@@ -125,12 +145,6 @@ running if you want to reproduce it later without Claude in the loop at all.
 - No fully automated pipeline — every selection decision is a forced,
   explicit step. If you want a script that just runs end-to-end with no
   questions, this isn't it, on purpose.
-- No absolute-effect view for the real production model types
-  (`rand_effect`/`fixed_effect`) — confirmed against the real production
-  tool's own source that it doesn't have one either, since its
-  non-hierarchical model has no single pooled baseline to compute one from.
-  `effect_type: absolute` only works with the legacy `model_simultaneous`
-  model.
 - No external grounding (ClinicalTrials.gov/INN lookups) for the naming
   check — string-similarity + same-study disconfirmation + a persisted
   decision registry only.

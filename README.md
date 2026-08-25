@@ -7,14 +7,19 @@ workbook.
 
 It replaces a hardcoded, hand-edited study list with a guided workflow: it
 always introduces what's in the data before asking you to decide anything,
-walks scope questions (route, evidence, region, heterogeneity, effect type)
-one at a time rather than as a wall of text, then confirms the study
+lets you name specific studies or compounds up front if you know what you
+want, walks the remaining scope questions (endpoint, route, evidence,
+region) one at a time rather than as a wall of text, confirms the study
 selection and naming/pooling flags in a grouped review, confirms the
 resulting subset is actually sufficient (offering to bring in custom data
-if not) before touching disk, and only then runs straight through to a
-forest plot, hard-stopping only on a real gate failure (a study missing
-from the manifest). It does not run any automated post-fit diagnostics (no
-Rhat/ESS, no DIC/consistency check) — matching the real production
+if not) before touching disk, asks explicitly whether the goal is a full
+BNMA run at all — reviewing or updating the data is a complete outcome on
+its own — and only then builds the model input and collects modelling
+preferences (heterogeneity, effect type) — informed by the real network
+structure, not asked blind — before running straight through to a forest
+plot, hard-stopping only on a real gate failure (a study missing from the
+manifest). It does not run any automated post-fit diagnostics (no Rhat/ESS,
+no DIC/consistency check) — matching the real production
 `EliLillyCo/CMH.BNMA` app's own behavior.
 
 See [DESIGN.md](DESIGN.md) for the full design rationale — problem statement,
@@ -23,9 +28,10 @@ current-state findings, and the skill architecture.
 ## What's included
 
 - `plugins/bnma/skills/bnma/SKILL.md` — the skill itself: the full step-by-step
-  workflow (introduce data → locate → load/merge → naming/pooling QA →
-  scope questions → study confirmation → sufficiency/custom-data check →
-  build model input → fit → forest plot → driver script).
+  workflow (introduce data → ask which studies → review the subset →
+  optionally augment with custom data → confirm run intent → build the
+  model input → collect modelling preferences → fit → forest plot →
+  driver script).
 - `plugins/bnma/skills/bnma/scripts/` — the deterministic R steps behind each
   of those stages (data load/merge, the naming/route pooling-risk QA gate,
   BATMAN augmentation, the JAGS fit, the forest plot). `run_with_jags.sh`
@@ -109,30 +115,44 @@ there:
    what's actually in the data first — studies, compounds, phases, evidence
    tiers — before asking you to decide anything. If you're just exploring,
    it stays conversational here; no folders or manifest until you say you
-   want to move toward a run.
-2. It loads/merges the data and runs a naming/route pooling-risk QA check
-   automatically — no stop here, the results feed into the next step.
-3. **Scope questions, one at a time** — endpoint, route, evidence tier,
-   region, heterogeneity model, effect type (placebo-adjusted vs. absolute)
-   — each a short question with a stated default, answered one at a time
-   rather than as one big form.
-4. **Study confirmation** — every naming/pooling flag, every study (with
-   phase 1/2 and no-placebo-arm studies always called out individually),
-   and the plot's treatment list, in one grouped message with a stated
-   default per item. Reply with just what you want to change; everything
-   else proceeds on the shown default/proposal.
-5. **A follow-up confirms the subset is sufficient** and offers to bring in
-   custom/external data not yet in QA/PRD — new data defaults to a
+   want to move toward a run. It also runs a naming/route pooling-risk QA
+   check automatically at this point — no stop here, the results feed into
+   the next step.
+2. **Which studies are you interested in** — name specific studies (e.g.
+   "ATTAIN-1 vs. SURMOUNT-4") and/or compounds up front if you already know
+   what you want; either gets resolved first. Then endpoint, route,
+   evidence tier, region — each a short question with a stated default,
+   answered one at a time rather than as one big form.
+3. **Review the subset** — every naming/pooling flag and every study (with
+   phase 1/2 and no-placebo-arm studies always called out individually) in
+   one grouped message with a stated default per item. A study you named
+   in step 2 shows up here too, with "include, per your request" as the
+   stated reason — nothing skips this review. Reply with just what you
+   want to change; everything else proceeds on the shown default/proposal.
+4. **A follow-up confirms the subset is sufficient** and offers to bring in
+   custom/external data not yet in QA/PRD.
+5. **Convert the new data into the QA schema** (only if step 4 said yes) —
+   pasted rows, a file, or a subset of another workbook, shown for
+   confirmation.
+6. **Merge it with the selected subset** — new data defaults to a
    temporary, project-only addition (not written to the shared QA file
-   unless you explicitly ask to promote it). This is also where working
-   folders and an optional project CLAUDE.md are proposed.
-6. It writes a YAML manifest recording every decision, builds the model
-   input, fits the model via JAGS, and renders the
-   forest plot with a traceable footnote (source data, source program,
-   contributing studies).
-7. It writes a driver script next to the manifest that reproduces the whole
-   run from scratch — re-running it later just reloads the cached JAGS
-   samples unless you delete them.
+   unless you explicitly ask to promote it). Loops back to step 4 until
+   the subset is confirmed sufficient.
+7. **Confirms whether you actually want a BNMA run** — your goal for this
+   session might just have been reviewing the data or getting it into QA,
+   and that's a complete outcome. Only if you say yes does it move on.
+8. It proposes working folders and an optional project CLAUDE.md, writes a
+   YAML manifest recording every decision, and builds the model input (the
+   BATMAN data structure).
+9. **Collect modelling preferences** — heterogeneity and effect type
+   (placebo-adjusted vs. absolute), asked *after* the real network
+   structure from step 8 is known, so the recommendation is stated directly
+   rather than corrected after the fact.
+10. It fits the model via JAGS, renders the forest plot with a traceable
+    footnote (source data, source program, contributing studies), and
+    writes a driver script next to the manifest that reproduces the whole
+    run from scratch — re-running it later just reloads the cached JAGS
+    samples unless you delete them.
 
 See `SKILL.md` for the full step-by-step detail, including exactly what each
 manifest field controls.

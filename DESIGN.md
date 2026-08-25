@@ -264,3 +264,82 @@ treatment isn't practical there the way it is for six closed-choice scope
 questions. Step 3.5/3.6 (subset sufficiency, custom data, folders) are
 unaffected — they were never part of the original "one round trip" scope
 anyway.
+
+## Fourth design iteration: rebuilding the master step numbering (August 2026)
+
+The user gave an explicit 9-item outline for the entire pipeline — introduce
+the PRD dataset, ask which studies, create/review a subset, ask about
+non-PRD data, convert it, merge it, generate the BNMA, collect modelling
+preferences, produce outputs — and asked for the whole Step 0–7a numbering
+to be rebuilt around it, not just Step 0. Two placement calls were
+confirmed explicitly: route/evidence/region scope filters fold into "which
+studies are you interested in" rather than "modelling preferences," and the
+new outline replaces the entire master numbering.
+
+This was a full renumbering, not a new gate — nearly everything from the
+third iteration (the naming/pooling gate, the manifest schema, JAGS/MCMC
+specifics, the forest plot, the driver script) already existed and only
+needed to move under the step it narratively belonged to:
+
+- **Steps 1–3** (introduce, ask which studies, review the subset) are the
+  old Step 0/2.5/3a/3b content, reordered: scope questions (endpoint,
+  route, evidence, region) move into "which studies," heterogeneity and
+  effect type move out entirely — they're modelling preferences now, not
+  data-selection choices.
+- **Steps 4–6** (ask about custom data, convert it, merge it) split what
+  used to be Step 3.5/3.6 into three narrower steps, matching the meeting's
+  own "ask → convert → merge" phrasing instead of one combined intake flow.
+- **Step 7** ("generate the BNMA") folds in the folder/CLAUDE.md proposal
+  (moved from old 3.5) and old Step 4's manifest write, then runs
+  `build_batman_data.R` — but *only* the BATMAN-build call, not the fit.
+- **Step 8** ("collect modelling preferences") is the genuine improvement
+  this reordering produces for free: heterogeneity and effect type used to
+  be asked *before* `build_batman_data.R`'s star-network check ran (old
+  Step 3a), which meant the doc had to explain "don't auto-correct, the
+  earlier answer stands unless the statistician changes it after seeing the
+  finding." Now that check has already run (Step 7), so Step 8 just states
+  the real recommendation directly — there's no earlier answer to
+  reconcile, because nothing was asked until the actual network structure
+  was known.
+- **Step 9** ("produce outputs") is old Step 5's fit + Step 6's forest plot
+  + Step 7/7a's driver script and promote/discard offer, unchanged in
+  substance.
+
+No R script logic changed — this was purely a matter of which step number
+each existing chunk of prose and each script invocation lives under.
+
+## Fifth design iteration: named studies and an explicit run/no-run checkpoint (August 2026)
+
+Two follow-on requests, both integrated into the fourth iteration's
+numbering rather than bolted on separately:
+
+1. **Step 2 resolves named studies, not just named compounds.** A
+   statistician might open with "I want ATTAIN-1 vs. SURMOUNT-4" rather
+   than naming compounds/treatments — the same up-front resolution 2a
+   already did for compounds now also matches against `study_name` values
+   (case/punctuation-insensitive, same fuzzy-match mechanism as the
+   naming/pooling gate). Naming a study up front sets its *proposed*
+   decision in Step 3 to "include, per your request" — it does not skip
+   Step 3's enumeration. This matters specifically for phase 1/2 studies:
+   naming one by name **is** the explicit decision the "no silent default"
+   rule requires, so it doesn't need a second ask, but it still has to
+   appear in Step 3's list with that reason shown — visibility is never
+   traded away for convenience, even when the decision was made in the
+   original request rather than in reply to a question.
+2. **A new Step 7 ("confirm whether to proceed to a BNMA run") sits
+   between the old Steps 6 and 7.** Explicit rationale: a statistician's
+   goal for a session might genuinely be narrower than "produce a forest
+   plot" — reviewing what PRD has, or getting their own data into QA —
+   and that's a complete outcome, not an incomplete one. This is a second,
+   later opt-out, distinct from Step 1d's explore-or-run fork: Step 1d
+   catches someone who shows no run signal *before* any work happens;
+   Step 7 catches the case where run-intent looked clear at the start but
+   the actual goal turns out to be narrower once the statistician has seen
+   the data and made real selections (possibly including a real QA
+   promotion in Steps 5-6). Inserting a genuine new checkpoint got a real
+   top-level step number, not a decimal patch (e.g. "6.5") — the old Steps
+   7/8/9 (and every sub-step: 7a-7c, 8a-8c, 9a-9e, plus every cross-reference
+   in the appendix R-script comments) shifted to 8/9/10 to make room, the
+   same full-renumbering approach as the fourth iteration, rather than
+   layering a new step onto the existing structure without adjusting what
+   was already there.
