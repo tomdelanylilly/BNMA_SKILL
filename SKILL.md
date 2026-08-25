@@ -734,18 +734,32 @@ between-study heterogeneity literally cannot be estimated from the data, and
 `model_type: fixed_effect` is the appropriate primary analysis, not a
 stylistic preference — quote `pf_nma.R`'s own rationale
 ("with only 1 study per comparison, between-study heterogeneity cannot be
-estimated; fixed-effects is the appropriate primary analysis"). **This does
-not trigger a second round trip** — it's an objective statistical fact
-about the data, not a discretionary preference, so if Step 3's answer said
-`rand_effect` and the network turns out to be a full star, auto-correct
-`model_type` to `fixed_effect` in the manifest and refit with that model,
-noting the override loudly in the final summary/footnote rather than
-stopping to ask again. **The same rule applies to `effect_type: absolute` on
+estimated; fixed-effects is the appropriate primary analysis"). **This
+triggers an explicit ask to the user, not a silent auto-correction.** Tell
+the user plainly:
+- The network is a full star (every non-placebo node has exactly 1
+  contributing study).
+- `sigma` (between-study heterogeneity) cannot be estimated from the data
+  and will be entirely prior-driven if random-effects is used — this
+  inflates every CI with a ~4-point SD on top of the arm's own reported SE
+  (documented in the `kai7535_bnma_v3.R` comparison, 2026-08-20).
+- Recommend `fixed_effect`, but proceed with `rand_effect` if the user
+  explicitly says so (e.g. as a sensitivity analysis, or because they want
+  the inflated CIs to reflect genuine uncertainty about heterogeneity even
+  when it can't be estimated).
+
+**Do NOT auto-correct.** The user's Step 3 answer stands unless they
+explicitly change it after seeing the star-network finding. If they confirm
+`rand_effect` despite the warning, fit with `model_random.txt` as requested
+and note in the footnote that the network is a full star and `sigma` is
+prior-dominated.
+
+**The same rule applies to `effect_type: absolute` on
 `model_simultaneous.txt`/`model_simultaneous_fixed.txt`** — a full star means
-`model_simultaneous_fixed.txt` (deterministic delta), not
-`model_simultaneous.txt` (random delta); see the CI-inflation finding
-documented below under Step 5's model-file list. When the network isn't a
-full star (some nodes have
+`model_simultaneous_fixed.txt` is recommended (deterministic delta), but
+if the user explicitly wants `model_simultaneous.txt` after being informed,
+proceed with it and note the CI-inflation risk in the footnote. When the
+network isn't a full star (some nodes have
 multi-study support, even if most don't — this is the common case for the
 obesity landscape data, where dozens of single-study nodes coexist with a
 handful of well-replicated ones), heterogeneity is estimable from the
@@ -829,10 +843,10 @@ with a **deterministic** `delta[i,j]` (no `sigma`, same pattern as
 `model_fixed.txt`'s own delta block) — refitting the same data with this file
 tightened that same orforglipron 6mg arm to -8.4 (95% CrI -9.3, -7.5), tracking
 its own reported SE as expected. **Whenever `effect_type: absolute` is
-requested on a full-star network, use `model_simultaneous_fixed.txt`, not
-`model_simultaneous.txt`** — same auto-correct-without-a-second-round-trip
-rule as `rand_effect`→`fixed_effect` above (it's an objective statistical
-fact, not a preference). `make_forest_plot.R`'s absolute-effect subtitle
+requested on a full-star network, recommend `model_simultaneous_fixed.txt`
+over `model_simultaneous.txt`** — same "inform the user and let them decide"
+rule as `rand_effect`→`fixed_effect` above (recommend fixed, but honour
+their explicit choice if they want random after being warned). `make_forest_plot.R`'s absolute-effect subtitle
 reports `τ` (`sigma`) when it exists and says so plainly when it doesn't
 (either this fixed-effect model, or an older cache predating `sigma`
 monitoring) rather than guessing which.
