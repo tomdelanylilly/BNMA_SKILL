@@ -132,6 +132,12 @@ didn't already make this clear:
   a filename. If the statistician explicitly names a QA file instead of a
   PRD one, that's fine (use it directly), but don't substitute a QA file on
   their behalf when they asked for or pointed at PRD.
+- **Both a PRD and a QA path were given together up front.** Load only the
+  PRD path here (1b) — same "never merge before Step 4 asks" rule as
+  everywhere else in this step — but don't silently drop the QA path
+  either: hold onto it and offer it as the stated default answer when Step
+  4 asks about additional data, so the statistician isn't asked to repeat
+  themselves for something they already told you.
 - **No specific file was given** — a working directory was named, or
   nothing was given at all (default to the project's own working
   directory, the common case: a statistician's own project folder). Either
@@ -162,8 +168,17 @@ after) if not already done this session, then run:
 
 ```bash
 scripts/run_r.sh scripts/load_merge_data.R \
-  --prd <prd_path.xlsx> [--qa <qa_path.xlsx>] --out /tmp/bnma_merged.rds
+  --prd <prd_path.xlsx> --out /tmp/bnma_merged.rds
 ```
+
+**PRD only here — never pass `--qa` at this step, even if the statistician
+happened to name a QA file back in 1a.** Merging QA/custom data in is
+Step 6's job, reached only after Step 4 explicitly asks and the
+statistician says yes; running it here would pre-empt that question with
+data they never confirmed they wanted merged in yet. (When `--qa` is
+omitted, `load_merge_data.R`'s own merge branch never executes — `merged
+<- prd_data` unchanged — so this is a real behavioral guarantee, not just
+a documentation nicety.)
 
 Every `--out`/intermediate-artifact path in this step and Step 1c/2 below is
 shown as `/tmp/bnma_*.rds` and genuinely does write there — the run's real
