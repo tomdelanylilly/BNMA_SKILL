@@ -114,11 +114,14 @@ Invoke it with `/cmh-ci` in Claude Code. It will walk you through, in order:
 
 ## What lands on disk when it's done
 
-Two dated, paired folders — nothing hidden, nothing that requires re-deriving
-a decision from a chat transcript:
+Two dated, paired folders, rooted under the QA tier (not wherever the PRD
+file happened to be found — PRD is the curated, semi-annual read tier, QA
+is the live working copy, so that's where a run's own work products
+belong) — nothing hidden, nothing that requires re-deriving a decision
+from a chat transcript:
 
 ```
-programs/YYYYMMDD_<run-name>/
+<qa_root>/programs/YYYYMMDD_<run-name>/
   manifest.yaml            # every include/exclude decision, filters, reasons
   run_bnma_<run-name>.R    # driver script — reproduces the run standalone
   merged.rds               # cached: QA+PRD merge
@@ -127,7 +130,7 @@ programs/YYYYMMDD_<run-name>/
   study_info.rds           # cached: study_ind <-> study_name lookup
   samples.rds              # cached: JAGS posterior samples (expensive, reused)
 
-output/shared/YYYYMMDD_<run-name>/
+<qa_root>/output/shared/YYYYMMDD_<run-name>/
   forest_plot.png          # the deliverable, footnoted + evidence-marked
 ```
 

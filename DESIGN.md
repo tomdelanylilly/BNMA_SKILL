@@ -343,3 +343,85 @@ numbering rather than bolted on separately:
    same full-renumbering approach as the fourth iteration, rather than
    layering a new step onto the existing structure without adjusting what
    was already there.
+
+## Sixth design iteration: Step 1 is PRD-first and genuinely explore-first (August 2026)
+
+Step 1a previously tried the QA path first, falling back to PRD — leftover
+from the pre-`cmh-ci` design, and inconsistent with Step 1's own title
+("introduce the available **PRD** dataset"). Rebuilt around PRD as the
+primary, default search target:
+
+- **Locating the base dataset now only searches for PRD files.** A newer,
+  not-yet-promoted QA file is Step 4's concern ("additional, non-PRD
+  data"), not something Step 1 discovers or substitutes on the
+  statistician's behalf. If a directory is given (or nothing is — default
+  to the project's own working directory), search it depth-limited for PRD
+  files specifically, list every candidate with modified dates, and get an
+  explicit pick, same "never silently pick the newest" rule as everywhere
+  else.
+- **Step 1b never passes `--qa` to `load_merge_data.R`**, even if the
+  statistician named both a PRD and QA path in the same initial message —
+  merging QA in is Step 4's question to ask, not a side effect of loading
+  the PRD file. If both were given up front, the QA path is held onto (not
+  dropped) and offered as Step 4's stated default answer instead.
+- **The naming/pooling gate (Step 1c) no longer runs automatically.** It
+  used to fire unconditionally right after loading the data, before Step
+  1d's explore-or-run fork was even checked — so a pure "what's in this
+  data" session paid for materializing scripts and running NMA-specific QA
+  machinery it never needed. Found on a real session, 2026-08-26: prompt
+  was "I want to use this skill, how can it help me" (no run signal at
+  all) → PRD file located and confirmed → the skill jumped straight into
+  writing `check_naming_pooling.R` and narrating "now running the
+  naming/pooling QA gate," never asking the explore-or-run question at
+  all. Root cause: a bare confirmation reply to 1a's "should I use this
+  file?" ("yes, proceed") was being treated as run-intent, and 1c's own
+  instructions had no gating condition at all. Fixed by making 1c check for
+  real run-intent first (an endpoint, named studies/compounds, a mention of
+  a BNMA/forest plot) and explicitly defer to 1d's fork when there isn't
+  any — 1d's own "if exploring" branch was corrected to match (it no longer
+  assumes 1c already ran).
+- **Step 1b stopped materializing Appendix D3's `run_with_jags.sh`.** That
+  wrapper only matters for the JAGS-fitting step (Step 5/9), unreachable
+  that early regardless of explore-or-run — writing it during Step 1 was
+  pure waste even on the run path, not just the exploring one.
+
+## Seventh design iteration: two bugs found running the corrected pipeline against real data (August 2026)
+
+Testing the sixth iteration's fixes against a real weight-loss/oral/phase-3
+subset of the full landscape PRD surfaced two further problems — not design
+oversights caught by discussion this time, but bugs an actual end-to-end run
+exposed:
+
+1. **`route_filter`/`compound_filter` orphaned placebo rows instead of
+   dropping studies outright.** Both filters exempted `compound ==
+   "placebo"` rows globally (placebo is the network's shared reference arm,
+   so it shouldn't be dropped just because it's tagged with a route that
+   doesn't match the filter) — but the exemption applied to *every* study in
+   the dataset, not just ones that had a real, matching-route row. Filtering
+   the full landscape dataset to `route_filter: oral` pulled in 22
+   injectable-only studies (`surmount-1`, `step-1`, etc.) this way, each
+   surviving with exactly one row — its own placebo — and forcing an
+   explicit include/exclude decision in the manifest on studies that were
+   never actually in scope. The statistician's own framing of the fix:
+   "I want the studies in which those compounds exist, along with the
+   placebo arm they come with, not the ones outside that remit." Both
+   filters are now study-level — a study only qualifies if it has at least
+   one *real* (non-placebo) row matching the filter; a non-qualifying study
+   is dropped entirely, including its placebo row. A second, cross-filter
+   safety net runs after all four filters (route, evidence, compound,
+   region), to catch the same artifact when evidence_filter — not
+   route/compound — is what empties a study's last qualifying row; it's
+   gated so it never fires with no filter active, since a genuinely
+   single-arm study in the source data must still surface via the normal
+   completeness check, not be silently dropped.
+2. **`programs/`/`output/shared/` folders defaulted to nesting under
+   wherever the PRD file happened to sit.** The same real run ended up with
+   its working folders at `/lillyce/prd/.../weight/programs/...` — inside
+   the PRD tree itself. PRD is the curated, semi-annual read tier; QA is
+   the live working copy, and an analyst's own work products belong there.
+   Step 8a now derives a QA-rooted base directory before proposing folders:
+   reuse an already-known QA path if one exists this session, else derive
+   one from the PRD path via the same `/prd/` → `/qa/` swap Step 6 already
+   uses to find the corresponding QA file, else ask rather than guess (e.g.
+   a personal project directory with no PRD/QA tier structure at all).
+

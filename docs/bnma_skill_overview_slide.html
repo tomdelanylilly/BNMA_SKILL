@@ -108,11 +108,17 @@
   .subhead { margin: 0; font-size: 14.5px; color: var(--text-secondary); max-width: 640px; line-height: 1.45; }
   .badge {
     flex-shrink: 0;
+    max-width: 260px;
     font-size: 11px; font-weight: 600; color: var(--text-secondary);
     border: 1px solid var(--border); border-radius: 8px;
     padding: 6px 10px; text-align: right; line-height: 1.5;
   }
   .badge b { display: block; color: var(--text-primary); font-size: 12.5px; }
+  .badge .detail {
+    display: block; font-size: 10px; font-weight: 400; color: var(--text-muted);
+    margin-top: 5px; line-height: 1.5; text-align: right;
+  }
+  .badge .detail b { display: inline; font-size: 10px; color: var(--text-secondary); }
 
   /* ---------- main grid ---------- */
   .grid { flex: 1; display: grid; grid-template-columns: 290px 1fr 330px; grid-template-rows: 1fr; gap: 22px; min-height: 0; }
@@ -243,6 +249,15 @@
     <div class="badge">
       Model basis<br /><b>Real production BNMA</b>
       confirmed against the actual CMH Shiny app
+      <span class="detail">
+        <b>model_random.txt</b>: φ[i]~N(0, 0.0001) study baseline,
+        δ[i,j] random treatment effect, σ~Unif(0,8)<br />
+        MCMC: adapt 10k · burn-in 10k · sample 20k (thin 10) · 3 chains<br />
+        Chain 1 inits φ/d to exactly 0; chains 2–3 draw from the same
+        vague N(0, SD=100) prior<br />
+        Matches <b>EliLillyCo/CMH.BNMA</b>'s own documented spec verbatim
+        (confirmed 2026-08-20)
+      </span>
     </div>
   </div>
 

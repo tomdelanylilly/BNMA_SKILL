@@ -157,9 +157,10 @@ weight-loss forest plot"). From there:
 7. **Confirms whether you actually want a BNMA run** — your goal for this
    session might just have been reviewing the data or getting it into QA,
    and that's a complete outcome. Only if you say yes does it move on.
-8. It proposes working folders and an optional project CLAUDE.md, writes a
-   YAML manifest recording every decision, and builds the model input (the
-   BATMAN data structure).
+8. It proposes working folders (rooted under the QA tier, not wherever the
+   PRD file happened to be found) and an optional project CLAUDE.md, writes
+   a YAML manifest recording every decision, and builds the model input
+   (the BATMAN data structure).
 9. **Collect modelling preferences** — heterogeneity and effect type
    (placebo-adjusted vs. absolute), asked *after* the real network
    structure from step 8 is known, so the recommendation is stated directly
