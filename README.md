@@ -1,4 +1,4 @@
-# BNMA_SKILL
+# `/cmh-ci` — PRD/QA dataset filtering & guided BNMA skill
 
 A Claude Code skill (`/cmh-ci`) for a Cardiometabolic Health
 competitive-intelligence QA/PRD dataset. It has two use cases, not one:
