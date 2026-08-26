@@ -121,7 +121,7 @@
   .badge .detail b { display: inline; font-size: 10px; color: var(--text-secondary); }
 
   /* ---------- main grid ---------- */
-  .grid { flex: 1; display: grid; grid-template-columns: 290px 1fr 330px; grid-template-rows: 1fr; gap: 22px; min-height: 0; }
+  .grid { flex: 1; display: grid; grid-template-columns: 270px 1fr 400px; grid-template-rows: 1fr; gap: 22px; min-height: 0; }
 
   .panel-title {
     font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
@@ -171,7 +171,7 @@
     width: 1px; height: 6px; background: var(--baseline); margin-left: 11px;
   }
 
-  /* ---------- forest plot mock ---------- */
+  /* ---------- forest plot (real run output) ---------- */
   .forest-col { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
   .forest-card {
     flex: 1;
@@ -179,34 +179,18 @@
     border-radius: 10px;
     padding: 12px 14px 10px;
     display: flex; flex-direction: column;
+    min-height: 0;
   }
   .forest-title { font-size: 11.5px; font-weight: 700; color: var(--text-primary); margin: 0 0 2px; }
   .forest-sub { font-size: 10.5px; color: var(--text-muted); margin: 0 0 8px; }
-  .forest-plot { flex: 1; display: flex; flex-direction: column; gap: 5px; position: relative; }
-  .forest-zero-line {
-    position: absolute; top: 0; bottom: 16px; left: var(--zero-x, 46%);
-    width: 1px; background: var(--baseline);
-    background-image: linear-gradient(var(--baseline) 60%, transparent 40%);
-    background-size: 1px 6px;
+  .forest-img-wrap {
+    flex: 1; min-height: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 6px; overflow: hidden;
   }
-  .forest-row { display: grid; grid-template-columns: 116px 1fr 48px; align-items: center; gap: 6px; font-size: 10px; }
-  .forest-label { color: var(--text-secondary); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .forest-label sup { font-size: 8px; color: var(--text-muted); }
-  .forest-track { position: relative; height: 14px; }
-  .forest-ci {
-    position: absolute; top: 50%; height: 2px; background: currentColor;
-    transform: translateY(-50%); border-radius: 1px;
-  }
-  .forest-dot {
-    position: absolute; top: 50%; width: 9px; height: 9px; border-radius: 50%;
-    background: currentColor; transform: translate(-50%, -50%);
-    box-shadow: 0 0 0 2px var(--surface-2);
-  }
-  .forest-value { font-size: 10px; color: var(--text-secondary); text-align: left; font-variant-numeric: tabular-nums; }
-  .forest-legend { display: flex; gap: 12px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); flex-wrap: wrap; }
-  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--text-secondary); }
-  .legend-swatch { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-  .legend-note { font-size: 9.5px; color: var(--text-muted); margin-top: 4px; }
+  .forest-img-wrap img { width: 100%; height: 100%; object-fit: contain; }
+  .legend-note { font-size: 9.5px; color: var(--text-muted); margin-top: 6px; }
 
   .footer-note { font-size: 10px; color: var(--text-muted); text-align: right; }
 </style>
@@ -348,99 +332,25 @@
       </div>
     </div>
 
-    <!-- FOREST PLOT MOCK -->
+    <!-- FOREST PLOT (real run output, not a mockup) -->
     <div class="forest-col">
       <div class="forest-card">
-        <p class="forest-title">Every plotted arm marked by evidence type</p>
-        <p class="forest-sub">Illustrative — % body weight change, placebo-adjusted</p>
+        <p class="forest-title">Real forest plot output</p>
+        <p class="forest-sub">Oral, Phase 3 weight-loss BNMA — absolute % body weight change, from an actual /cmh-ci run</p>
 
-        <div class="forest-plot" id="forestPlot" style="--zero-x: 40%;">
-          <div class="forest-zero-line"></div>
-          <!-- rows injected as static markup below -->
+        <div class="forest-img-wrap">
+          <img src="assets/forest_plot_real.png" alt="Forest plot: absolute percent body weight change across oral Phase 3 treatments" />
         </div>
 
-        <div class="forest-legend" id="forestLegend"></div>
-        <p class="legend-note">ᵒ observed &nbsp;·&nbsp; ᵖ projection — same superscript convention as the real plot output</p>
+        <p class="legend-note">ᵒ = observed · full output also footnotes contributing studies and source data/program paths (cropped here for slide space)</p>
       </div>
     </div>
 
   </div>
 
-  <p class="footer-note">.claude/skills/cmh-ci — cardiometabolic health competitive-intelligence QA/PRD dataset explorer + BNMA · mockup for team review, not a live result</p>
+  <p class="footer-note">.claude/skills/cmh-ci — cardiometabolic health competitive-intelligence QA/PRD dataset explorer + BNMA · mockup slide for team review; forest plot is a real run's output</p>
 
 </div>
-
-<script>
-  // Illustrative data only -- directionally consistent with real fits this
-  // session produced, not a literal result. Fixed categorical color order
-  // (blue, orange, aqua, yellow, magenta) assigned by compound identity.
-  const rows = [
-    { label: "Placebo",                 sup: "o,p", mean: 0,     lo: 0,     hi: 0,     slot: 1 },
-    { label: "Semaglutide 2.4mg",       sup: "o",   mean: -14.1, lo: -16.1, hi: -11.8, slot: 1 },
-    { label: "CagriSema 2.4+2.4",       sup: "o",   mean: -17.6, lo: -22.7, hi: -12.5, slot: 2 },
-    { label: "Tirzepatide 15mg",        sup: "o",   mean: -20.2, lo: -23.0, hi: -17.1, slot: 3 },
-    { label: "Retatrutide 12mg",        sup: "p",   mean: -26.4, lo: -31.8, hi: -20.9, slot: 4 },
-    { label: "Eloralintide 9mg",        sup: "p",   mean: -14.2, lo: -18.8, hi: -9.6,  slot: 5 },
-  ];
-
-  const seriesVar = n => `var(--series-${n})`;
-  const min = -34, max = 4; // fixed scale so 0 lines up with --zero-x
-  const pct = v => ((v - min) / (max - min)) * 100;
-  const zeroPct = pct(0);
-  document.getElementById("forestPlot").style.setProperty("--zero-x", zeroPct + "%");
-
-  const plot = document.getElementById("forestPlot");
-  rows.forEach(r => {
-    const row = document.createElement("div");
-    row.className = "forest-row";
-    row.style.color = seriesVar(r.slot);
-
-    const label = document.createElement("div");
-    label.className = "forest-label";
-    label.innerHTML = r.label + `<sup>${r.sup}</sup>`;
-
-    const track = document.createElement("div");
-    track.className = "forest-track";
-
-    const ci = document.createElement("div");
-    ci.className = "forest-ci";
-    const loP = pct(r.lo), hiP = pct(r.hi);
-    ci.style.left = loP + "%";
-    ci.style.width = Math.max(hiP - loP, 0.5) + "%";
-
-    const dot = document.createElement("div");
-    dot.className = "forest-dot";
-    dot.style.left = pct(r.mean) + "%";
-
-    track.appendChild(ci);
-    track.appendChild(dot);
-
-    const value = document.createElement("div");
-    value.className = "forest-value";
-    value.textContent = r.mean === 0 ? "0" : r.mean.toFixed(1);
-
-    row.appendChild(label);
-    row.appendChild(track);
-    row.appendChild(value);
-    plot.appendChild(row);
-  });
-
-  // legend by compound (fixed order, matches series slots used above)
-  const legendItems = [
-    { name: "Semaglutide",   slot: 1 },
-    { name: "CagriSema",     slot: 2 },
-    { name: "Tirzepatide",   slot: 3 },
-    { name: "Retatrutide",   slot: 4 },
-    { name: "Eloralintide",  slot: 5 },
-  ];
-  const legend = document.getElementById("forestLegend");
-  legendItems.forEach(it => {
-    const el = document.createElement("div");
-    el.className = "legend-item";
-    el.innerHTML = `<span class="legend-swatch" style="background:${seriesVar(it.slot)}"></span>${it.name}`;
-    legend.appendChild(el);
-  });
-</script>
 
 </body>
 </html>
