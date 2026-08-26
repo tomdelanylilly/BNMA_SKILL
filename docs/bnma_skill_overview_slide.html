@@ -128,8 +128,8 @@
     color: var(--text-muted); margin: 0 0 10px;
   }
 
-  /* ---------- problem column ---------- */
-  .problem-col { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow: hidden; }
+  /* ---------- purpose column ---------- */
+  .purpose-col { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow: hidden; }
   .incident {
     background: var(--surface-2);
     border-radius: 10px;
@@ -141,8 +141,7 @@
     display: flex; align-items: center; justify-content: center;
     font-size: 10px; font-weight: 800; color: #fff; margin-top: 1px;
   }
-  .status-dot.critical { background: var(--critical); }
-  .status-dot.warning   { background: var(--warning); color: #3a2c00; }
+  .status-dot.good { background: var(--good); }
   .incident-text { font-size: 12px; line-height: 1.35; color: var(--text-primary); }
   .incident-text b { display: block; font-size: 12px; margin-bottom: 1px; }
   .incident-text span.muted { color: var(--text-secondary); font-size: 11.5px; }
@@ -209,17 +208,6 @@
   .legend-swatch { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
   .legend-note { font-size: 9.5px; color: var(--text-muted); margin-top: 4px; }
 
-  /* ---------- footer stat tiles ---------- */
-  .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
-  .stat-tile {
-    background: var(--surface-2);
-    border-radius: 10px;
-    padding: 10px 14px;
-  }
-  .stat-value { font-size: 18px; font-weight: 700; color: var(--text-primary); line-height: 1.2; }
-  .stat-label { font-size: 11px; color: var(--text-secondary); margin-top: 2px; line-height: 1.35; }
-  .stat-tile.good .stat-value::before { content: "✓ "; color: var(--good); }
-
   .footer-note { font-size: 10px; color: var(--text-muted); text-align: right; }
 </style>
 </head>
@@ -264,39 +252,31 @@
   <!-- MAIN GRID -->
   <div class="grid">
 
-    <!-- PROBLEM COLUMN -->
-    <div class="problem-col">
-      <p class="panel-title">What kept going wrong</p>
+    <!-- PURPOSE COLUMN -->
+    <div class="purpose-col">
+      <p class="panel-title">What /cmh-ci helps you do</p>
 
       <div class="incident">
-        <div class="status-dot critical">!</div>
+        <div class="status-dot good">✓</div>
         <div class="incident-text">
-          <b>A silent inclusion skewed a result</b>
-          <span class="muted">A low-dose Phase 2 study entered a semaglutide analysis with no one deciding to include it.</span>
+          <b>Explore the PRD/QA landscape</b>
+          <span class="muted">See what studies, compounds, phases, and evidence tiers are already in the data — a complete outcome on its own.</span>
         </div>
       </div>
 
       <div class="incident">
-        <div class="status-dot warning">!</div>
+        <div class="status-dot good">✓</div>
         <div class="incident-text">
-          <b>Naming drift broke scripts</b>
-          <span class="muted">A compound-name change silently split one arm into two, unnoticed until the fit looked wrong.</span>
+          <b>Add data from another source, if needed</b>
+          <span class="muted">Bring in a press release, a digitized slide, or a subset of another workbook when the PRD subset isn't enough.</span>
         </div>
       </div>
 
       <div class="incident">
-        <div class="status-dot warning">!</div>
+        <div class="status-dot good">✓</div>
         <div class="incident-text">
-          <b>No audit trail</b>
-          <span class="muted">Study choices lived as a commented-out vector inside a script — not reviewable, not reproducible.</span>
-        </div>
-      </div>
-
-      <div class="incident">
-        <div class="status-dot critical">!</div>
-        <div class="incident-text">
-          <b>The model itself was wrong</b>
-          <span class="muted">Hierarchical baseline + the wrong heterogeneity prior — confirmed against the real tool's own source.</span>
+          <b>Run a guided BNMA</b>
+          <span class="muted">Once the data's confirmed, fit the model and produce a forest plot with a reproducible driver script.</span>
         </div>
       </div>
     </div>
@@ -384,26 +364,6 @@
       </div>
     </div>
 
-  </div>
-
-  <!-- STAT ROW -->
-  <div class="stat-row">
-    <div class="stat-tile good">
-      <div class="stat-value">0</div>
-      <div class="stat-label">Hardcoded study vectors — replaced by a written, reasoned manifest</div>
-    </div>
-    <div class="stat-tile good">
-      <div class="stat-value">2</div>
-      <div class="stat-label">Real model variants supported — random-effect (default) &amp; fixed-effect</div>
-    </div>
-    <div class="stat-tile good">
-      <div class="stat-value">4</div>
-      <div class="stat-label">Explicit gates before a fit ever runs — naming, scope, selection, manifest</div>
-    </div>
-    <div class="stat-tile good">
-      <div class="stat-value">1</div>
-      <div class="stat-label">Reproducible driver script per run — not a chat transcript</div>
-    </div>
   </div>
 
   <p class="footer-note">.claude/skills/cmh-ci — cardiometabolic health competitive-intelligence QA/PRD dataset explorer + BNMA · mockup for team review, not a live result</p>
