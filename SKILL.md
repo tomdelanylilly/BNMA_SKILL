@@ -153,7 +153,9 @@ didn't already make this clear:
   even if one is sitting right next to where a PRD file was expected.
 
 **1b. Load & merge, then introduce what's actually in it.** Once the base
-dataset is located, materialize Appendix D's wrappers and Appendix B.1/B.2
+dataset is located, materialize Appendix D1/D2 (`_resolve_rscript.sh`,
+`run_r.sh` — **not** D3's `run_with_jags.sh`, which isn't needed until Step
+5/9's JAGS fit and shouldn't be written before then) and Appendix B.1/B.2
 (`lib_common.R`, `load_merge_data.R`) to this session's lib dir (e.g.
 `/tmp/cmh_ci_lib/` before Step 8's folders exist, `programs/<slug>/lib/`
 after) if not already done this session, then run:
@@ -178,11 +180,32 @@ available here" *before* asking them to decide anything: distinct studies,
 compounds, phases, evidence tiers (observed vs. prediction row counts), and
 regions present. This is always shown, even when the initial prompt already
 named specific studies/compounds — it's a one- or two-sentence preamble
-folded into whatever message comes next (Step 2's compound-first resolution
-or its first scope question), not a separate round trip when the rest of
-the request already lets the conversation move forward.
+folded into whatever message comes next: **Step 1d's explore-or-run fork**
+if the prompt gave no run signal yet (1c's naming/pooling gate does not run
+yet in that case — see 1c's own gating note below), or straight into 1c's
+naming gate and Step 2's first question if the prompt already signaled
+run-intent. Loading and summarizing the data is never itself the cue to
+start materializing the naming/pooling gate or anything past it — that's a
+separate, deliberate decision made next, not an automatic continuation.
 
-**1c. Naming/pooling QA gate (runs automatically).** Materialize Appendix
+**1c. Naming/pooling QA gate — only once run-intent is established.** This
+gate exists to protect an eventual model fit (route mix-ups, placebo-naming
+collisions corrupting the network) — it has no reason to run before there's
+a run in sight. **Check this before doing anything else in this step:**
+- If the initial prompt already signaled run-intent (an endpoint, named
+  studies/compounds, a mention of a BNMA/forest plot), proceed with this
+  gate now, as before.
+- If it didn't, **resolve Step 1d's explore-or-run fork first** and only
+  come back to run this gate once the answer is "set up a run" — never as
+  an automatic background step during pure exploration. A reply merely
+  confirming *which file* to load (1a's "should I use this file?") — "yes,
+  proceed," "yes," "that's the one" — is **not** a run signal; a real
+  session this tripped up had exactly that exchange (prompt: "I want to use
+  this skill, how can it help me" → file located and confirmed → the
+  correct next stop was still Step 1d's fork, not a jump straight into
+  materializing this gate).
+
+Once run-intent is confirmed one way or the other, materialize Appendix
 B.3 (`check_naming_pooling.R`) to this session's lib dir if not already
 done this session, then run:
 
@@ -261,14 +284,19 @@ the 1b/1c preamble — don't manufacture a question where the intent is
 already clear.)
 
 - **If exploring:** stay conversational. Answer whatever breakdowns they
-  ask for — studies by phase, compounds by route, coverage by region — using
-  the already-loaded data (1b's output, 1c's naming/pooling report if it's
-  relevant to what they're asking). Do not run Step 2's questions or Step
-  3's study confirmation, do not propose folders, do not mention the
-  manifest. Only move into the guided-selection pipeline once the
-  statistician explicitly signals they want to move toward a run (e.g.
-  "ok, let's set up a BNMA using these studies").
-- **If setting up a run:** proceed to Step 2 normally.
+  ask for — studies by phase, compounds by route, coverage by region, the
+  actual list of study names — using 1b's already-loaded data alone. 1c's
+  naming/pooling gate has **not** run yet at this point, and shouldn't —
+  don't materialize or run it, don't run Step 2's questions or Step 3's
+  study confirmation, don't propose folders, don't mention the manifest.
+  Naming a subset of studies conversationally here ("let's focus on these
+  five") is still exploration, not a run commitment. Only move into the
+  guided-selection pipeline once the statistician explicitly signals they
+  want to move toward a run (e.g. "ok, let's set up a BNMA using these
+  studies").
+- **If setting up a run** (whether stated up front or reached from the
+  exploring branch above): go back and run 1c's naming/pooling gate now if
+  it hasn't run yet this session, then proceed to Step 2.
 
 **If the user attaches a standalone workbook instead of a QA/PRD path**
 (confirmed real case, 2026-08-20: `Global_ADA_Oral_KAI7535_*.xlsx`, sheets
