@@ -176,11 +176,14 @@ manifest field controls.
 
 ## Status
 
-Smoke-tested end-to-end (steps 1–7, including a real JAGS fit and forest
+Smoke-tested end-to-end (steps 1–7 under that earlier version's own, since
+superseded, step numbering — load/merge through a real JAGS fit and forest
 plot render) against a synthetic fixture during this skill's earlier,
 separate-script-files version — that fixture wasn't carried over into the
-embedded-in-`SKILL.md` layout (see What's included above). Since then, run
-against real datasets, which caught and fixed a genuine star-network
+embedded-in-`SKILL.md` layout (see What's included above), and the step
+numbers don't correspond to the current Step 1–10 structure described above
+(see DESIGN.md's design-iteration history for the renumbering). Since then,
+run against real datasets, which caught and fixed a genuine star-network
 CI-inflation bug (see `model_simultaneous_fixed.txt`'s own header comment in
 Appendix A), and reconfirmed that same finding independently against a real
 hand-written team script fit on the same data.

@@ -1,4 +1,16 @@
-# `/bnma` skill — design doc
+# `/cmh-ci` skill — design doc
+
+> **Note (2026-08-26):** this skill was scoped and originally built under
+> the working name `/bnma`; it was later renamed to `/cmh-ci` (see
+> `SKILL.md`'s own name and the "Sixth design iteration" below). References
+> to `/bnma` in the Background/Goals/original design sections immediately
+> below reflect that original name at the time they were written. Likewise,
+> the "Step 1–6" outline in the original `/bnma` skill design section is the
+> *first pitch*, not the shipped pipeline — it was superseded first by
+> Steps 0–7a (Second/Third design iterations) and then rebuilt into the
+> current **Step 1–10** structure (Fourth design iteration onward), which is
+> what `SKILL.md` actually implements today. Read the numbered "design
+> iteration" sections below in order for the real history.
 
 ## Background
 
@@ -20,8 +32,9 @@ were raised that this skill addresses:
    currently lives as a hardcoded, hand-edited exclusion vector inside each
    R script.
 
-This doc scopes building the `/bnma` skill from scratch to close both gaps,
-plus a data-quality feature requested separately: detecting near-duplicate
+This doc scopes building what was then called the `/bnma` skill (renamed
+`/cmh-ci` — see the note above) from scratch to close both gaps, plus a
+data-quality feature requested separately: detecting near-duplicate
 compound naming and route-of-administration pooling risk.
 
 ## Current state (what exists today)
@@ -75,14 +88,21 @@ actual code rather than assumed:
 1. **Fix the stale workflow doc** (trim the drifted `CLAUDE.md` to a pointer
    at the canonical guide + project-specific content only, so it can't
    silently re-diverge).
-2. **Build `/bnma`** as a real, reusable Claude Code skill that forces
-   explicit decisions instead of running end-to-end on hardcoded vectors.
+2. **Build `/bnma`** (later renamed `/cmh-ci`) as a real, reusable Claude
+   Code skill that forces explicit decisions instead of running end-to-end
+   on hardcoded vectors.
 
-## `/bnma` skill design
+## `/bnma` skill design (original pitch)
 
-Location: `.claude/skills/bnma/SKILL.md` + `scripts/` for anything that must
-be deterministic code rather than LLM judgment (matching the existing
-`extract-publication` skill's pattern of SKILL.md + `scripts/extract.py`).
+*See the numbered design-iteration sections further down for how this
+evolved into the shipped `/cmh-ci` structure.*
+
+Location (at the time): `.claude/skills/bnma/SKILL.md` + `scripts/` for
+anything that must be deterministic code rather than LLM judgment (matching
+the existing `extract-publication` skill's pattern of SKILL.md +
+`scripts/extract.py`). The shipped skill lives at
+`.claude/skills/cmh-ci/SKILL.md` instead, with every script embedded in its
+own appendices rather than kept as separate files (see README.md).
 
 ### Step 1 — Load & merge data
 
@@ -176,14 +196,14 @@ Contributing studies + source program path, generated from the manifest.
 
 - Confirm the trimmed workflow doc no longer contradicts the canonical guide
   anywhere (especially the file-renaming rule).
-- Run `/bnma` end-to-end against the local misc5 files and confirm it: (a)
-  surfaces at least one realistic naming/pooling flag against
-  deliberately-seeded near-duplicate/route-collision rows, (b) lists every
-  study/phase/data-type combination present in the real merged data, (c)
-  refuses to proceed without explicit confirmation, (d) produces the same
-  forest plot as the current script when given the same selection that
-  script currently hardcodes, and (e) writes a manifest documenting both the
-  naming/pooling resolutions and the study selection.
+- Run `/bnma` (later renamed `/cmh-ci`) end-to-end against the local misc5
+  files and confirm it: (a) surfaces at least one realistic naming/pooling
+  flag against deliberately-seeded near-duplicate/route-collision rows, (b)
+  lists every study/phase/data-type combination present in the real merged
+  data, (c) refuses to proceed without explicit confirmation, (d) produces
+  the same forest plot as the current script when given the same selection
+  that script currently hardcodes, and (e) writes a manifest documenting
+  both the naming/pooling resolutions and the study selection.
 
 ## Second design iteration: workflow ordering (August 2026 meeting)
 
