@@ -142,11 +142,20 @@ didn't already make this clear:
   nothing was given at all (default to the project's own working
   directory, the common case: a statistician's own project folder). Either
   way, **search that directory for PRD files** — depth-limited (e.g. `find
-  <dir> -maxdepth 3 -iname "*.xlsx"` — never a full recursive walk, and
+  <dir> -maxdepth 6 -iname "*.xlsx"` — never a full recursive walk, and
   never a directory that's itself a mount root, see the org's
-  filesystem-search policy), matching this project's own PRD naming
-  convention, not QA's. **Always list every PRD candidate found, with
-  modified dates, and get an explicit pick — even when only one file looks
+  filesystem-search policy). **Use `-maxdepth 6`, not a shallower guess** —
+  confirmed real case, 2026-08-27: pointed at `/lillyce/prd/diabetes/bnma/`,
+  the actual PRD file lived 5 levels down at
+  `obesity/data/shared/weight/cwm_wl_nont2d_prd_*.xlsx`; a shallower depth
+  (3, used previously) silently found nothing and looked like "no PRD data
+  here" when the file was right there, just nested deeper than expected. If
+  a depth-6 search still finds nothing, that's a real empty result worth
+  reporting as such — don't keep escalating the depth unprompted, ask the
+  statistician for a more specific path instead (see below). Match this
+  project's own PRD naming convention, not QA's. **Always list every PRD
+  candidate found, with modified dates, and get an explicit pick — even
+  when only one file looks
   plausible.** Silently choosing "the newest" or "the best name match" is
   exactly the class of silent assumption this skill exists to eliminate
   everywhere else; the directory search finds candidates, it never
