@@ -689,13 +689,34 @@ than assumes.
 
 ## Step 8 — Generate the BNMA using the prepared dataset
 
-**8a. Propose the run's `programs/` and `output/` folders — don't create
-them yet.** Now that the dataset is finalized, work out a proposed `<slug>`
-and both paths — `programs/YYYYMMDD_<slug>/` / `output/shared/YYYYMMDD_<slug>/`
-— and a Project CLAUDE.md offer, in one message:
+**8a. Propose the run's `programs/` and `output/` folders — rooted under
+QA, not PRD — don't create them yet.** PRD is the curated,
+semi-annual-cadence read tier; QA is the live working copy, so an
+analyst's own `programs/`/`output/shared/` work products belong there, not
+mixed into the PRD directory tree (confirmed 2026-08-26 — a real run
+defaulted to wherever the PRD file happened to sit and nested them under
+`/lillyce/prd/.../weight/programs/...`, which was wrong). Work out the
+QA-rooted base directory, in this priority order:
+1. **A QA path is already known this session** (held onto from 1a's "both
+   a PRD and QA path given together" case, or an actual QA file identified
+   during Step 4-6) — use that file's own directory.
+2. **Otherwise, derive it from the PRD path** (Step 1a) by swapping `/prd/`
+   → `/qa/` in the directory portion — the same convention Step 6 already
+   uses to find the corresponding QA file.
+3. **If neither applies** (e.g. a personal project directory, or a
+   standalone workbook with no PRD/QA tier structure at all) — don't guess
+   a QA-shaped path. Ask the statistician directly where
+   `programs/`/`output/shared/` should live for this run, same as any
+   other genuinely discretionary location choice.
+
+Once the base is known, work out a proposed `<slug>` and both paths under
+it — `<qa_root>/programs/YYYYMMDD_<slug>/` /
+`<qa_root>/output/shared/YYYYMMDD_<slug>/` — and a Project CLAUDE.md offer,
+in one message:
 
 ```
-  Working folders  ► programs/YYYYMMDD_<slug>/, output/shared/YYYYMMDD_<slug>/
+  Working folders  ► <qa_root>/programs/YYYYMMDD_<slug>/,
+                      <qa_root>/output/shared/YYYYMMDD_<slug>/
                       (not yet created; reply "scratch" for a /tmp-only dry run)
   Project CLAUDE.md ► skip (default for a single run) -- reply "add CLAUDE.md"
                       if this is a larger/ongoing project
@@ -721,12 +742,13 @@ and both paths — `programs/YYYYMMDD_<slug>/` / `output/shared/YYYYMMDD_<slug>/
   it alongside the driver script.
 
 **8b. Create the folders and write the manifest.** Apply everything
-confirmed in Steps 2-6. Create `programs/YYYYMMDD_<slug>/` and
-`output/shared/YYYYMMDD_<slug>/` (`<slug>` per 8a's confirmed or renamed
-value, dated with today's date) — now that the statistician has seen and
-confirmed the name and confirmed the subset is sufficient. Everything from
-here on (manifest, naming report, cached samples) writes into
-`programs/<slug>/`; forest plots go into `output/shared/<slug>/` (Step 10).
+confirmed in Steps 2-6. Create `<qa_root>/programs/YYYYMMDD_<slug>/` and
+`<qa_root>/output/shared/YYYYMMDD_<slug>/` (`<qa_root>` per 8a's derived or
+stated base, `<slug>` per 8a's confirmed or renamed value, dated with
+today's date) — now that the statistician has seen and confirmed the name
+and confirmed the subset is sufficient. Everything from here on (manifest,
+naming report, cached samples) writes into `<qa_root>/programs/<slug>/`;
+forest plots go into `<qa_root>/output/shared/<slug>/` (Step 10).
 **The merged dataset (Step 1b's `load_merge_data.R` output) never moves in
 from `/tmp`** — per the workflow guide, the PRD+QA merge happens in code
 and leaves no separate merged file on the share; re-deriving it from the
