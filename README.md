@@ -1,13 +1,17 @@
 # BNMA_SKILL
 
-A Claude Code skill (`/bnma`) for running obesity/diabetes-landscape Bayesian
-network meta-analyses (BNMA) on a single continuous endpoint — weight loss,
-HbA1c, physical function, etc. — from a QA/PRD dataset or a standalone
-workbook.
+A Claude Code skill (`/cmh-ci`) for a Cardiometabolic Health
+competitive-intelligence QA/PRD dataset. It has two use cases, not one:
+just exploring what's in the data (studies, compounds, phases, evidence
+tiers — a complete outcome on its own, no analysis required), and, when
+that's the goal, running a Bayesian network meta-analysis (BNMA) on a
+single continuous endpoint — weight loss, HbA1c, physical function, etc. —
+from that same reviewed data or a standalone workbook.
 
 It replaces a hardcoded, hand-edited study list with a guided workflow: it
-always introduces what's in the data before asking you to decide anything,
-lets you name specific studies or compounds up front if you know what you
+always introduces what's in the data before asking you to decide anything
+— and stays there, conversationally, if that's all you wanted — lets you
+name specific studies or compounds up front if you know what you
 want, walks the remaining scope questions (endpoint, route, evidence,
 region) one at a time rather than as a wall of text, confirms the study
 selection and naming/pooling flags in a grouped review, confirms the
@@ -27,97 +31,109 @@ current-state findings, and the skill architecture.
 
 ## What's included
 
-- `plugins/bnma/skills/bnma/SKILL.md` — the skill itself: the full step-by-step
-  workflow (introduce data → ask which studies → review the subset →
-  optionally augment with custom data → confirm run intent → build the
-  model input → collect modelling preferences → fit → forest plot →
-  driver script).
-- `plugins/bnma/skills/bnma/scripts/` — the deterministic R steps behind each
-  of those stages (data load/merge, the naming/route pooling-risk QA gate,
-  BATMAN augmentation, the JAGS fit, the forest plot). `run_with_jags.sh`
-  wraps the JAGS-fitting step so the `jags`
-  environment module gets loaded first (`rjags` fails to link without it).
-- `model_random.txt` / `model_fixed.txt` / `model_simultaneous.txt` /
-  `model_simultaneous_fixed.txt` — the JAGS model specs, selected per run by
-  the manifest's `model_type`.
-- `model_placebo_random.txt` + `scripts/fit_pooled_placebo_model.R` — a
-  separate, standalone pooled-placebo model that supplies the baseline for
-  `--effect absolute` forest plots, independent of `model_type` (adopted
-  from the real production package, `EliLillyCo/CMH.BNMA`).
-- `plugins/bnma/skills/bnma/compound_registry.yaml` — persisted naming-QA
-  decisions, so a resolved compound-name pair is never re-flagged.
-- `plugins/bnma/skills/bnma/tests/` — a synthetic fixture with deliberately
-  seeded edge cases (near-duplicate compound names, a route-pooling
-  collision, a Phase 2 study, a study with no placebo arm, a closed loop)
-  and the manifest used to smoke-test the full
-  pipeline end-to-end, including an actual JAGS fit.
-- `.claude-plugin/marketplace.json` / `plugins/bnma/.claude-plugin/plugin.json`
-  — this repo is both the plugin source and its own marketplace.
+- `SKILL.md` — the skill itself: the full step-by-step workflow (introduce
+  the PRD dataset → ask which studies → review the subset → optionally
+  augment with custom data → confirm run intent → build the model input →
+  collect modelling preferences → fit → forest plot → driver script) *and*
+  every deterministic script/model file it calls, embedded verbatim in its
+  own appendices rather than kept as separate files:
+  - **Appendix A** — the JAGS model specs (`model_random.txt` /
+    `model_fixed.txt` / `model_simultaneous.txt` /
+    `model_simultaneous_fixed.txt` / `model_placebo_random.txt`), selected
+    per run by the manifest's `model_type`.
+  - **Appendix B** — the R scripts behind each pipeline stage
+    (`lib_common.R`'s shared helpers, `load_merge_data.R`,
+    `append_to_qa.R`, `check_naming_pooling.R`, `build_batman_data.R`,
+    `fit_bnma_model.R`, `fit_pooled_placebo_model.R`, `make_forest_plot.R`,
+    `make_placebo_forest_plot.R`, `named_contrast.R`).
+  - **Appendix D** — the shell wrappers (`_resolve_rscript.sh`, `run_r.sh`,
+    `run_with_jags.sh`) that resolve `Rscript`/JAGS portably;
+    `run_with_jags.sh` loads the `jags` environment module first (`rjags`
+    fails to link without it).
+
+  During a session, the skill materializes whichever of these it needs into
+  a real file (a session lib dir, then `programs/<slug>/lib/` once that
+  folder exists) before invoking it — nothing needs to pre-exist on disk
+  beyond `SKILL.md` itself.
+- `compound_registry.yaml` — persisted naming-QA decisions, so a resolved
+  compound-name pair is never re-flagged.
+- `.claude-plugin/marketplace.json` — marketplace manifest for the
+  plugin-install path. Currently **not** the supported install method for
+  this branch's flat layout (its `plugins/bnma` source path predates the
+  flatten and no longer exists) — see Install below for what actually works
+  today.
+
+There is no bundled test fixture / `tests/` directory anymore — that was
+part of the pre-consolidation, separate-script-files layout and wasn't
+carried over into the embedded-in-`SKILL.md` design (see Verify your setup
+below).
 
 ## Prerequisites
 
-This plugin does **not** bundle R, JAGS, or any R package — your own
+This skill does **not** bundle R, JAGS, or any R package — your own
 HPC/Positron environment needs, before first use:
 - `module load R` and `module load jags` on `PATH` (or `Rscript` directly on
-  `PATH` — `scripts/_resolve_rscript.sh` tries both, in that order)
+  `PATH` — the materialized `_resolve_rscript.sh` tries both, in that order)
 - R packages: `dplyr`, `readxl`, `writexl`, `ggplot2`, `ggtext`, `coda`,
-  `yaml`, `rjags`
+  `yaml`, `jsonlite`, `rjags`
 
 ## Install
 
-```
-/plugin marketplace add tomdelanylilly/BNMA_SKILL
-/plugin install bnma@bnma-marketplace
-```
+The plugin-marketplace path (`/plugin marketplace add` / `/plugin install`)
+isn't wired up for this branch's flat repo layout — the marketplace
+manifest still points at a nested `plugins/bnma/` path this branch's
+flatten commit removed. Until that's fixed, install as a personal skill
+instead:
 
-`/bnma` is then available in any Claude Code session.
+1. Clone https://github.com/tomdelanylilly/BNMA_SKILL (private repo —
+   request access if you can't see it), and check out the `cmh-ci` branch.
+2. Copy the repo into your own `.claude/skills/cmh-ci/` folder — only
+   `SKILL.md` and `compound_registry.yaml` are actually needed at runtime;
+   `README.md`/`DESIGN.md`/etc. are documentation, not required for the
+   skill to load.
+3. `/cmh-ci` is then available in any Claude Code session.
 
 ### Verify your setup
 
-Before pointing it at a real dataset, run the pipeline against the bundled
-synthetic fixture — the fastest way to confirm your environment (JAGS
-module, R packages) actually works:
+There's no bundled smoke-test fixture to run non-interactively (see What's
+included above). Confirm your R/JAGS environment resolves before pointing
+`/cmh-ci` at real data:
 
 ```bash
-cd ~/.claude/plugins/cache/bnma-marketplace/bnma/<installed-version>/skills/bnma
-scripts/run_r.sh tests/make_fixture.R --out /tmp/bnma_fixture.xlsx
-scripts/run_r.sh scripts/load_merge_data.R --prd /tmp/bnma_fixture.xlsx --out /tmp/bnma_merged.rds
-scripts/run_r.sh scripts/build_batman_data.R --data /tmp/bnma_merged.rds \
-  --manifest tests/fixtures/smoke_test_manifest.yaml \
-  --batman-out /tmp/batman.rds --arm-info-out /tmp/arm_info.rds --study-info-out /tmp/study_info.rds
+module load R jags 2>/dev/null
+Rscript -e 'library(rjags); library(dplyr); library(readxl); library(writexl); library(ggplot2); library(ggtext); library(coda); library(yaml); library(jsonlite)'
 ```
 
-If that runs clean, you're ready to point `/bnma` at a real QA/PRD file or
-standalone workbook.
+If that loads cleanly, invoke `/cmh-ci` directly — step 1 materializes and
+runs its own scripts against whatever PRD file you point it at, no separate
+verification run needed.
 
 ### Updating
 
-```
-/plugin marketplace update bnma-marketplace
-/reload-plugins
-```
-
-Third-party marketplaces (this one included) don't auto-update, so both
-steps are needed to pick up a new version after a `git push` to this repo.
-`plugins/bnma/.claude-plugin/plugin.json`'s `version` is bumped on every
-meaningful change — that's the only signal `/plugin marketplace update` has
-that anything changed.
+There's no `/plugin marketplace update` for a personal skill install —
+`git pull` (or re-clone) this repo and re-copy `SKILL.md` and
+`compound_registry.yaml` into `~/.claude/skills/cmh-ci/` to pick up changes.
 
 ## Using it
 
-In a Claude Code session, invoke `/bnma` (or just describe the run you want
-— "run a BNMA on these compounds", "refresh the weight-loss forest plot"). From
-there:
+In a Claude Code session, invoke `/cmh-ci` (or just describe what you want
+— "what's in this dataset", "run a BNMA on these compounds", "refresh the
+weight-loss forest plot"). From there:
 
-1. **Point it at your data** — an exact QA/PRD file path, a folder to search,
+1. **Point it at your data** — an exact PRD file path, a folder to search
+   (defaults to your project's own working directory if you give nothing),
    or a standalone workbook that isn't in the QA/PRD schema (it adapts those
-   automatically rather than silently misreading them). It always introduces
-   what's actually in the data first — studies, compounds, phases, evidence
-   tiers — before asking you to decide anything. If you're just exploring,
-   it stays conversational here; no folders or manifest until you say you
-   want to move toward a run. It also runs a naming/route pooling-risk QA
-   check automatically at this point — no stop here, the results feed into
-   the next step.
+   automatically rather than silently misreading them). Given a folder, it
+   searches for PRD files specifically (a newer, not-yet-promoted QA file is
+   a later concern — step 4 — not this one) and lists every candidate with
+   modified dates for an explicit pick, rather than guessing the newest or
+   best-named match. Once picked, it always introduces what's actually in
+   the data first — studies, compounds, phases, evidence tiers — before
+   asking you to decide anything. If you're just exploring, it stays
+   conversational here; no folders or manifest until you say you want to
+   move toward a run. It also runs a naming/route pooling-risk QA check
+   automatically at this point — no stop here, the results feed into the
+   next step.
 2. **Which studies are you interested in** — name specific studies (e.g.
    "ATTAIN-1 vs. SURMOUNT-4") and/or compounds up front if you already know
    what you want; either gets resolved first. Then endpoint, route,
@@ -159,9 +175,11 @@ manifest field controls.
 
 ## Status
 
-Built and smoke-tested end-to-end against the synthetic fixture (steps 1–7,
-including a real JAGS fit and forest plot render), and run against real
-datasets — which caught and fixed a genuine star-network CI-inflation bug
-(see `model_simultaneous_fixed.txt` and its own header comment), and
-reconfirmed that same finding independently against a real hand-written team
-script fit on the same data.
+Smoke-tested end-to-end (steps 1–7, including a real JAGS fit and forest
+plot render) against a synthetic fixture during this skill's earlier,
+separate-script-files version — that fixture wasn't carried over into the
+embedded-in-`SKILL.md` layout (see What's included above). Since then, run
+against real datasets, which caught and fixed a genuine star-network
+CI-inflation bug (see `model_simultaneous_fixed.txt`'s own header comment in
+Appendix A), and reconfirmed that same finding independently against a real
+hand-written team script fit on the same data.

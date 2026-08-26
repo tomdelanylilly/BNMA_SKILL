@@ -1,28 +1,37 @@
 ---
 name: cmh-ci
 description: >
-  Run a Cardiometabolic Health competitive-intelligence Bayesian network
-  meta-analysis (BNMA) on any single continuous endpoint (weight loss, HbA1c,
-  physical function, etc.) from the QA/PRD dataset, with forced
-  study-selection confirmation and a naming/route pooling-risk QA gate,
-  instead of a hardcoded, hand-edited study list. Use this skill whenever
-  the user wants to run, update, or refresh a BNMA forest plot from a
-  QA/PRD dataset, or mentions "/cmh-ci", "run the BNMA", "run the
-  meta-analysis", "BATMAN", "landscape forest plot", or "competitive
-  intelligence deck figures".
+  Explore a Cardiometabolic Health QA/PRD dataset -- what studies,
+  compounds, phases, and evidence tiers it contains -- and, when the goal
+  is a full analysis, carry that same reviewed data through to a Bayesian
+  network meta-analysis (BNMA) on any single continuous endpoint (weight
+  loss, HbA1c, physical function, etc.), with forced study-selection
+  confirmation and a naming/route pooling-risk QA gate instead of a
+  hardcoded, hand-edited study list. Use this skill whenever the user wants
+  to see what's in a PRD/QA dataset (studies, compounds, coverage) even with
+  no analysis in mind, or wants to run, update, or refresh a BNMA forest
+  plot from one, or mentions "/cmh-ci", "what's in this data", "what
+  studies/compounds do we have", "run the BNMA", "run the meta-analysis",
+  "BATMAN", "landscape forest plot", or "competitive intelligence deck
+  figures".
 ---
 
 # /cmh-ci
 
-Guided BNMA workflow for the obesity/diabetes-landscape QA/PRD dataset,
-generalized across endpoints (weight loss, HbA1c, physical function, etc. --
-see Step 2's Endpoint question and Step 8's `effect_col`/`se_col` manifest
-fields). Reuses the
-existing BATMAN-augmentation + JAGS + forest-plot pipeline (see the misc5
-project's R scripts for the reference implementation this was built from),
-but replaces every place that pipeline made a silent, hardcoded decision
-with an explicit step the user must confirm. See `DESIGN.md` in this skill's
-repo (or the project's `GUIDE_README.md`) for why each step exists.
+Guided workflow for the Cardiometabolic Health competitive-intelligence
+QA/PRD dataset. Introducing and explaining what's actually in a PRD/QA
+workbook -- studies, compounds, phases, evidence tiers -- is step 1 for
+*everyone*, and a complete outcome on its own for someone who just wants to
+know what's there; only when the goal is a full analysis does the same
+reviewed data carry on through to the BNMA itself, generalized across
+endpoints (weight loss, HbA1c, physical function, etc. -- see Step 2's
+Endpoint question and Step 8's `effect_col`/`se_col` manifest fields).
+Reuses the existing BATMAN-augmentation + JAGS + forest-plot pipeline (see
+the misc5 project's R scripts for the reference implementation this was
+built from), but replaces every place that pipeline made a silent,
+hardcoded decision with an explicit step the user must confirm. See
+`DESIGN.md` in this skill's repo (or the project's `GUIDE_README.md`) for
+why each step exists.
 
 **Run this in a terminal, with the statistician's own working directory of
 their choice** (their own project folder under `programs/`/`output/shared/`,
@@ -115,29 +124,33 @@ never asks about custom data, and never demands a study-selection
 decision — those come later (Steps 4 and 8), so someone who only wants to
 look around never gets dragged into project setup.
 
-**1a. Locate the base dataset.** Only ask if the initial prompt didn't
-already make this clear. Two ways a statistician can point at it — both
-valid, use whichever fits what they actually gave you:
-- **An exact file path** (PRD, and QA too if there's a newer one not yet
-  promoted). Resolve per the workflow doc's fallback rule: try the QA path
-  first, fall back to PRD if it's moved/been promoted. Use exactly what's
-  given — don't guess a filename.
-- **A working directory instead of a filename** — mirrors how a
-  statistician's own scripts usually open with a `setwd()` to anchor
-  relative paths; here it means naming a folder (their own project
-  directory, e.g. under `programs/YYYYMMDD_.../`, or wherever this
-  session's files live) and letting the search find the actual file. Search
-  depth-limited (e.g. `find <dir> -maxdepth 3 -iname "*.xlsx"`) — never a
-  full recursive walk, and never a directory that's itself a mount root
-  (see the org's filesystem-search policy). **Always show every candidate
-  found, with modified dates, and get an explicit pick — even when only one
-  file looks plausible.** Silently choosing "the newest" or "the best name
-  match" is exactly the class of silent assumption this skill exists to
-  eliminate everywhere else; the directory search finds candidates, it
-  never substitutes for confirming which one.
-
-If neither a path nor a directory came with the initial prompt, ask which
-the statistician wants to use before doing anything else.
+**1a. Locate the base dataset — PRD-first.** This step is specifically
+about the PRD tier (a newer QA file, if one exists, is Step 4's concern —
+"additional, non-PRD data" — not this one). Only ask if the initial prompt
+didn't already make this clear:
+- **An exact file path was given.** Use exactly what's given — don't guess
+  a filename. If the statistician explicitly names a QA file instead of a
+  PRD one, that's fine (use it directly), but don't substitute a QA file on
+  their behalf when they asked for or pointed at PRD.
+- **No specific file was given** — a working directory was named, or
+  nothing was given at all (default to the project's own working
+  directory, the common case: a statistician's own project folder). Either
+  way, **search that directory for PRD files** — depth-limited (e.g. `find
+  <dir> -maxdepth 3 -iname "*.xlsx"` — never a full recursive walk, and
+  never a directory that's itself a mount root, see the org's
+  filesystem-search policy), matching this project's own PRD naming
+  convention, not QA's. **Always list every PRD candidate found, with
+  modified dates, and get an explicit pick — even when only one file looks
+  plausible.** Silently choosing "the newest" or "the best name match" is
+  exactly the class of silent assumption this skill exists to eliminate
+  everywhere else; the directory search finds candidates, it never
+  substitutes for confirming which one. Don't ask "where's your data?"
+  first when a depth-limited local search can answer it directly — search,
+  then present the list for a pick.
+- **No PRD files found at all** in the searched directory — say so plainly
+  and ask the statistician for a path (or a different directory to search)
+  before doing anything else. Don't silently fall back to a QA file here
+  even if one is sitting right next to where a PRD file was expected.
 
 **1b. Load & merge, then introduce what's actually in it.** Once the base
 dataset is located, materialize Appendix D's wrappers and Appendix B.1/B.2

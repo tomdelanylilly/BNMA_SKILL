@@ -1,4 +1,4 @@
-# /bnma — Guided Bayesian Network Meta-Analysis for the Obesity Landscape
+# /cmh-ci — Guided Bayesian Network Meta-Analysis for Cardiometabolic Health Competitive Intelligence
 
 **What this is for:** if you're pasting this file into a fresh Claude chat to
 get started, read the whole thing first — it explains what the skill does,
@@ -27,25 +27,33 @@ this skill's design:
    and two rows silently collapsed into one arm, or a study quietly stopped
    matching an exclusion list.
 
-`/bnma` doesn't automate the analysis end-to-end. It **forces every
-selection decision into the open** — naming/route conflicts, study
+`/cmh-ci` has two use cases, not one: just exploring what's in a PRD/QA
+dataset (studies, compounds, phases, evidence tiers — a complete outcome on
+its own, no analysis required), and, when that's the actual goal, running
+the BNMA itself. It doesn't automate that analysis end-to-end. It **forces
+every selection decision into the open** — naming/route conflicts, study
 inclusion, treatment scope — and writes the result to a reviewable YAML
 manifest instead of a commented-out vector, so a reviewer (or you, six
 months later) can see exactly why each study is in the network.
 
 ## What a session actually looks like
 
-Invoke it with `/bnma` in Claude Code. It will walk you through, in order:
+Invoke it with `/cmh-ci` in Claude Code. It will walk you through, in order:
 
-1. **Introduce and explain the available PRD dataset** — you point it at a
-   PRD file/folder (and a QA path if there's newer unpromoted data), and it
-   tells you what's actually in it — studies, compounds, phases, evidence
-   tiers — before asking you to decide anything (it also runs the
-   naming/pooling QA gate automatically here, mentioning the flag count —
-   full resolution comes later). If you're just exploring, it stays
-   conversational from here: no folders, no manifest, no naming-gate
-   resolution demanded, until you say you want to move toward an actual
-   run.
+1. **Introduce and explain the available PRD dataset** — point it at an
+   exact PRD file, or a folder (or nothing — it defaults to your project's
+   own working directory), and it searches for PRD files specifically,
+   lists every candidate it finds with modified dates, and waits for an
+   explicit pick — it never guesses the newest or best-named match. (A
+   newer, not-yet-promoted QA file is a later concern — step 4 — not this
+   one; naming a QA file explicitly here still works, but the search itself
+   only looks for PRD.) Once you've picked, it tells you what's actually in
+   it — studies, compounds, phases, evidence tiers — before asking you to
+   decide anything (it also runs the naming/pooling QA gate automatically
+   here, mentioning the flag count — full resolution comes later). If
+   you're just exploring, it stays conversational from here: no folders, no
+   manifest, no naming-gate resolution demanded, until you say you want to
+   move toward an actual run.
 2. **Ask which studies you're interested in** — name specific studies (e.g.
    "ATTAIN-1 vs. SURMOUNT-4") and/or compounds/treatments up front if you
    already know what you want ("I need these 21 treatments"); either gets
@@ -131,14 +139,18 @@ running if you want to reproduce it later without Claude in the loop at all.
 
 1. Clone https://github.com/tomdelanylilly/BNMA_SKILL (private repo — request
    access if you can't see it).
-2. Copy `.claude/skills/bnma/` into your own project's `.claude/skills/`
-   folder.
-3. Make sure your R environment has `rjags`/JAGS available — the skill's
-   `scripts/run_with_jags.sh` wrapper loads the `jags` environment module
-   before invoking R; adjust that wrapper if your environment resolves JAGS
-   differently.
-4. In Claude Code, invoke `/bnma` and give it your PRD (and QA, if
-   applicable) file path when asked.
+2. Copy the whole repo (it's a flat, skill-at-root layout — `SKILL.md` +
+   `compound_registry.yaml`, everything else is embedded inline in
+   `SKILL.md`'s appendices and materialized at runtime) into your own
+   project's `.claude/skills/cmh-ci/` folder.
+3. Make sure your R environment has `rjags`/JAGS available — the skill
+   materializes its own `run_with_jags.sh` wrapper at runtime, which loads
+   the `jags` environment module before invoking R; if your environment
+   resolves JAGS differently, you'll need to adjust Appendix D's wrapper
+   text in `SKILL.md` itself.
+4. In Claude Code, invoke `/cmh-ci` and point it at your PRD file (or a
+   folder to search for one) when asked — see step 1 above for how the
+   search/pick works.
 
 ## What it deliberately does not do
 
