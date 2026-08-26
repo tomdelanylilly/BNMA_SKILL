@@ -410,15 +410,17 @@ unambiguous:
 
 Derive the distinct compound list from the resolved treatments and carry it
 into Step 3 as the proposed `compound_filter` (a list of compound names).
-`build_batman_data.R` applies this as a **row-level** filter (drop any row
-whose `compound` isn't in the list), not a study-level one — a study mixing
-a wanted compound with an unwanted one keeps its wanted-compound rows and
-drops the rest. Placebo rows are always exempt, same as the route filter.
-Every study is still enumerated in Step 3 for an explicit decision even
-under a compound filter — a study with no requested compound usually still
-has its placebo row survive (compound-exempt), so it still needs a decision;
-batch these with a shared proposed reason ("not one of the requested
-compounds for this run").
+`build_batman_data.R` applies this as a **study-level** filter (corrected
+2026-08-26 — see the script's own comment for the real run that surfaced
+this): a study qualifies only if at least one of its rows has a wanted
+compound, and a study mixing a wanted compound with an unwanted one keeps
+only its wanted-compound rows (plus its own placebo row). A study with
+**none** of the requested compounds is dropped entirely, including its
+placebo row — "I want these 5 compounds" means the studies those compounds
+actually appear in, not every study's placebo row across the whole
+dataset. Only studies that qualify (or are ambiguous — see below) need
+enumerating in Step 3; a study with no requested compound is simply out of
+scope, not a decision to make.
 
 If the initial prompt did not name specific studies or compounds, propose
 the default in Step 3: every study/treatment surviving the other filters,
@@ -2827,14 +2829,34 @@ if (!route_filter %in% c("oral", "injectable", "both")) {
 }
 if (route_filter != "both") {
   before_n <- nrow(usable)
-  # Placebo rows are never dropped by route -- a placebo arm's own `aom` tag
-  # reflects its paired active comparator's route, not a property of placebo
-  # itself. A row with missing `aom` is dropped under a specific route filter
-  # (can't confirm it matches what was asked for) -- same "can't rule out
-  # pooling if route isn't recorded" logic as check_naming_pooling.R's
-  # missing_route flag.
-  usable <- usable %>% filter(compound == "placebo" | aom == route_filter)
-  cat("Route filter '", route_filter, "': ", before_n - nrow(usable), " row(s) dropped.\n", sep = "")
+  before_studies <- n_distinct(usable$study_name)
+  # This is a STUDY-level filter, not a row-level one (corrected
+  # 2026-08-26, a real run on the full landscape dataset surfaced this): a
+  # study only qualifies if it has at least one real (non-placebo) row
+  # matching the requested route. Only qualifying studies' rows survive --
+  # a study with no matching-route arm at all is dropped ENTIRELY,
+  # including its placebo row. Within a qualifying study, placebo is still
+  # exempt from the row-level route match (a placebo arm's own `aom` tag
+  # reflects its paired active comparator's route, not a property of
+  # placebo itself) -- but that exemption never resurrects a study that
+  # never had a matching-route arm in the first place. Previously the
+  # placebo exemption applied globally, so filtering to route=oral on the
+  # obesity landscape dataset pulled in 22 injectable-only studies
+  # (surmount-1, step-1, etc.) contributing nothing but an orphaned placebo
+  # row each, forcing an explicit exclude decision on studies that were
+  # never actually in scope -- exactly the "study subset, not a compound/
+  # route cherry-pick" semantics the manifest is supposed to guarantee.
+  qualifying_studies <- usable %>%
+    filter(compound != "placebo", aom == route_filter) %>%
+    pull(study_name) %>% unique()
+  usable <- usable %>%
+    filter(study_name %in% qualifying_studies) %>%
+    filter(compound == "placebo" | aom == route_filter)
+  cat(
+    "Route filter '", route_filter, "': ", before_n - nrow(usable), " row(s) dropped, ",
+    before_studies - n_distinct(usable$study_name), " whole study/ies excluded ",
+    "for having no ", route_filter, " arm at all.\n", sep = ""
+  )
 }
 
 evidence_filter <- manifest$evidence_filter %||% "both"
@@ -2853,25 +2875,38 @@ if (evidence_filter != "both") {
 
 # Compound scope filter -- for a "compound-first" run (user supplies a list
 # of wanted compounds/doses up front, per SKILL.md step 0.5, rather than
-# reviewing the full unfiltered study list). Row-level, not study-level: a
-# study that mixes a wanted compound with an unwanted one (e.g. "believe"
-# has semaglutide alongside bimagrumab and a bimagrumab+semaglutide combo
-# arm) keeps its wanted-compound rows and drops the rest, rather than either
-# keeping the whole study (silently pulling in compounds nobody asked for)
-# or dropping the whole study (losing the wanted compound's evidence too).
-# Dropping arms from a multi-arm trial doesn't corrupt the remaining arms'
-# own estimates as long as a shared comparator (placebo, almost always)
-# still connects them -- this is standard NMA subnetwork selection, not a
-# statistical shortcut. Placebo rows are always exempt, same pattern as the
-# route filter above -- placebo is the network's shared reference arm
-# regardless of which compounds are in scope.
+# reviewing the full unfiltered study list). Same study-level qualification
+# as route_filter above (corrected 2026-08-26, same real-run finding): a
+# study only qualifies if at least one of its rows has a wanted compound.
+# Within a qualifying study, keep its wanted-compound rows and its placebo
+# row, drop the rest (a study mixing a wanted compound with an unwanted one,
+# e.g. "believe" has semaglutide alongside bimagrumab and a
+# bimagrumab+semaglutide combo arm, keeps only the semaglutide + placebo
+# rows) -- dropping arms from a multi-arm trial doesn't corrupt the
+# remaining arms' own estimates as long as a shared comparator (placebo)
+# still connects them, this is standard NMA subnetwork selection, not a
+# statistical shortcut. A study with NONE of the wanted compounds is now
+# dropped ENTIRELY, including its placebo row -- that study was never in
+# scope, so keeping an orphaned placebo row around (the old behavior) just
+# forced a pointless include/exclude decision on a study that was never a
+# candidate in the first place. "I want these 5 compounds" now means "the
+# studies those compounds appear in, plus their own placebo arm" -- not
+# "every study's placebo row, everywhere in the dataset."
 if (!is.null(manifest$compound_filter)) {
   compound_filter <- unlist(manifest$compound_filter)
   before_n <- nrow(usable)
-  usable <- usable %>% filter(compound == "placebo" | compound %in% compound_filter)
+  before_studies <- n_distinct(usable$study_name)
+  qualifying_studies <- usable %>%
+    filter(compound != "placebo", compound %in% compound_filter) %>%
+    pull(study_name) %>% unique()
+  usable <- usable %>%
+    filter(study_name %in% qualifying_studies) %>%
+    filter(compound == "placebo" | compound %in% compound_filter)
   cat(
     "Compound filter (", length(compound_filter), " compounds): ",
-    before_n - nrow(usable), " row(s) dropped.\n", sep = ""
+    before_n - nrow(usable), " row(s) dropped, ",
+    before_studies - n_distinct(usable$study_name), " whole study/ies excluded ",
+    "for having none of the requested compounds.\n", sep = ""
   )
 }
 
@@ -2895,6 +2930,42 @@ if (before_n - nrow(usable) > 0) {
     "Region filter (", paste(region_filter, collapse = ", "), "): ",
     before_n - nrow(usable), " row(s) dropped.\n", sep = ""
   )
+}
+
+# Cross-filter safety net (2026-08-26): route_filter/compound_filter above
+# already exclude a study entirely if it never qualified for their own
+# criterion, but filters compose -- a study could still qualify for route,
+# survive with e.g. an oral+prediction row plus its placebo row, then lose
+# that oral row to evidence_filter (observed), leaving placebo alone again.
+# Catch that here, once, after every row-level filter above has run: any
+# study with zero non-placebo rows left contributes no relative-effect
+# information and was never actually selected by any combination of these
+# filters -- drop it entirely (including its now-orphaned placebo row)
+# rather than forcing a pointless include/exclude decision on it in the
+# manifest completeness check just below.
+#
+# Gated on route_filter/compound_filter actually being active: a study
+# that's genuinely placebo-only in the *source* data (no filtering
+# involved at all) is a different situation and must NOT be silently
+# dropped here -- that's real single-arm data the analyst should still see
+# and make an explicit call on via the normal completeness check below
+# (matching this skill's own no-silent-decisions rule everywhere else);
+# it's only cleaned up later, after selection, by the dead-weight
+# single-arm-study drop near the end of this script. This block exists
+# only to clean up the artifact those two *filters* create, not to widen
+# single-arm handling in general.
+if (route_filter != "both" || !is.null(manifest$compound_filter)) {
+  before_studies <- n_distinct(usable$study_name)
+  studies_with_active_arm <- usable %>% filter(compound != "placebo") %>% pull(study_name) %>% unique()
+  usable <- usable %>% filter(study_name %in% studies_with_active_arm)
+  if (before_studies - n_distinct(usable$study_name) > 0) {
+    cat(
+      "Cross-filter cleanup: ", before_studies - n_distinct(usable$study_name),
+      " study/ies left with only a placebo row after the combined route/",
+      "evidence/compound/region filters above -- excluded entirely (no ",
+      "relative-effect information, never actually in scope).\n", sep = ""
+    )
+  }
 }
 
 studies_in_data <- unique(usable$study_name)
