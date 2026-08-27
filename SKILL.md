@@ -58,39 +58,25 @@ don't collect modelling preferences until the real dataset — and its
 network structure — is actually known.
 
 ```
-Step 1  Introduce and explain the available PRD dataset
-Step 2  Ask which studies you're interested in
-Step 3  Create and review a subset of the PRD data based on those selections
-Step 4  Ask whether additional, non-PRD data should be incorporated
-Step 5  Convert and structure any additional data into the expected QA format
-        (only if Step 4 said yes)
-Step 6  Merge the supplemental data with the selected PRD subset
-        (only if Step 4 said yes)
-Step 7  Generate the BNMA using the prepared dataset
-Step 8  Collect modelling preferences (model specification, reporting options)
-Step 9  Produce analysis outputs and visualisations
+Step 1  Introduce the PRD dataset, list studies, ask which to include
+Step 2  Ask whether additional, non-PRD data should be incorporated
+Step 3  Convert and structure any additional data into the QA format
+        (only if Step 2 said yes)
+Step 4  Merge the supplemental data into QA and re-load
+        (only if Step 2 said yes)
+Step 5  Confirm ready to run BNMA, create folders, write manifest
+Step 6  Collect modelling preferences (random/fixed, relative/absolute,
+        route, evidence)
+Step 7  Produce analysis outputs (fit model, forest plot)
 ```
 
 **Do not skip steps or assume defaults on the user's behalf on anything
 genuinely discretionary.** The whole point of this skill is that a low-dose
 Phase 2 study or an oral/injectable mix-up must never enter a model silently
-again. **Step 2's scope items (endpoint, route, evidence, region) are asked
-as individual questions, one at a time** — each with a stated, recommended
-default so a quick reply is enough, but each is a real question waited on
-before the next is asked (2026-08-26, per explicit direction, superseding
-an earlier single-consolidated-message design for these items
-specifically). Step 3 then presents the naming/pooling flags and the study
-list as one grouped confirmation, since those are variable-length and
-data-dependent rather than a small closed set of choices — a
-study-by-study interview isn't practical on a 70+ study landscape run.
-Step 4 adds one more, deliberate checkpoint after that — confirming the
-subset is actually sufficient and offering custom data — before anything
-is written to disk. Step 7 asks explicitly whether the goal is a full run
-at all — some sessions are just about reviewing the data or getting custom
-data into QA, and that's a complete outcome, not a shortfall. Heterogeneity
-and effect type aren't asked until Step 9, *after* Step 8 has already
-built the real network structure — so that question states the actual
-recommendation directly instead of asking blind and correcting later.
+again. Step 1 lists studies and asks which to include. Step 2 asks about
+new data. Step 5 asks whether to actually run a BNMA. Step 6 collects
+design decisions (random/fixed, relative/absolute). Only then does
+Step 7 fit the model and produce the plot.
 
 ## `/cmh-ci-explain` — describe the workflow, touch nothing
 
@@ -158,18 +144,15 @@ needs verifying, inspect the posterior manually (`coda::gelman.diag()`,
 `coda::effectiveSize()` on the cached `samples.rds`) rather than expecting
 this skill to flag it.
 
+
 ## Step 1 — Introduce and explain the available PRD dataset
 
-**The PRD dataset for this skill is the non-T2D weight-loss landscape:**
-
+**The PRD dataset is:**
 ```
 /lillyce/prd/diabetes/bnma/obesity/data/shared/weight/cwm_wl_nont2d_prd_20260805.xlsx
 ```
 
-(T2D datasets will be added later; for now this skill targets the nont2d
-structure only.)
-
-Read it directly with inline R — no script materialization needed:
+Read it directly with inline R (no script materialization):
 
 ```bash
 module load R/4.4.2 2>/dev/null
@@ -180,1393 +163,203 @@ sheets <- excel_sheets(f)
 for (s in sheets[!tolower(s) %in% c("summary","revision history")]) {
   d <- read_excel(f, sheet=s)
   if ("study_name" %in% names(d)) {
-    cat("Sheet:", s, "| Rows:", nrow(d), "\n")
+    cat("\nSheet:", s, "| Rows:", nrow(d), "\n")
     studies <- d %>% group_by(study_name) %>%
-      summarise(compound = paste(sort(unique(compound)), collapse=", "),
-                treatments = paste(sort(unique(treatment)), collapse=", "),
-                .groups="drop")
+      summarise(compounds = paste(sort(unique(compound)), collapse=", "),
+                treatments = paste(sort(unique(treatment)), collapse="; "),
+                phase = first(phase), .groups="drop")
     for (i in seq_len(nrow(studies))) {
-      cat("  ", i, ". ", studies$study_name[i], " -- ", studies$compound[i], "\n", sep="")
-      cat("       treatments: ", studies$treatments[i], "\n")
+      cat("  ", i, ". ", studies$study_name[i],
+          " (", studies$phase[i], ", ", tolower(s), ")",
+          " -- ", studies$compounds[i], "\n", sep="")
+      cat("       ", studies$treatments[i], "\n")
     }
-    cat("\n")
   }
 }
 '
 ```
 
-**Then, in the same message, list the studies and ask which to include:**
+Present the output to the user showing **all studies from both sheets**
+(Observed and Prediction), then ask:
 
 ```
 Here's what's in the PRD (cwm_wl_nont2d):
 
-  STUDIES (N total):
-    1. <study_name> (phase, evidence_tier) — <compound> <treatments>
+  OBSERVED (N studies):
+    1. <study_name> (<phase>) — <compound>: <treatments>
+    2. ...
+
+  PREDICTION (M studies):
+    1. <study_name> (<phase>) — <compound>: <treatments>
     2. ...
 
   Which studies do you want to include?
-  (default: all phase 3 observed; phase 2 / prediction-tier need explicit yes)
-
-  Any new data to add before fitting?
 ```
 
-If the user already named specific treatments in their prompt, pre-resolve
-those against the data and propose them as the include list.
+If the user already named specific treatments/studies in their prompt,
+pre-resolve those and propose them as the include list.
 
-**1c. Naming/pooling QA gate — only surfaced once run-intent is
-established.** This gate exists to protect an eventual model fit (route
-mix-ups, placebo-naming collisions corrupting the network) — it has no
-reason to matter before there's a run in sight.
+## Step 2 — Ask whether additional, non-PRD data should be incorporated
 
-**Do this check with inline R — no script materialization needed.** The
-naming/pooling check is string-similarity on compound names + detecting
-route collisions + flagging placebo variants. All of this can be done by
-reading the already-loaded data directly:
+Once the user confirms which studies they want, ask:
 
+```
+Do you have any additional data to add before fitting?
+(e.g. a press release, new readout, hand-digitized data, another workbook)
+```
+
+If **no** → proceed to Step 5.
+
+If **yes** → go to Step 3.
+
+## Step 3 — Convert and structure any additional data into the expected QA format
+
+Get the new data in any form:
+- Pasted rows in the prompt
+- A file path (xlsx, csv)
+- "Take X from file Y" — read and filter
+
+Map it into the QA schema (`study_name`, `treatment`, `compound`, `aom`,
+`phase`, `pchg_wl_ee`, `se_wl_ee`, etc.). Fill what's known from context,
+leave optional fields NA.
+
+Show the user exactly what rows will be added — a table — and confirm.
+
+## Step 4 — Merge the supplemental data with the selected PRD subset
+
+Once confirmed, append the new rows to the corresponding QA file:
+
+```
+QA file: /lillyce/qa/diabetes/bnma/obesity/data/shared/weight/cwm_wl_nont2d_qa_YYYYMMDD.xlsx
+```
+
+(Convention: swap `/prd/` → `/qa/` and `_prd_` → `_qa_` in the filename.)
+
+If no QA file exists, ask whether to create one (PRD schema, zero rows).
+
+Append using `append_to_qa.R`:
 ```bash
-module load R/4.4.2 2>/dev/null
-Rscript -e '
-library(readxl); library(dplyr); library(stringdist)
-f <- "<prd_path.xlsx>"
-# ... read sheets, normalize names, run checks ...
-# Check 1: compound-name similarity (string distance < 3)
-# Check 2: route-pooling collisions (same treatment, different aom)
-# Check 3: placebo-naming variants (compound=="placebo" but treatment!="placebo")
-# Check 4: studies with no placebo arm
-# Print findings as structured text
-'
+scripts/run_r.sh scripts/append_to_qa.R \
+  --qa <qa_path.xlsx> --sheet <Observed|Prediction> \
+  --rows /tmp/new_rows.rds [--create-from <prd_path.xlsx>]
 ```
 
-**No scripts materialized, no RDS files, no lib_common.R.** Just read the
-xlsx, compute the checks, print findings. The full pipeline scripts are
-still deferred to Step 8/10.
-
-**Check this before doing anything else in this step:**
-- If the initial prompt already signaled run-intent (an endpoint, named
-  studies/compounds, a mention of a BNMA/forest plot), surface this gate's
-  findings now.
-- If it didn't, **resolve Step 1d's explore-or-run fork first** and only
-  come back to surface these findings once the answer is "set up a run."
-
-- A compound-name flag: propose `different` unless the substring/prefix
-  signal is strong (one name is literally a substring of the other — the
-  higher-confidence signal), in which case propose `same`.
-- A route-pooling collision (identical `treatment` string under two `aom`
-  values): propose `split_by_route` — collapsing two genuinely different
-  routes into one arm is almost never the intended outcome.
-
-These are proposals the statistician can override in their one reply, not
-silent auto-resolutions — Step 3 must show every active flag and its
-proposed resolution explicitly. If there are zero active flags, note that
-plainly in Step 3's message rather than a separate line here. At this
-step, just mention the flag *count* as part of introducing the dataset
-(e.g. "…and 2 naming flags to resolve once you pick studies") — full
-resolution is Step 3's job.
-
-Once an answer is confirmed (in Step 3), persist compound-name resolutions
-to `compound_registry.yaml` (Edit tool, this skill's own repo copy) so the
-same pair is never re-flagged; pooling-flag resolutions go in the manifest
-only (Step 8), since they're data-specific rather than a general
-compound-identity fact. **Skip the `compound_registry.yaml` write entirely
-for a scratch run** (Step 4/8) — the resolution still applies to this
-run's own manifest, it just isn't remembered for next time, same as every
-other artifact a scratch run doesn't persist.
-
-The report also lists `placebo_naming_flags` (Check 4a) — rows where
-`compound == "placebo"` but `treatment` isn't literally `"placebo"` (real
-case, 2026-08-20: a T2D HbA1c workbook recorded placebo arms as `"oral
-placebo qd"`, `"injectable placebo qw"`, `"injectable placebo qd"`, `"placebo
-qw"`). This is not cosmetic — `arm_ind` is derived from the treatment string
-alone, so each differently-worded placebo row becomes its own disconnected,
-single-study network node instead of sharing the one placebo reference arm
-every other study anchors to. Propose a `treatment_relabels` entry to
-`"placebo"` for each variant in Step 3, same "shown, never silently applied"
-treatment as any other naming flag. `run_bnma_pipeline.R`'s build step
-hard-errors if a
-`compound == "placebo"` row ever reaches arm assignment under a
-non-canonical treatment string — the backstop if this proposal is skipped
-or missed, not just a style nit.
-
-`no_placebo_flags` (Check 4b) — studies with no `placebo`-**compound** row
-at all (computed after accounting for Check 4a's variants, so a study whose
-only placebo arm is spelled `"oral placebo qd"` is correctly NOT flagged
-here). Carry every flagged study's name into Step 3's list so it's visible
-alongside the rest of the study review — the actual bridge-or-leave
-decision for these studies happens in Step 9, once `model_type` is known
-(only `rand_effect`/`fixed_effect` leave such a study disconnected by
-default; see Step 9).
-
-Also flagged (in `integrity_flags`, alongside the existing placebo-mistag
-check): `compound == "pbo"` — confirmed 2026-08-20 against the real
-production package's own `placebo_name()`, which recognizes exactly
-`"placebo"` or `"pbo"` (case-insensitive) as the reference arm. Every check/
-filter in this skill's own pipeline keys off `compound == "placebo"`
-specifically, and `"placebo"` is excluded from Check 1's own compound-
-similarity comparison set — so `"pbo"` previously went completely
-unflagged, never compared against `"placebo"` at all, and would have been
-silently treated as some unrelated extra compound. Propose a
-`compound_relabels` entry (`pbo` → `placebo`) when this fires.
-
-**1d. Explore, or set up a run?** Only ask this explicitly when the initial
-prompt gave no run signal at all — no endpoint, no named studies/compounds,
-no mention of a BNMA/forest plot, just "what data do we have" or similar.
-(If the prompt already signals run-intent, skip straight to Step 2 after
-the 1b/1c preamble — don't manufacture a question where the intent is
-already clear.)
-
-- **If exploring:** stay conversational. Answer whatever breakdowns they
-  ask for — studies by phase, compounds by route, coverage by region, the
-  actual list of study names — using 1b's already-loaded data alone. 1c's
-  naming/pooling gate has **not** run yet at this point, and shouldn't —
-  don't materialize or run it, don't run Step 2's questions or Step 3's
-  study confirmation, don't propose folders, don't mention the manifest.
-  Naming a subset of studies conversationally here ("let's focus on these
-  five") is still exploration, not a run commitment. Only move into the
-  guided-selection pipeline once the statistician explicitly signals they
-  want to move toward a run (e.g. "ok, let's set up a BNMA using these
-  studies").
-- **If setting up a run** (whether stated up front or reached from the
-  exploring branch above): go back and run 1c's naming/pooling gate now if
-  it hasn't run yet this session, then proceed to Step 2.
-
-**If the user attaches a standalone workbook instead of a QA/PRD path**
-(confirmed real case, 2026-08-20: `Global_ADA_Oral_KAI7535_*.xlsx`, sheets
-named `weight`/`WC` with generic `study_ind`/`arm_ind`/`y`/`se`/`Treatment`/
-`Compound`/`Study` columns, not `Observed`/`Prediction` sheets with
-`study_name`/`treatment`/`compound`/`aom`/`region`/`pchg_wl_ee`/`se_wl_ee`
-columns) — check the actual sheet names and columns with R/readxl **before**
-running `run_bnma_pipeline.R` on it. Its sheet-fallback logic
-(`read_sheet_with_fallback`, "Observed"/"Prediction" by name — case-
-insensitively, fixed 2026-08-20, see below — else positional index 2/3)
-will silently misread an arbitrary sheet as "Observed" and silently drop
-any sheet beyond position 3 if the workbook doesn't use that naming at all
-— exactly the kind of silent, undetected data error this skill exists to
-prevent, and worse than asking, because it looks like it worked.
-
-**A workbook using the standard schema but with lowercase (or otherwise
-differently-cased) sheet names is a related but distinct trap, found in a
-real T2D HbA1c workbook, 2026-08-20** — sheets literally named
-`observed`/`prediction` (correct schema, wrong case) with an unrelated
-`chinese population` sheet sitting between them. Exact-case matching missed
-both, and the positional fallback for "Prediction" landed on `chinese
-population` (position 3) instead of the real `prediction` sheet (position
-4), silently mislabeling China-specific data as the prediction tier while
-the real prediction data was never read at all. Fixed generally in
-`read_sheet_with_fallback` (case-insensitive name matching, tried before any
-positional fallback) — so a same-schema workbook with differently-cased
-sheet names is now read correctly without an adapter. The positional
-fallback is now reached only when a workbook truly has no `Observed`/
-`Prediction`-named sheet at all (any case) — e.g. the standalone-workbook
-case above — where the same silent-misread risk still applies and still
-needs the adapter approach, not a further loosening of the fallback.
-
-If the schema doesn't match, don't force it through 1b. Instead:
-1. Write a small one-off adapter script (save it as `adapt_standalone.R`
-   next to this run's manifest, not in `/tmp` — Step 10's driver script needs
-   a permanent path to call it from) that maps the file's own columns into
-   the shape `run_bnma_pipeline.R`'s build step expects: lowercase +
-   `squish_ws()` `study_name`/`treatment`/`compound`; derive
-   `aom`/`region`/`source_sheet` from context (e.g. a study name containing
-   "Prediction" → `source_sheet = "prediction"`, else `"observed"`); keep
-   the file's own effect/SE column names as-is — no need to rename to
-   `pchg_wl_ee`/`se_wl_ee`, the manifest's `effect_col`/`se_col` can name
-   whatever columns actually exist. Save the result as an `.rds`.
-2. Feed that `.rds` into `run_bnma_pipeline.R` via `--data <adapted.rds>`
-   (instead of `--prd`/`--qa`) at every step from 1c onward — explore,
-   build-preview, and fit modes all accept it as a substitute for their own
-   load+merge, exactly as if it were that step's own output.
-3. In the manifest, put the adapter script's path in `source_program` and
-   the original workbook's path in `source_data.prd` (not a custom key) —
-   `make_forest_plot.R`'s footnote only reads `source_data.prd/qa` and
-   `source_program`, so a custom key silently prints "(not recorded)"
-   instead of the real path.
-
-Also: a manifest's `effect_col`/`se_col` value of literally `y` or `n` must
-be quoted (`effect_col: "y"`) — bare `y`/`n`/`yes`/`no`/`on`/`off` parse as
-YAML 1.1 booleans, not strings, and `run_bnma_pipeline.R` fails with a
-confusing "effect_col 'TRUE' not found" error. Same root cause as the
-`row_exclusions` `"n"` gotcha documented under Step 8.
-
-
-## Step 2 — Ask which studies you're interested in
-
-**2a. Study/compound-first entry point (if requested).** If the initial
-prompt already named specific studies, compounds, or treatments (e.g. "I
-need these 21 treatments," "I want ATTAIN-1 vs. SURMOUNT-4," "compare
-ATTAIN-1 to what we have on tirzepatide"), resolve them now, silently where
-unambiguous:
-
-- **Named studies** — match each requested name against the merged data's
-  actual `study_name` values, case/punctuation-insensitively (e.g. "attain
-  1" and "ATTAIN-1" should match the same row) — same fuzzy-match mechanism
-  Step 1c already uses for compound names. Report exact matches plainly;
-  for anything without a clean match, surface the closest candidates and
-  ask rather than guessing which study was meant. A named study still goes
-  through Step 3's full enumeration like every other study — naming it
-  up front sets the *proposed* decision to "include, per your request" (with
-  that as the stated reason), it doesn't skip the confirmation. This
-  matters most for phase 1/2 studies: naming one by name **does** count as
-  an explicit decision (the statistician said so directly), so it doesn't
-  need a *second* ask — but it still must appear in Step 3's list with its
-  reason shown, same visibility guarantee as everything else, not silently
-  dropped from the enumeration.
-- **Named compounds/treatments** — match each requested string against the
-  merged data's actual `treatment` values (report exact matches plainly;
-  for anything without an exact match, use edit-distance/substring
-  candidates, same mechanism as Step 1c). A missing dose suffix (e.g.
-  "Tirzepatide 5mg" vs. "tirzepatide 5mg qw") is usually resolvable without
-  asking. **Only a genuine ambiguity still needs its own question** — e.g.
-  "X Pooled" that doesn't correspond to any single row in the source data
-  needs an explicit decision (which single arm to use, or whether to
-  compute a genuinely new derived value); never invent one silently, but
-  don't manufacture a question where the match is actually clear either.
-- **A named comparison** ("I have a list to compare," "X vs. Y") — resolve
-  both sides the same way (study and/or compound matching above), and carry
-  the resolved list forward as the proposed `plot_treatments` default for
-  Step 10's forest plot, in addition to driving Step 3's study list.
-
-Derive the distinct compound list from the resolved treatments and carry it
-into Step 3 as the proposed `compound_filter` (a list of compound names).
-`run_bnma_pipeline.R`'s build step applies this as a **study-level** filter (corrected
-2026-08-26 — see the script's own comment for the real run that surfaced
-this): a study qualifies only if at least one of its rows has a wanted
-compound, and a study mixing a wanted compound with an unwanted one keeps
-only its wanted-compound rows (plus its own placebo row). A study with
-**none** of the requested compounds is dropped entirely, including its
-placebo row — "I want these 5 compounds" means the studies those compounds
-actually appear in, not every study's placebo row across the whole
-dataset. Only studies that qualify (or are ambiguous — see below) need
-enumerating in Step 3; a study with no requested compound is simply out of
-scope, not a decision to make.
-
-If the initial prompt did not name specific studies or compounds, propose
-the default in Step 3: every study/treatment surviving the other filters,
-in the order first
-seen.
-
-**2b. Scope questions (one at a time).** Per explicit 2026-08-26 direction,
-these are not bundled into one wall-of-text message — ask each as its own
-short question, one at a time, and wait for a reply before asking the next.
-Each names its recommended default in the same message so a quick
-"yes"/"default" reply is enough, but each is a genuine question the
-statistician answers before you move to the next — not a line item in a
-bundled ask. Fill in every value from the actual data/report; never leave a
-placeholder.
-
-1. **Endpoint** — e.g. "This looks like a weight-loss dataset (`effect_col:
-   pchg_wl_ee`, `se_col: se_wl_ee`) — is that the endpoint you want, or a
-   different one?" **Only state it plainly instead of asking** when the
-   dataset's own columns unambiguously match a known schema *and* the
-   initial prompt already made the endpoint clear — otherwise always ask,
-   since this determines `effect_col`/`se_col`/`effect_label`/
-   `effect_direction` for everything downstream. For any endpoint other
-   than weight loss (HbA1c, physical function, etc.), state the real
-   column names in the question itself — e.g. "HbA1c (`effect_col:
-   chg_hba1c`, `se_col: se_chg_hba1c`) — sound right?" — and also propose
-   an `effect_label` (a short phrase for the plot's axis/title) and, if
-   `placebo_clamp` might be used this run, an `effect_direction`
-   (`decrease_is_better` | `increase_is_better` — weight loss and HbA1c
-   reduction are `decrease_is_better`; a physical-function score where
-   higher is healthier would be `increase_is_better`).
-2. **Route** — "Oral, injectable, or both?" State the default (usually
-   "both," if the data has both routes present).
-3. **Evidence** — "Observed only, prediction only, or both?"
-4. **Region** — "Global only, or include `<other regions actually found in
-   the data>`?"
-
-Once all four are answered, echo the locked-in scope back in one line
-before moving to Step 3. (Heterogeneity and effect type are asked later, in
-Step 9, once the real network structure is known — see that step for why.)
-
-## Step 3 — Create and review a subset of the PRD data based on those selections
-
-Present everything computed in Step 1c and Step 2, filtered by Step 2b's
-now-confirmed scope, as **one message** — this part stays a grouped
-confirmation rather than one question per item, since the naming/pooling
-flags and the study list are both variable-length and data-dependent
-(potentially dozens of studies on a real landscape run), not a small closed
-set of choices like Step 2b's items:
-
-```
-╭──────────────────────────────────────────────────────────────────╮
-│  /cmh-ci · study confirmation                                     │
-├──────────────────────────────────────────────────────────────────┤
-│  Reply with just what you want to change, plus anything else to   │
-│  flag -- everything else proceeds on the default/proposal shown.  │
-╰──────────────────────────────────────────────────────────────────╯
-
-  SCOPE (confirmed in Step 2b)
-   Dataset <path(s)> -- Endpoint <effect_col>/<se_col> -- Route <route> --
-   Evidence <evidence> -- Region <region>
-
-  NAMING / POOLING  (N active flags)
-   - <compound_a> vs <compound_b> -- proposed: <same|different>, because <signal>
-   - <treatment string> under two routes -- proposed: split_by_route
-   [or: "No naming/pooling flags found."]
-
-  STUDIES  (X total)
-   - Y phase 3 observed  -- proposed: include all
-   - Z phase 1/2 / prediction-tier -- YOUR CALL, no default assumed:
-       <study_name> (<phase>, <data_type>) -- proposed reason if you accept: <reason>
-       ...
-
-  STUDIES WITHOUT A PLACEBO ARM  (N found, informational -- whether this
-  matters depends on the model type chosen in Step 9; the bridge/leave
-  decision itself happens there, once that's known)
-   - <study_name> (<treatments in this study>)
-     ...
-```
-
-Notes:
-- **Phase 1/2 and prediction-tier studies never get a silent proposed
-  decision baked into the default path** — list each one individually and
-  require the statistician to actually say include or exclude, even though
-  everything else above is a normal accept-the-default item. (A *proposed
-  reason* is fine to show for when they do decide to include one, per Step
-  8's manifest schema — the decision itself is never pre-filled.)
-- **Studies without a placebo arm are surfaced here for visibility, but the
-  decision is deferred to Step 9** — whether it matters at all depends on
-  `model_type`, which isn't chosen until then. Listing them now means the
-  statistician isn't surprised by a new list appearing later; the actual
-  "bridge or leave disconnected" call happens in Step 9, once `model_type`
-  is known.
-- End with an open invitation: "anything else to flag — a study you know
-  about that should be excluded, a data-quality concern, a specific
-  treatment format — say so now or after the fact; I'll fold it in before
-  Step 8."
-- Echo back exactly what was locked in (Step 2b's scope answers + this
-  step's defaults accepted/overrides + any free-form concerns folded in)
-  once the statistician replies, before moving to Step 4's sufficiency
-  check. Folder proposals and the Project CLAUDE.md offer are **not** part
-  of this ask — those wait for Step 8, which only runs once Step 7 has
-  confirmed the statistician actually wants a BNMA run, not just to
-  review/update the data (Step 1d covers the earlier, no-run-signal-at-all
-  version of that same fork).
-
-## Step 4 — Ask whether additional, non-PRD data should be incorporated
-
-This is the checkpoint the team's workflow discussion added: study
-selection is confirmed (Step 3), but nothing has been written to disk yet.
-One more message, in reply to the statistician's Step 3 answer:
-
-```
-╭──────────────────────────────────────────────────────────────────╮
-│  /cmh-ci · subset confirmed -- anything else before we run?       │
-├──────────────────────────────────────────────────────────────────┤
-│  Locked in: <one-line recap of Step 3's confirmed scope + study   │
-│  count>.                                                          │
-╰──────────────────────────────────────────────────────────────────╯
-
-  Is this subset sufficient, or is there external/custom data (a press
-  release, a new readout, a hand-digitized slide, a subset from another
-  workbook) you'd like added before running? Reply "add data" to bring
-  something in (Steps 5-6) -- otherwise this proceeds straight to Step 8.
-```
-
-Notes:
-- **If the statistician wants to add custom/external data**, go to Step 5,
-  then come back to this same sufficiency question once it's merged in
-  (Step 6) — loop until they confirm the subset (base + any custom
-  additions) is actually sufficient.
-- **If sufficient with no custom data**, proceed straight to Step 8.
-
-## Step 5 — Convert and structure any additional data into the expected QA format
-
-Only runs if Step 4's answer was "add data." Per the team's discussion (see
-DESIGN.md's design-iteration history): PRD is only updated on a
-semi-annual cadence, so most custom data belongs to one project, not the
-shared tier — see Step 6 for how that plays out in the merge itself. This
-step is just about getting the data into the right shape:
-
-1. **Get the new data.** Accept it in any of three forms:
-   - **Pasted into the prompt** — rows given inline (study, treatment,
-     compound, y, se, etc.). Parse into a data.frame matching the QA
-     schema; fill as many columns as possible from context (`aom`, `phase`,
-     `data_type`, `source`), leave the rest NA (optional metadata columns
-     like `curator_note`, `qc_name` are routinely blank in real QA files).
-   - **A file path** (xlsx, csv, rds) — read it and extract the relevant
-     rows. If the schema doesn't match QA (e.g. a standalone workbook with
-     `Study`/`Treatment`/`y`/`se` columns instead of `study_name`/
-     `treatment`/`pchg_wl_ee`/`se_wl_ee`), map the columns into the QA
-     schema the same way the standalone-workbook adapter does (Step 1's
-     note).
-   - **A subset of another file** — "take the X data from this dataset."
-     Read that file, filter to the named studies/treatments, map into QA
-     schema if needed.
-
-2. **Show the user exactly what rows will be added** — a table with all
-   populated columns, same confirmation gate as any other data-affecting
-   decision in this skill:
-   - `study_name`, `treatment`, `compound`, this run's `effect_col`/`se_col`
-     values
-   - `aom`, `phase`, `data_type`, `source` (if known)
-   - A `reason` (why this data is being added — matches
-     `supplementary_data`'s own required field, see Step 8).
-
-Once the rows are confirmed, proceed to Step 6 to actually merge them.
-
-## Step 6 — Merge the supplemental data with the selected PRD subset
-
-1. **Default: add as `supplementary_data` in this run's manifest.** These
-   rows flow through the entire normal pipeline exactly as documented under
-   Step 8's `supplementary_data` field (row_exclusions, relabels,
-   `placebo_clamp`, `route_filter`/`compound_filter`/`region_filter` all
-   apply) — nothing new to build, this is the existing fallback mechanism
-   promoted to the default path for genuinely new/custom data. No shared
-   file is touched; a scratch run's own `/tmp` manifest carries it exactly
-   the same way a persisted run's `programs/<slug>/manifest.yaml` does.
-
-2. **Offer to promote instead (or in addition).** State plainly: "if you
-   want this saved to the shared QA file so future runs see it too, reply
-   'promote to QA' — otherwise this stays with this run only." If accepted,
-   follow the QA-append path:
-   - **Identify the corresponding QA file.** Convention:
-     - PRD at `/lillyce/prd/diabetes/bnma/obesity/data/shared/weight/
-       cwm_wl_nont2d_prd_YYYYMMDD.xlsx`
-     - → QA at `/lillyce/qa/diabetes/bnma/obesity/data/shared/weight/
-       cwm_wl_nont2d_qa_YYYYMMDD.xlsx`
-     - (Swap `/prd/` → `/qa/` in the directory path; `_prd_` → `_qa_` in
-       the filename. Same date suffix, same `wl`/`t2d`/`nont2d` segment.)
-     - If the user already provided a QA path, use it directly — don't
-       guess.
-     - **If the QA file doesn't exist yet:** ask the user whether to
-       create it (with the PRD's own column schema — sheets
-       `Observed`/`Prediction`, same columns, zero data rows) or to
-       provide a different path. **Never auto-create silently** — this is
-       a write to a shared drive with no version control.
-     - Sometimes the QA file exists but is empty (just headers) — that's
-       the normal "waiting for entries" state, not an error.
-   - Add `time_entry` = today's date to the rows shown in Step 5 (the
-     QA schema's own "when was this entered" field — only relevant once
-     something is actually going to QA).
-   - **Ask the user to confirm the write.** A clear "I'll append these N
-     rows to `<qa_path>`, sheet `<sheet>` — confirm?"
-   - **Once confirmed: append rows to the QA xlsx in-place** via
-     `append_to_qa.R` (see Appendix B). The script reads the existing
-     workbook, appends to the target sheet, writes back. No backup copy
-     (the mount has no version control anyway — but the manifest records
-     exactly which rows were added and when, so the audit trail is the
-     manifest + `time_entry`, not file versions).
-   - **Show an append summary:** N rows added, which studies, which sheet,
-     total rows now in that sheet.
-   - The promoted rows still also flow into this run via
-     `supplementary_data` (or a re-run of Step 1b's load against the
-     updated QA file, if simpler) — promoting to QA is about *future* runs
-     seeing it, not a substitute for this run actually using it.
-
-3. **Re-run the naming/pooling checks (`run_bnma_pipeline.R`, explore mode) against the combined data right
-   away** — newly-added data is precisely when a naming collision or route
-   mismatch is most likely (a new study using a slightly different
-   spelling for an existing compound, or the wrong `aom` tag). Surface any
-   new flags in a short follow-up, resolved the same way Step 1c/3 resolve
-   any other flag — don't silently skip this just because Step 3's main
-   naming/pooling pass already happened.
-
-4. **Loop back to Step 4's sufficiency question.** The statistician may
-   want to add more data, or confirm the (now-enlarged) subset is
-   sufficient and move on to Step 7.
-
-## Step 7 — Confirm whether to proceed to a BNMA run
-
-Per explicit direction: the subset is confirmed sufficient (Steps 4-6 are
-done, looping back to Step 4 as needed), but nothing has established that
-the statistician actually wants to *run* anything yet. Their goal might
-genuinely stop here — reviewing what's in the PRD data, or getting their
-own data added to QA — without ever wanting a fitted model or a forest
-plot this session. Ask plainly, in reply to however Step 4 resolved:
-
-```
-Subset confirmed: <one-line recap — dataset, scope, study count, any
-custom data merged in>.
-
-Ready to move on to a BNMA run — folders, manifest, model fit, forest
-plot? Or was the goal for this session just to review/update the data
-(e.g. getting your own data added to QA)? Either is a complete outcome.
-```
-
-- **If the goal was just reviewing/updating the data:** end the turn here.
-  Summarize plainly what happened this session (e.g. "reviewed the
-  weight-loss subset: 42 studies in scope" / "added 3 rows to QA as
-  discussed" / both) — there's nothing further to do, and nothing about
-  folders, a manifest, or a model fit should be mentioned. This is
-  functionally the same ending as Step 1d's "exploring" branch, just
-  reached later — after real study selection and possibly a real QA
-  promotion — rather than before any of that happened. Both are legitimate,
-  complete sessions; neither is a failure to reach Step 8.
-- **If ready to run:** proceed to Step 8 normally.
-
-This is a distinct checkpoint from Step 1d's explore-or-run fork — Step 1d
-catches someone who shows no run signal *before* any work happens; this
-step catches the case where run-intent looked clear at the start but the
-statistician's actual goal for the session turns out to be narrower once
-they've seen the data and made their selections. Don't skip this step by
-assuming the initial prompt's apparent intent still holds — ask, the same
-way every other genuinely discretionary point in this workflow asks rather
-than assumes.
-
-## Step 8 — Generate the BNMA using the prepared dataset
-
-**8a. Propose the run's `programs/` and `output/` folders — rooted under
-QA, not PRD — don't create them yet.** PRD is the curated,
-semi-annual-cadence read tier; QA is the live working copy, so an
-analyst's own `programs/`/`output/shared/` work products belong there, not
-mixed into the PRD directory tree (confirmed 2026-08-26 — a real run
-defaulted to wherever the PRD file happened to sit and nested them under
-`/lillyce/prd/.../weight/programs/...`, which was wrong). Work out the
-QA-rooted base directory, in this priority order:
-1. **A QA path is already known this session** (held onto from 1a's "both
-   a PRD and QA path given together" case, or an actual QA file identified
-   during Step 4-6) — use that file's own directory.
-2. **Otherwise, derive it from the PRD path** (Step 1a) by swapping `/prd/`
-   → `/qa/` in the directory portion — the same convention Step 6 already
-   uses to find the corresponding QA file.
-3. **If neither applies** (e.g. a personal project directory, or a
-   standalone workbook with no PRD/QA tier structure at all) — don't guess
-   a QA-shaped path. Ask the statistician directly where
-   `programs/`/`output/shared/` should live for this run, same as any
-   other genuinely discretionary location choice.
-
-Once the base is known, work out a proposed `<slug>` and both paths under
-it — `<qa_root>/programs/YYYYMMDD_<slug>/` /
-`<qa_root>/output/shared/YYYYMMDD_<slug>/` — and a Project CLAUDE.md offer,
-in one message:
-
-```
-  Working folders  ► <qa_root>/programs/YYYYMMDD_<slug>/,
-                      <qa_root>/output/shared/YYYYMMDD_<slug>/
-                      (not yet created; reply "scratch" for a /tmp-only dry run)
-  Project CLAUDE.md ► skip (default for a single run) -- reply "add CLAUDE.md"
-                      if this is a larger/ongoing project
-```
-
-- `<slug>` is your best guess at a short, meaningful label for this run,
-  derived from the dataset/endpoint (e.g. `cwm_wl_nont2d`, `ada_oral_full`);
-  if nothing obvious presents itself, propose your best guess rather than
-  leaving it blank.
-- **Replying "scratch" or "dry run" instead of accepting/renaming the
-  folders** keeps the whole run in `/tmp/$(whoami)/bnma_scratch_<slug>/` —
-  `manifest.yaml`, the JAGS cache, and the forest plot all land there
-  instead of `programs/`/`output/shared/`, Step 1c's naming resolution is
-  never written to `compound_registry.yaml`, and Step 10's driver script is
-  skipped in favor of an explicit promote-or-discard offer. Everything else
-  about the run — the fit, the plot, the footnote — is identical either
-  way.
-- **Project CLAUDE.md defaults to skip** — most runs are a single,
-  self-contained ask and don't need one. Accept "add CLAUDE.md" (or
-  anything that signals this is a bigger/ongoing initiative — a conference
-  submission, a project the statistician says they'll keep coming back to)
-  at face value rather than second-guessing it. If accepted, Step 10 writes
-  it alongside the driver script.
-
-**8b. Create the folders and write the manifest.** Apply everything
-confirmed in Steps 2-6. Create `<qa_root>/programs/YYYYMMDD_<slug>/` and
-`<qa_root>/output/shared/YYYYMMDD_<slug>/` (`<qa_root>` per 8a's derived or
-stated base, `<slug>` per 8a's confirmed or renamed value, dated with
-today's date) — now that the statistician has seen and confirmed the name
-and confirmed the subset is sufficient. Everything from here on (manifest,
-naming report, cached samples) writes into `<qa_root>/programs/<slug>/`;
-forest plots go into `<qa_root>/output/shared/<slug>/` (Step 10).
-**The merged dataset (Step 1b's load+merge) never moves in
-from `/tmp`** — per the workflow guide, the PRD+QA merge happens in code
-and leaves no separate merged file on the share; re-deriving it from the
-source file(s) is cheap and deterministic, so there's nothing worth
-persisting. Then write a YAML manifest capturing everything from Steps
-2-6 — this is the traceable artifact that replaces a commented-out R
-vector. Example shape:
-
-**Scratch run:** skip folder creation entirely. Create one directory,
-`/tmp/$(whoami)/bnma_scratch_<slug>/`, and write `manifest.yaml` there instead — same
-content, same schema below, only the destination differs. Steps 9/10 point
-their own outputs at this same directory (see each step).
-
-```yaml
-created_at: "2026-08-14"
-source_data:
-  prd: /lillyce/prd/diabetes/bnma/obesity/data/shared/weight/cwm_wl_nont2d_prd_20260805.xlsx
-  qa: null
-effect_col: pchg_wl_ee # from Step 2b's Endpoint question -- the QA/PRD column holding this run's effect estimate; omit = pchg_wl_ee (weight loss), unchanged for every existing manifest
-se_col: se_wl_ee # from Step 2b -- the matching SE column; omit = se_wl_ee (weight loss), unchanged for every existing manifest
-effect_label: "Body Weight" # optional -- short phrase for the plot's default axis/title text (e.g. "HbA1c", "Physical Function Score"); omit = "Body Weight" only when effect_col is pchg_wl_ee, else falls back to the raw effect_col name (unpolished but not wrong) -- --xlab/--title on make_forest_plot.R always override regardless
-effect_direction: decrease_is_better # decrease_is_better | increase_is_better -- from Step 2b, only matters if placebo_clamp is used; controls which sign placebo_clamp treats as "wrong direction". omit = decrease_is_better (weight loss/HbA1c-reduction convention), unchanged for every existing manifest
-source_program: <path to whatever script/session produced this run>
-route_filter: both # oral | injectable | both -- from Step 2b; omit or "both" = no route filtering
-evidence_filter: both # observed | prediction | both -- from Step 2b; omit or "both" = no evidence filtering
-compound_filter: null # optional list of compound names -- from Step 2a's compound-first entry point; omit/null = no compound filtering
-region_filter: [global] # list of regions to include -- from Step 2b; omit = ["global"] only, unlike route/evidence_filter's "both" default
-naming_pooling_resolutions:
-  - kind: compound_flag
-    compound_a: canaflig
-    compound_b: canafligizon
-    decision: different
-    note: "confirmed distinct INNs with the curator"
-  - kind: pooling_flag
-    compound: orforglipron
-    treatment: "orforglipron 3mg"
-    decision: split_by_route
-    note: "oral and injectable rows were sharing one treatment label; relabeled oral rows"
-studies:
-  - study_name: surmount-1
-    phase: "phase 3"
-    data_type: observed
-    include: true
-  - study_name: retatrutide_ph2_gzbf
-    phase: "phase 2"
-    data_type: observed
-    include: false
-    reason: "Phase 2 only, excluded per analyst decision"
-compound_relabels:
-  - from: "exenatide qw"
-    to: exenatide
-    reason: "Inconsistently labeled subset of rows -- see naming_pooling_resolutions above for why."
-treatment_relabels:
-  - from: "some inconsistently-labeled dose string"
-    to: "the canonical dose string used elsewhere for the same treatment"
-    reason: "Naming-QA flag resolved as a mislabeling, not a genuinely different treatment."
-row_exclusions:
-  - study_name: some-study
-    treatment: "some treatment 5mg qd"
-    "n": 37 # quote this key -- bare `n:` parses as boolean FALSE in YAML 1.1, not the string "n", and the exclusion silently stops disambiguating (hit this for real once)
-    reason: "Duplicate row sharing (study_name, treatment) with another row -- n disambiguates which one to drop."
-placebo_clamp: false # optional -- set true to force any placebo row's wrong-direction (per effect_direction) effect_col value to 0; requires placebo_clamp_reason
-se_fallback: false # optional -- set true to derive se_col = se_fallback_sd/sqrt(n) for rows missing se_col but with a known n; requires se_fallback_reason
-supplementary_data: [] # optional -- literal rows for data not yet in the QA/PRD workbook; see below
-model_type: rand_effect # rand_effect (recommended default for new runs) | fixed_effect | simultaneous (legacy) | simultaneous_fixed (legacy, fixed-effect delta -- use instead of simultaneous whenever effect_type: absolute + a full star network, see Step 9) -- from Step 9; omit or "simultaneous" = today's unconditional phantom-bridging behavior, unchanged; see Step 9
-plot_treatments:
-  - tirzepatide 5mg qw
-  - tirzepatide 10mg qw
-  - tirzepatide 15mg qw
-effect_type: relative # from Step 9
-```
-
-`compound_relabels` is for a naming-QA flag resolved as "these rows were
-mislabeled, merge into the canonical spelling" -- applied globally by
-compound string. `treatment_relabels` is the same idea but for the
-`treatment` string itself (changes which arm a row maps to, not just which
-compound it's attributed to). `row_exclusions` is for a single anomalous or
-duplicate row within an otherwise-included study; add `"n"` (quoted) when
-two rows share the same `(study_name, treatment)` and need a third field to
-tell them apart.
-
-**`placebo_clamp`** forces any placebo row reporting a "wrong direction"
-`effect_col` value to 0 before fitting — for the `decrease_is_better` default
-(weight loss, HbA1c reduction) that means a positive (e.g. weight-*gain*)
-value; for an `increase_is_better` endpoint it's the mirror, a negative
-value. Found in a real analyst script (`bnma-nonadj-11AUG2026.R`, applied
-unconditionally there with no traceability, and without an
-`effect_direction` concept at all since it only ever ran on weight-loss data
-— "Yongming advised setting the placebo effect to zero"). Opt-in and
-reasoned here like everything else in this manifest: absent means no
-clamping (today's behavior, unchanged). Setting `placebo_clamp: true`
-without a non-blank `placebo_clamp_reason` is a hard error — this rewrites
-an arbitrary number of rows' values across the whole run, so (unlike a
-single `row_exclusions` entry) it needs a documented reason, not just a
-logged default:
-```yaml
-placebo_clamp: true
-placebo_clamp_reason: "Placebo arms occasionally report a small positive
-  (noise-driven) value; forced to 0 per <analyst>'s guidance on this run,
-  not treated as a real placebo effect."
-```
-
-**`se_fallback`** derives `se_col = se_fallback_sd / sqrt(n)` for any row
-missing `se_col` but with a known arm sample size `n` — rescuing a row the
-unusable-row filter would otherwise silently drop. This is a real, repeated
-team convention for the weight-loss endpoint specifically, not a one-off
-(unlike `placebo_clamp`, which stays a per-run judgment call): `redefine1`'s
-own `curator_note` documents the exact formula ("se is calculated with
-10/sqrt(n) where sd=10 is commonly used for %change in body weight in
-nont2d"), and it's actually applied — not just written down — in
-`brenipatide_gzmu_misc5.R` and `brenipatide_gzmu_gzmd.R`. The default
-`se_fallback_sd: 10` reflects that weight-loss-specific convention — a
-different endpoint's own team convention (if one exists) needs its own
-`se_fallback_sd`, not this one reused by default. Still opt-in and still
-requires a reason, same hard-error pattern as `placebo_clamp` — fabricating
-an SE is always a visible, deliberate choice for a given run, never a silent
-default:
-```yaml
-se_fallback: true
-se_fallback_reason: "redefine1's own curator_note documents this exact
-  derivation but never applied it -- applying it here to include a large
-  Phase 3 study that would otherwise be dropped for a missing SE."
-se_fallback_sd: 10  # optional, default 10 -- the team's stated standard
-                     # assumption for %change in body weight in nont2d;
-                     # override with a different value (and document why)
-                     # for any other endpoint -- this default is NOT a
-                     # generic statistical constant, it's specific to that
-                     # one convention.
-```
-
-**`phantom_placebo_studies`** opts specific no-placebo studies into
-BATMAN's phantom-placebo bridging (`se=1, y=NA`) even when `model_type` is
-`rand_effect`/`fixed_effect` — those two model types leave a no-placebo
-study disconnected from the network by default (matching the real
-production tool's own behavior; `model_type: simultaneous` already bridges
-every no-placebo study unconditionally, unaffected by this field). A real,
-recurring judgment call (confirmed 2026-08-20, comes up "in some analyses" —
-e.g. an isolated head-to-head trial that would otherwise sit outside the
-network entirely), not a one-off — every study listed here must be one
-Step 1c's `no_placebo_flags` actually found, Step 3 surfaced for visibility,
-and Step 9 turned into an explicit per-study decision;
-`run_bnma_pipeline.R` errors on an unrecognized study name (spelling
-mismatch against `study_name`) rather than silently ignoring it. Same
-hard-error-if-no-reason pattern as `placebo_clamp`/`se_fallback` — a phantom
-placebo row is a fabricated, zero-information data point, so bridging one in
-is always a visible, deliberate choice, never a silent default either
-direction:
-```yaml
-phantom_placebo_studies: [oral hrs9531 ph2 china to global prediction]
-phantom_placebo_reason: "Head-to-head-only trial with no placebo arm --
-  bridging it in so its two dose arms connect to the rest of the network,
-  per analyst's request 2026-08-20."
-```
-Omit or leave empty (the default) — every no-placebo study stays
-disconnected, contributing a baseline (`phi`) estimate only, no
-relative-effect information. This is still a stated decision from Step 9,
-not a silent fallthrough, even when nothing is listed here.
-
-**Phantom-bridging a fully isolated *multi-node* component can still fail
-to converge, even after a large iteration increase — that's a real
-possibility, not just a hypothetical.** Found 2026-08-20 on a real T2D
-HbA1c landscape run: two studies (`duration6`, a 2-node isolated pair;
-`pioneer plus`, a 3-node isolated triangle) had zero connection to the main
-72-node network. Phantom-bridging both produced hard non-convergence on
-manual inspection (`coda::gelman.diag()` Rhat 8.3–36, `coda::effectiveSize()`
-6–10) — refitting with 5x the adaptation/burn-in/
-iterations *did not fix it*, it just moved which node looked worst. Root
-cause: the phantom placebo's `se=1` is a very weak anchor, and when the
-bridged component's own treatments are themselves single-study nodes with
-no other anchor either, the model ends up only weakly identifying that
-whole component's absolute position relative to the rest of the network —
-a real statistical property of the model+data, not slow mixing that more
-iterations resolves. Bridging a *single disconnected study* whose
-treatments already have other real network connections is the well-behaved
-case this feature was originally built for; bridging a study that is
-itself the *entire* isolated component is a materially different, weaker
-case. If non-convergence persists after a substantial iteration increase
-(not just the first refit) following a phantom bridge — check manually,
-since this isn't caught automatically — treat that as a signal to
-fall back to excluding the study/studies rather than continuing to push
-iterations — surface this explicitly rather than silently excluding, since
-it reverses an already-confirmed decision.
-
-**`supplementary_data`** is for a small, deliberately-curated addition that
-hasn't been promoted into the QA/PRD workbook yet — e.g. a hand-digitized
-dose-response series pulled from a slide deck, the same situation
-`bnma-nonadj-11AUG2026.R` handles by `bind_rows()`-ing a hand-typed tibble
-straight into its analysis with no traceability at all. **This is the
-default destination for custom/external data brought in via Steps 5-6** —
-temporary and project-scoped by design (PRD/QA are the team's shared,
-persistent tiers; this manifest field is this run's own). The row can still
-be promoted to a real QA row later (Step 6's "promote to QA" option, or
-the project CLAUDE.md's Flow 1) once it's ready for the whole team to
-reuse — but that's opt-in, not required. Each entry requires `study_name`,
-`treatment`, `compound`, this run's `effect_col`/`se_col` values, and
-`reason`; `aom`/`region` are optional:
-```yaml
-supplementary_data:
-  - study_name: "GZMD+GZMU"
-    treatment: "brenipatide 8mg q4w"
-    compound: brenipatide
-    pchg_wl_ee: -13.86 # key name must match this manifest's own effect_col (pchg_wl_ee here, since it's the default)
-    se_wl_ee: 0.26      # key name must match this manifest's own se_col
-    aom: injectable
-    reason: "Hand-digitized from GZMU_MISC5_Unblinded.pptx (Aug 2026 data
-      cut) -- not yet entered as a QA row."
-```
-These rows flow through the entire normal pipeline (row_exclusions,
-relabels, `placebo_clamp`, `route_filter`/`compound_filter`/`region_filter`
-all apply exactly as they would to any other row) — the only exemption is
-`evidence_filter`, since "supplementary" isn't a meaningful point on the
-observed/prediction axis; these rows always survive regardless of that
-filter's setting. The originating `study_name` still needs its own explicit
-entry under `studies:`, same as any other study — no exemption from the
-completeness check just because the data was hand-added.
-
-**Any study lacking a literal placebo row gets a phantom placebo arm
-(SE=1, y=NA) injected automatically — but only when `model_type` is
-`simultaneous` (the legacy hierarchical model) or omitted.** Matches
-`efficacy_bnma_v3_gzmu_misc5.R`'s own logic exactly, and this is not
-something the skill second-guesses or gates on a per-study decision for that
-model. For `model_type: rand_effect`/`fixed_effect` (the recommended
-defaults for new runs — see Step 9), **no bridging happens at all**: a study
-with no placebo row simply doesn't connect to the network. This isn't a gap
-— it's confirmed, documented real-tool behavior (see Step 9), unlike the
-earlier connectivity-aware bridging attempt this skill tried and reverted
-mid-session for having no such documentation anywhere.
-
-Save it into `programs/<slug>/` (created moments ago, above), e.g.
-`study_selection_manifest.yaml`.
-
-**Every study found in Step 1's merged data must appear under `studies:`.**
-`run_bnma_pipeline.R`'s build step (below) enforces this itself and will
-refuse to run otherwise — that's intentional, not a bug to work around.
-
-**8c. Validate the manifest is complete — inline, no pipeline script
-needed.** Before moving on, verify that every study in the merged data
-appears under `studies:` in the manifest. This is a simple check:
-
+Show append summary. Then re-load with both PRD + QA to get the full
+merged dataset for fitting:
 ```bash
-module load R/4.4.2 2>/dev/null
-Rscript -e '
-library(readxl); library(dplyr); library(yaml)
-manifest <- yaml::read_yaml("<manifest.yaml>")
-# Read the PRD (and QA if given) to get the actual study list
-# Compare against manifest$studies -- error if any missing
-'
+scripts/run_r.sh scripts/load_merge_data.R \
+  --prd <prd_path.xlsx> --qa <qa_path.xlsx> --out /tmp/bnma_merged.rds
 ```
 
-If studies are missing — go back to steps 2-7 with the user, don't patch
-around it.
+Loop back to Step 2 ("anything else to add?") until the user says the
+subset is sufficient.
 
-**The star-network / heterogeneity-estimability check is deferred to Step
-10a** — it's computed as part of the actual BATMAN build (which Step 10
-does anyway before fitting), and its finding feeds Step 9's question. This
-avoids running the full pipeline twice (once here, once to fit). Step 9's
-questions come *after* Step 10a's build reports the network structure.
+## Step 5 — Generate the BNMA using the prepared dataset
 
-If this errors because studies are missing from the manifest, that's the
-intended guard — go back to steps 2-7 with the user, don't patch around it.
+Once the subset is confirmed (with or without additional data), ask:
 
-Any study left with only one arm after all filtering/exclusion (route,
-evidence, compound, row_exclusions, study include/exclude) is dropped
-automatically, with a log line naming which — matches the real production
-package's own defensive behavior (confirmed 2026-08-20: `prepare_model_data()`
-"Drop studies with only one arm, JAGS requires at least 2 arms per study").
-Not a crash risk in this skill's own model files (JAGS's `for(j in 2:na[i])`
-is a bounded loop that runs zero times when `na[i]<2`, unlike R's own `:`
-operator — a real single-arm study converged fine in testing, 2026-08-20),
-but it's dead weight (a `phi[i]` baseline node with zero relative-effect
-information) not worth carrying into the fit or its convergence scoring.
-
-## Step 9 — Collect modelling preferences
-
-**Before asking these questions, run a quick inline network-structure
-check** — count how many distinct studies feed each non-placebo treatment
-node in the confirmed study list. This is a simple count from the data
-(no pipeline script needed):
-
-```bash
-module load R/4.4.2 2>/dev/null
-Rscript -e '
-library(readxl); library(dplyr)
-# Read the PRD data, filter to included studies from manifest
-# Count: for each treatment, how many distinct studies contribute
-# Report: is this a full star? (zero nodes with >=2 studies)
-'
+```
+Ready to run a BNMA on this subset? (Y/n)
 ```
 
-Because this check runs *after* the dataset is finalized and the network
-structure is actually known, the heterogeneity and effect-type questions
-below can state the real recommendation directly.
+If **no** → end here (the session was just about reviewing/updating data).
 
-**9a. Heterogeneity.** If the check reports a **star network** (zero nodes
-with ≥2 contributing studies — the exact situation in `pf_nma.R`, a
-physical-function sub-network where every comparison has exactly one
-supporting study), between-study heterogeneity literally cannot be
-estimated from the data, and `model_type: fixed_effect` is the appropriate
-primary analysis, not a stylistic preference — quote `pf_nma.R`'s own
-rationale ("with only 1 study per comparison, between-study heterogeneity
-cannot be estimated; fixed-effects is the appropriate primary analysis").
-Ask plainly, stating the real finding as the reason for the recommendation:
-- The network is a full star (every non-placebo node has exactly 1
-  contributing study).
-- `sigma` (between-study heterogeneity) cannot be estimated from the data
-  and will be entirely prior-driven if random-effects is used — this
-  inflates every CI with a ~4-point SD on top of the arm's own reported SE
-  (documented in the `kai7535_bnma_v3.R` comparison, 2026-08-20).
-- Recommend `fixed_effect`, but proceed with `rand_effect` if the user
-  explicitly says so (e.g. as a sensitivity analysis, or because they want
-  the inflated CIs to reflect genuine uncertainty about heterogeneity even
-  when it can't be estimated).
+If **yes** → create working folders and write the manifest:
 
-When the network isn't a full star (some nodes have multi-study support,
-even if most don't — this is the common case for the obesity landscape
-data, where dozens of single-study nodes coexist with a handful of
-well-replicated ones), heterogeneity is estimable from the network as a
-whole; state the default as `rand_effect` (recommended for new runs),
-surface the node counts for information, and let `rand_effect` vs.
-`fixed_effect` be the analyst's own call, same as always.
+**Output paths (hardcoded base):**
+- Programs: `/lillyce/qa/diabetes/bnma/obesity/programs/YYYYMMDD_<slug>/`
+- Outputs: `/lillyce/qa/diabetes/bnma/obesity/output/shared/YYYYMMDD_<slug>/`
 
-**9b. Effect to report.** "Placebo-adjusted (relative), or absolute?" **The
-same star-network finding from 9a applies here too, on
-`model_simultaneous.txt`/`model_simultaneous_fixed.txt`** — a full star
-means `model_simultaneous_fixed.txt` is recommended (deterministic delta)
-whenever `effect_type: absolute` is requested on that network, but if the
-user explicitly wants `model_simultaneous.txt` after being informed,
-proceed with it and note the CI-inflation risk in the footnote.
+Derive `<slug>` from the endpoint/scope (e.g. `cwm_wl_nont2d`,
+`wl_oral_only`). Create both folders.
 
-Which model file to use is driven by the answers to 9a/9b — pass the
-matching file to Step 10's fit:
-- `model_type: rand_effect` (recommended default for new runs) →
-  `--model model_random.txt`
-- `model_type: fixed_effect` → `--model model_fixed.txt`
-- `model_type: simultaneous` (legacy) or omitted → `--model
-  model_simultaneous.txt`
-- `model_type: simultaneous_fixed` (legacy, fixed-effect delta) → `--model
-  model_simultaneous_fixed.txt` — use this instead of `simultaneous` whenever
-  `effect_type: absolute` is requested **and** the network is a full star.
+Write `study_selection_manifest.yaml` into the programs folder. Every study
+in the data must appear (include: true/false). This is the audit trail.
 
-**9c. No-placebo-arm studies (only if 9a lands on `rand_effect`/
-`fixed_effect`; skip this entirely if Step 3's list was empty).** Those two
-model types leave a no-placebo study disconnected from the network by
-default, matching the real production tool's own behavior (`model_type:
-simultaneous` already bridges every no-placebo study unconditionally,
-unaffected by this decision). Carry every study from Step 3's list into an
-explicit, no-silent-default ask here — propose "leave disconnected" (the
-default, and the one that matches production behavior) but require an
-explicit per-study answer, not a blanket accept, same treatment as a phase
-1/2 study got in Step 3.
+## Step 6 — Collect modelling preferences
 
-**Do NOT auto-correct anything from an earlier turn.** Because heterogeneity
-and effect type are both asked here, after Step 8c's real network structure
-is known, there's no earlier answer to reconcile — state the recommendation
-and let the statistician confirm or override it once, directly.
+Ask the design decisions — **no model-fitting preview at this stage:**
 
-## Step 10 — Produce analysis outputs and visualisations
+```
+Model specification:
+  1. Heterogeneity  ► random-effects (rand_effect) [default]
+                      or fixed-effect?
+  2. Effect         ► placebo-adjusted / relative [default]
+                      or absolute?
+  3. Route          ► both (oral + injectable) [default]
+                      or oral only / injectable only?
+  4. Evidence       ► both (observed + prediction) [default]
+                      or observed only / prediction only?
+```
 
-**10a. Fit the model.** This is where the pipeline scripts are first
-materialized this session — **Appendix D** (shell wrappers: `run_r.sh`,
-`run_with_jags.sh`) and **Appendix B1** (`run_bnma_pipeline.R`) get written
-to `/tmp/$(whoami)/cmh_ci_lib/`. Nothing before this step needs them.
+**(Region question is dropped entirely — not asked.)**
 
-Fit (or load a cached fit of) the model — `run_bnma_pipeline.R` with both
-`--manifest` and `--model` given builds the BATMAN matrices fresh and fits
-in one call. **Must go through the JAGS wrapper** — plain `Rscript` will
-fail to load `rjags` in this environment:
+Defaults proceed unless the user says otherwise. Once confirmed, update
+the manifest with `model_type` and `effect_type`.
 
+## Step 7 — Produce analysis outputs and visualisations
+
+**This is where scripts are first materialized.** Write Appendix D (shell
+wrappers) and Appendix B (`run_bnma_pipeline.R`, `make_forest_plot.R`) to
+`/tmp/$(whoami)/cmh_ci_lib/`.
+
+**7a. Fit the model.** Must use the JAGS wrapper:
 ```bash
 scripts/run_with_jags.sh scripts/run_bnma_pipeline.R \
-  --prd <prd_path.xlsx> --manifest <manifest.yaml> --model model_random.txt \
-  --out <programs_folder>/model_output.rds --cache <programs_folder>/samples_<run_name>.rds
+  --prd <prd_path.xlsx> [--qa <qa_path.xlsx>] \
+  --manifest <manifest.yaml> --model <model_file> \
+  --cache <programs_folder>/samples.rds
 ```
-**Scratch run:** point both `--out`/`--cache` at
-`/tmp/$(whoami)/bnma_scratch_<slug>/` instead.
 
-**Which model file to use is driven by the manifest's `model_type` field**
-(from Step 9) — pass the matching file here:
-- `model_type: rand_effect` (recommended default for new runs) →
-  `--model model_random.txt`
-- `model_type: fixed_effect` → `--model model_fixed.txt`
-- `model_type: simultaneous` (legacy) or omitted → `--model
-  model_simultaneous.txt`
-- `model_type: simultaneous_fixed` (legacy, fixed-effect delta) → `--model
-  model_simultaneous_fixed.txt` — use this instead of `simultaneous` whenever
-  `effect_type: absolute` is requested **and** the network is a full star
-  (per Step 9's heterogeneity-estimability check).
+Model file selection:
+- `rand_effect` → `model_random.txt`
+- `fixed_effect` → `model_fixed.txt`
+- `simultaneous` → `model_simultaneous.txt`
+- `simultaneous_fixed` → `model_simultaneous_fixed.txt`
 
-**MCMC settings and chain initialization follow the real production
-package's own documentation** (`EliLillyCo/CMH.BNMA`, provided 2026-08-20 —
-supersedes the NMA Output Review Process Guide-derived settings this skill
-used before) — n.adapt 10,000, burn-in 10,000, 20,000 sampling iterations
-thinned by 10 (3 chains), with chain 1 initialized to exactly 0 on
-the baseline (`phi`, and `m` for `model_simultaneous.txt`/
-`model_simultaneous_fixed.txt`) and
-treatment-effect (`d`) nodes and chains 2–3 drawing from those same nodes'
-own vague priors (Normal(0, SD=100)) — all built into `run_bnma_pipeline.R`
-itself, nothing to configure per run. Override via `--n_adapt`/`--n_burnin`/
-`--n_iter`/`--thin` if a specific run needs more (e.g. after manually
-inspecting the posterior and finding it under-mixed).
+MCMC: n.adapt=10000, burn-in=10000, 20000 iterations thinned by 10, 3 chains.
 
+**Star-network check:** The build step prints a heterogeneity estimability
+report. If full star network detected, inform the user:
+- "Full star network — `sigma` cannot be estimated, CIs will be
+  prior-inflated with random-effects. Recommend switching to
+  `fixed_effect`."
+- Do NOT auto-correct. Ask the user if they want to switch. If yes, refit
+  with `model_fixed.txt`.
 
-`model_random.txt`/`model_fixed.txt` are copied verbatim from the real
-production BNMA Shiny app (`BNMA_forest_plot-main.zip`, confirmed
-2026-08-17) — non-hierarchical `phi[i]~dnorm(0,0.0001)` baseline per study
-(the "separate model per Dias 2013" the NMA Output Review Process Guide
-already said was the team's stated standard), `sigma~dunif(0,8)`. The app's
-own UI defaults to the random-effect model, which is why this skill now
-does too. `run_bnma_pipeline.R` infers which variables to monitor from the
-`--model` value — no extra flag needed, and every existing driver
-script that already passes `--model model_simultaneous.txt` explicitly
-keeps working unchanged.
-
-`model_simultaneous.txt` (hierarchical/pooled baseline, `sigma~dunif(0,8)`,
-corrected 2026-08-19 to match the NMA Output Review Process Guide's explicit
-spec for this parameter) stays as a legacy option — it's the only one with a
-pooled baseline `m` node, which is required if you need `effect_type: absolute`
-(see Step 9b); the real production tool has no absolute-effect view at all,
-since a non-hierarchical model has no single global baseline to compute one
-from.
-
-**On a full star network, `model_simultaneous.txt` will hugely inflate every
-credible interval — use `model_simultaneous_fixed.txt` instead.** Found by
-testing (2026-08-19, the ADA oral compounds run — 21 treatments, every
-non-placebo node single-study): fitting `model_simultaneous.txt`'s *random*
-`delta[i,j]~dnorm(..., tau2)` on a star network produced CIs like
-orforglipron 6mg's -8.3 (95% CrI -18.1, 1.6) — nearly 20 points wide, versus
-that arm's own reported SE of 0.306. Root cause: with zero studies per node,
-`sigma` (delta's between-study SD) has no replication to estimate it from and
-is almost entirely prior-driven (posterior mean landed ~3.9, prior
-`dunif(0,8)`) — that ~4-point SD gets added on top of every arm's own much
-smaller trial SE. This is the exact same "fixed-effect is the objectively
-correct choice for a star network" argument already used above for
-`rand_effect`→`fixed_effect`; it applies equally to `model_simultaneous.txt`'s
-own delta structure. `model_simultaneous_fixed.txt` pairs the same
-hierarchical/pooled `phi`/`m` (still needed for the absolute-effect baseline)
-with a **deterministic** `delta[i,j]` (no `sigma`, same pattern as
-`model_fixed.txt`'s own delta block) — refitting the same data with this file
-tightened that same orforglipron 6mg arm to -8.4 (95% CrI -9.3, -7.5), tracking
-its own reported SE as expected. **Whenever `effect_type: absolute` is
-requested on a full-star network, recommend `model_simultaneous_fixed.txt`
-over `model_simultaneous.txt`** — same "inform the user and let them decide"
-rule as `rand_effect`→`fixed_effect` above (recommend fixed, but honour
-their explicit choice if they want random after being warned). `make_forest_plot.R`'s absolute-effect subtitle
-reports `τ` (`sigma`) when it exists and says so plainly when it doesn't
-(either this fixed-effect model, or an older cache predating `sigma`
-monitoring) rather than guessing which.
-
-**Independently reconfirmed 2026-08-20** against `kai7535_bnma_v3.R`, a real
-hand-written team script (found in the shared output tree this skill writes
-to) fit on this exact same ADA-oral dataset. That script always uses a
-`model_random.txt`-equivalent spec (independent `phi[i]~dnorm(0,0.0001)`,
-`sigma~dunif(0,8)`, one global `sigma` shared across every study-arm
-deviation) with no star-network check at all. Result: point estimates
-matched this skill's fixed-effect fit almost exactly (e.g. orforglipron 6mg
--6.8 vs. this skill's -6.9), but every single one of its 18 d-node CIs came
-out ~20-22 points wide regardless of that arm's own reported SE (0.3-2.1) —
-the uniform width across arms of wildly different precision is the
-tell-tale sign of one global, prior-dominated `sigma` swamping every
-interval, not real data-driven heterogeneity. This is the same mechanism as
-the `model_simultaneous.txt` finding above, just via `model_random.txt`'s
-structurally equivalent single-global-`sigma` delta instead — confirming
-that a hand-written random-effects script run on a full-star network,
-whichever model file it happens to use, will produce this same inflation,
-and that this skill's auto-correction to fixed-effect (or
-`model_simultaneous_fixed.txt`) is the one that actually tracks the source
-data's own precision.
-
-**10b. Pooled-placebo model (only for `effect_type: absolute`).**
-`effect_type: absolute`'s pooled baseline comes from a separate,
-standalone pooled-placebo model — not the main model's own `m`/`phi[i]`
-nodes at all. Adopted 2026-08-20 from the real production package's own
-pooled-placebo feature (`EliLillyCo/CMH.BNMA`,
-`pooled_placebo_model_utils.R`), superseding a 2026-08-19 fix that averaged
-`phi[i]` across only the studies with a real placebo arm from
-`model_simultaneous.txt`'s own fit. That fix was correct in spirit (a
-no-placebo study's `phi[i]` is purely a hierarchical-prior artifact with
-nothing real anchoring it — two such studies had `phi[i]` of -15 and -25
-against every real-placebo study's -3 to +1, dragging the naive `m`-based
-pooled baseline from a plausible ~-2% to an implausible -5.9%), but it was
-architecturally coupled to one specific legacy model file. A genuinely
-independent fit that only ever sees placebo data is cleaner, and — the
-actual payoff — it means `effect_type: absolute` now works with **any**
-`model_type`, including `rand_effect`/`fixed_effect` (the real production
-relative-effect models, which have no pooled baseline of their own at all
-and previously couldn't support an absolute view for exactly that reason).
-
-**No separate script call** — add `--fit-placebo --placebo-cache
-<placebo_samples.rds> --placebo-out <placebo_data.rds>` to 10a's own fit-mode
-command. It runs against the same in-memory `arm_rows` that call already
-built (no `arm_rows.rds` hand-off file needed):
+**7b. For `effect_type: absolute`**, also run the pooled-placebo model:
 ```bash
-scripts/run_with_jags.sh scripts/run_bnma_pipeline.R \
-  --prd <prd_path.xlsx> --manifest <manifest.yaml> --model model_random.txt \
-  --out <programs_folder>/model_output.rds --cache <programs_folder>/samples_<run_name>.rds \
-  --fit-placebo --placebo-cache <programs_folder>/placebo_samples_<run_name>.rds \
-  --placebo-out <programs_folder>/placebo_data_<run_name>.rds
+scripts/run_with_jags.sh scripts/fit_pooled_placebo_model.R \
+  --arm-rows <arm_rows.rds> --cache <programs_folder>/placebo_samples.rds \
+  --placebo-data-out /tmp/placebo_data.rds
 ```
-Then pass `--placebo-samples <placebo_samples.rds>` to `make_forest_plot.R`
-alongside `--effect absolute`. MCMC settings for this model are its own,
-lighter budget (n.adapt 1,000, burn-in 5,000, sampling 10,000, thin 10) —
-matching the production package's own settings for this specific model, not
-the main model's canonical 10k/10k/20k/10 (see 10a's MCMC settings note).
-Stops with an error if fewer than 2 studies have a usable placebo arm — same
-identifiability problem as the main model's own star-network check, just for
-`sigma_m` instead of `sigma`: with 1 study, there's no between-study
-variance to estimate at all.
 
-**Recommended: also render the pooled-placebo model's own QC plot**, so a
-reviewer can see the model is sane rather than trusting the number blind —
-10c's own forest plot only ever *consumes* `m`/`sigma_m`, it never shows the
-underlying per-study shrinkage. Same script as 10c, with `--qc-plot`:
+**7c. Forest plot.**
 ```bash
 scripts/run_r.sh scripts/make_forest_plot.R \
-  --model-output <model_output.rds> --manifest <manifest.yaml> \
-  --qc-plot <placebo_forest_plot.png> --placebo-data <placebo_data.rds> \
-  --placebo-samples <placebo_samples.rds>
-```
-Shows each contributing study's observed vs. posterior-shrunk placebo effect,
-the pooled `m`, and the predictive `mu_new` for a hypothetical new study —
-adapted 2026-08-21 from a colleague's independent implementation
-(`godwill-bnma` branch), which itself mirrors the production app's own
-`placebo_forest_plot()`. Not a numbered pipeline step (nothing downstream
-consumes its output) — render it whenever `effect_type: absolute` is used,
-same "always do this, don't wait to be asked" expectation as 10d's driver
-script.
-
-The plot's subtitle reports the pooled baseline (`μ`, with its own 95% CrI
-and the placebo model's own between-study `σ`) and `τ` (the between-study SD
-of the *relative* treatment effect — `sigma` from the MAIN model, not the
-placebo model's `sigma_m` — per the user's explicit convention), so a
-reviewer sees the method, not just the number.
-
-**This is a modelled, shrunk placebo level, not any single trial's observed
-placebo** — footnote it as such (this caveat, from a colleague's parallel
-`atlas` skill's `model_spec.md`, applies equally to our own exchangeable-
-baseline model) so it isn't mistaken for a directly-observed value.
-
-Give the cache file a run-specific name (per the workflow doc's "cached MCMC
-samples are expensive to regenerate, version-specific name" rule) — don't
-reuse another run's cache path. For a scratch run this is the *only* copy
-of the fit (not just pre-Step-7 scratch space) — don't let anything delete
-`/tmp/$(whoami)/bnma_scratch_<slug>/` until the statistician decides promote or
-discard (10e).
-
-**10c. Forest plot + footnote.**
-
-Materialize Appendix B3 (`make_forest_plot.R`) to this run's lib dir if not
-already done this session, then run:
-
-```bash
-scripts/run_r.sh scripts/make_forest_plot.R \
-  --model-output <programs_folder>/model_output.rds --samples <cache.rds> \
+  --samples <programs_folder>/samples.rds \
+  --arm-info /tmp/bnma_arm_info.rds \
+  --study-info /tmp/bnma_study_info.rds \
   --manifest <manifest.yaml> \
-  --effect relative --out <output_folder>/forest_plot.png
+  --effect relative \
+  --no-footnote \
+  --out <output_folder>/forest_plot.png
 ```
 
-**The footnote is no longer rendered on the plot image itself** (per
-2026-08-27 request — the plot ships clean, no caption). The script still
-prints the footnote text to the console — surface that back to the user so
-they have a traceability record in the chat transcript, even though it's not
-on the PNG. `--model-output` carries `arm_rows` as part of its bundle (built
-into every fit-mode run by default now, not an opt-in flag), so the printed
-footnote breaks "Contributing studies" out **per treatment** — e.g.
-`semaglutide: surmount-1, surmount-4` on its own line — rather than one
-flat list for the whole plot, so a reviewer can tell which studies fed
-which specific estimate. Without it (older driver scripts), the footnote
-falls back to the old flat, plot-wide list. Either way it also includes the
-source data path(s) and source program. Save the plot into the matching
-dated `output/shared/YYYYMMDD_.../`
-folder, not next to the manifest in `programs/`.
+**Display the plot** (Read tool) immediately.
 
-**Scratch run:** `--out /tmp/$(whoami)/bnma_scratch_<slug>/forest_plot.png` instead.
-**Display the image itself either way** (Read tool, same as 10d already
-requires for the driver script) — a scratch run's entire point is seeing
-the result, just without persisting it.
+Save outputs:
+- Forest plot → `/lillyce/qa/diabetes/bnma/obesity/output/shared/YYYYMMDD_<slug>/`
+- Samples/manifest → `/lillyce/qa/diabetes/bnma/obesity/programs/YYYYMMDD_<slug>/`
 
-Every plotted treatment label carries a superscript marking its evidence
-type — `°` for observed, `ᵖ` for projection, `°ᵖ` for an arm fed by both
-(e.g. a shared placebo arm) — so a reviewer QC'ing the PNG can tell which
-arms are real trial data vs. modeled without cross-referencing the manifest.
-A one-line legend ("° = observed, ᵖ = projection") is appended to the
-console-printed footnote automatically — not on the image itself, since the
-footnote is no longer rendered there (see above).
+## What this skill does NOT do
 
-**Never produce both `--effect relative` and `--effect absolute` "for
-completeness" unless the user explicitly asked, or the manifest states
-`effect_type: both`** — this doubles unrequested output, and the absolute
-view needs its own footnote caveat (see 10b's "modelled, shrunk placebo
-level" note) that's easy to skip if it wasn't deliberately asked for
-(cherry-picked from `atlas`'s own anti-pattern table, 2026-08-19).
-
-**Layout and color palette (aligned 2026-08-19 to the team's own T2D forest
-plot reference):** each row's value label sits directly above its own point
-(nudged along the treatment axis), not in a fixed side column, and
-`Compound` (capitalized) is the legend title, not the aes name. Colors are a
-fixed, named palette (`FIXED_COMPOUND_COLORS` in `make_forest_plot.R`) for
-the compounds the reference plot showed — `semaglutide`, `cagrisema`,
-`maritide`, `retatrutide`, `berobenatide`, `tirzepatide`, `placebo` — so
-runs plotting any of these line up with that convention exactly. Any other
-compound falls back to `generate_fallback_colors()` (RColorBrewer `"Set3"`,
-darkened 0.3, extended via `colorRampPalette` beyond 12 compounds) rather
-than erroring or rendering blank — matches the real production package's
-own `generate_color_palette()` (confirmed 2026-08-20, `EliLillyCo/CMH.BNMA`
-`R/plot_utils.R`, used by that package's own BNMA-results forest plot
-specifically — checked call sites directly: that package's dose-*shaded*
-`build_color_map()` turned out to feed an unrelated raw-data bar chart, not
-its forest plot, so it was deliberately not adopted here). Extend
-`FIXED_COMPOUND_COLORS` as more of the team's own conventions are confirmed,
-don't just hardcode a one-off run's colors elsewhere.
-
-**10d. Generate the driver script.**
-
-**Applies to persisted runs only.** For a scratch run (Step 4/8), skip this
-part entirely — a driver script pointing at `/tmp` paths that vanish on
-reboot isn't reproducible, so there's nothing useful to generate yet. End
-the turn instead with the promote-or-discard offer in 10e.
-
-**Do this for every persisted run, without being asked — a run is not
-finished until this step happens and its output is shown.** Found by a
-colleague testing this skill (2026-08-20, twice in one session, `godwill-bnma` branch): once a
-plot is on screen it's easy to treat the turn as done and skip straight to
-summarizing results — this step was silently dropped entirely on one run,
-and even after being reinstated, the next run wrote the file but never
-displayed it. Both are the same failure: the user has no R code to inspect,
-audit, or re-run unless it's actually shown to them. **Immediately after
-writing the driver script, use the Read tool (or otherwise print) its full
-contents back to the user in the same turn — a "driver script written to
-`<path>`" message with no code shown does not satisfy this step.**
-
-Once the manifest-driven run is finished (BATMAN built, model fit, plot(s)
-rendered) and the user is happy with the plot, write a driver script into
-the same dated `programs/YYYYMMDD_.../` folder, e.g. `run_bnma_<slug>.R`,
-that reproduces the run from scratch as a **fully standalone, self-contained
-R script** — no `system2()`, no `source()` to skill scripts, no dependency
-on `.claude/skills/` being installed. A colleague with just R + JAGS can
-`Rscript run_bnma_<slug>.R` and reproduce the entire run without this skill,
-without Claude Code. This matches the team's own convention
-(`kai7535_bnma_v3.R`, `efficacy_bnma_v3_misc8.R`, `BNMA_sex.R`).
-
-The skill's own scripts are used **internally during the session only** to
-run gates and catch problems interactively. The standalone script is the
-frozen, already-validated result that comes out the other end.
-
-**Structure (mandatory, matching the real team convention):**
-
-1. **Lilly SOH header** (the standard `#/*soh*...` block):
-   - CODE NAME: `programs/YYYYMMDD_reason/run_bnma_<slug>.R`
-   - PROJECT NAME: `<plot title or run description>`
-   - DESCRIPTION: `BNMA for <endpoint> — <N> treatments from <N> studies`
-   - DATA INPUT: `<source xlsx path(s)>`
-   - OUTPUT: `output/shared/YYYYMMDD_reason/<plot filenames>`
-   - REVISION HISTORY: `1.0  Generated by bnma skill  Original version`
-
-2. **Libraries** — `rm(list=ls())` then:
-   `library(dplyr)`, `library(rjags)`, `library(readxl)`, `library(ggplot2)`,
-   `library(stringr)`, `library(coda)`, `library(magrittr)`
-
-3. **CONFIG block** — all editable knobs as plain variables at the top:
-   - `out_dir` — points to the `output/shared/YYYYMMDD_reason/` folder
-   - `data_file` — source Excel path
-   - `EXCLUDED_STUDIES` — named character vector of studies to exclude (can
-     be empty `c()` if all included)
-   - `PLACEBO_VARIANTS` — character vector of placebo subgroup labels to
-     consolidate into "Placebo" (e.g. `c("Placebo (pseudo)", ...)`)
-   - `inits.list` — 3-chain Wichmann-Hill seeds
-
-4. **JAGS model** — written inline via `cat('model{...}', file = model_path)`
-   where `model_path <- file.path(out_dir, "model_flat.txt")`. The exact
-   model text for this run, verbatim — NOT read from an external file.
-
-5. **`run_nma()` helper function** — takes `(data_subset, rds_tag)`, returns
-   `list(BNMA_out, arm_info)`. Internally:
-   - Filters out `EXCLUDED_STUDIES`, consolidates `PLACEBO_VARIANTS`
-   - Drops existing `study_ind`/`arm_ind`, re-derives from unique lists
-     (Placebo forced to arm_ind 1)
-   - Builds BATMAN matrices with explicit for-loops (the team's style)
-   - **RDS caching**: `if (file.exists(rds_path)) readRDS() else { fit; saveRDS() }`
-   - Returns `list(BNMA_out = data.frame(node, mean, val2.5pc, val97.5pc), arm_info)`
-
-6. **`make_forest()` helper function** — takes `(res, trt_levels, plot_file)`:
-   - Joins arm_info to BNMA_out, filters/orders by `trt_levels`
-   - Colour map from sorted compounds (alphabetical → reference palette)
-   - `geom_pointrange(aes(col=Compound))` + `coord_flip()` +
-     `geom_text(label, vjust=1.6, size=4.5)`
-   - Font sizes: axis 18pt, title 14pt bold, legend 18pt
-   - No caption on the plot itself (matches the interactive session's own
-     make_forest_plot.R — see Step 10c) — trace the run via the manifest and
-     this script's own header instead.
-   - `ggsave(width=14, height=max(8, 0.45*n_trts+2), dpi=150)`
-
-7. **Read data + call helpers** — `read_excel() %>% rename(study=Study, treat=Treatment)`,
-   optionally merge supplementary `.rds` via `bind_rows()`, then call
-   `run_nma()` and `make_forest()` one or more times (e.g. "without X" then
-   "with X").
-
-**What the standalone script does NOT include** (by design):
-- The naming/pooling QA check (resolved during the session)
-- Any `system2()` or `source()` to the skill's own scripts
-- Any dependency on `.claude/skills/` existing
-
-Fill in every value from the actual run — no `<...>` placeholders left. It
-must be directly `Rscript run_bnma_<slug>.R`-runnable with no editing.
-
-**If Step 8a's Project CLAUDE.md item was accepted**, write
-`programs/<slug>/CLAUDE.md` in the same turn as the driver script, and show
-its contents too (same "must be shown, not just written" rule). Populate it
-entirely from the manifest and Steps 3/9a's answers already in hand — this is
-not a new round of data collection:
-
-```markdown
-# <slug>
-
-<one-line purpose -- from Step 3's free-form context if the statistician
-gave one, else derived from the endpoint/dataset, e.g. "Weight-loss BNMA,
-oral compounds, for the ADA submission">
-
-## Data
-- Source: <manifest source_data.prd path> [+ <source_data.qa path>]
-- Endpoint: <effect_col> / <se_col>
-- Filters: route=<route_filter>, evidence=<evidence_filter>, region=<region_filter>
-
-## Key decisions
-- model_type: <model_type>, decided in Step 9 with the real network structure already known
-- Studies excluded: <list + reasons, from manifest, or "none">
-- Naming/pooling resolutions: <list, from manifest, or "none">
-
-## Re-running
-See `run_bnma_<slug>.R` in this folder — reproduces the fit and plot from
-scratch. Full decision record: `manifest.yaml`.
-```
-
-**10e. Promoting (or discarding) a scratch run.**
-
-For a scratch run, end the turn with an explicit summary instead of 10d's
-driver script:
-
-> **SCRATCH RUN** — nothing written to `programs/`, `output/shared/`, or
-> `compound_registry.yaml`. Artifacts are in `/tmp/$(whoami)/bnma_scratch_<slug>/` and
-> won't survive a reboot. Reply **promote** to write this exact run for
-> real, or just move on and it's discarded automatically.
-
-**If the statistician replies "promote":**
-1. Create `programs/YYYYMMDD_<slug>/` and `output/shared/YYYYMMDD_<slug>/`
-   now (same naming Step 8 would have used had this not been a scratch
-   run).
-2. Copy `manifest.yaml` and `samples.rds` from `/tmp/$(whoami)/bnma_scratch_<slug>/`
-   into `programs/<slug>/`; copy `forest_plot.png` into
-   `output/shared/<slug>/`. **No refitting** — a scratch run's outputs are
-   byte-identical to what a persisted run would have produced, since
-   nothing in Steps 1-6 branches on where the file ends up, only on what
-   path gets passed. Promoting is a filesystem operation, not a re-run.
-3. If Step 2 held back a naming-registry resolution for this run, persist
-   it now (Edit tool → `compound_registry.yaml`) — it's no longer a
-   throwaway decision.
-4. Run Step 8 for real: generate and show the driver script.
-
-This is also the answer to "I want to redo this without documenting a
-failed attempt" — a scratch run *is* that undocumented iteration space.
-Nothing about a discarded scratch run needs mentioning again; there is no
-partial artifact on the shared drive to explain away, unlike a persisted
-run that turned out wrong.
-
-## Utilities (not numbered pipeline steps)
-
-**`make_forest_plot.R --contrast`** — resolves a contrast between two
-treatments by name from an already-fitted run, instead of a hardcoded
-posterior index (the exact anti-pattern this replaces, seen in real analyst
-code: `TZP15_vs_Sema72 <- d[18] - d[89]`, silently wrong if treatment order
-ever shifts). Cherry-picked from `atlas`, 2026-08-19; folded into
-`make_forest_plot.R` (Appendix B3) as a mode rather than its own file
-(consolidated 2026-08-27). No new script to materialize:
-```bash
-scripts/run_r.sh scripts/make_forest_plot.R \
-  --model-output <model_output.rds> --samples <cache.rds> --manifest <manifest.yaml> \
-  --contrast "<treatment name 1>|||<treatment name 2>"
-```
-Use whenever a specific head-to-head comparison is needed from a run that's
-already been fit — not part of the numbered pipeline above.
-
-## Non-goals
-
-- No external grounding (ClinicalTrials.gov/INN lookups) for the naming
-  check — string-similarity + same-study disconfirmation + a persisted
-  registry only.
-- Does not touch `/home/l138303/BNMA` (an unrelated LLM-extraction/curation
-  app project that happens to share the name).
-- ~~No absolute-effect view for `model_type: rand_effect`/`fixed_effect`~~
-  — **no longer true, superseded 2026-08-20.** The standalone pooled-placebo
-  model (Step 10b's `run_bnma_pipeline.R --fit-placebo`, adopted from
-  `EliLillyCo/CMH.BNMA`) supplies the baseline independently of the main
-  model, so `effect_type: absolute` now works with every `model_type`
-  including `rand_effect`/`fixed_effect`. `BNMA_forest_plot-main.zip`'s own
-  lack of an absolute view (confirmed 2026-08-17) reflected that *older*
-  reference tool specifically, not a structural limitation of
-  `model_random.txt`/`model_fixed.txt` — CMH.BNMA (the newer, preferred
-  reference — confirmed 2026-08-20) has one via this separate model.
-- No automated post-fit diagnostics — no Rhat/ESS convergence check, no
-  network-connectivity/consistency/DIC check (removed 2026-08-24, matching
-  `EliLillyCo/CMH.BNMA`'s own behavior). A fit's plausibility is on the
-  analyst to verify by hand if there's reason to doubt it.
+- No region question (dropped)
+- No model-fitting preview before design decisions
+- No driver script generation (the manifest is the audit trail)
+- No automated post-fit diagnostics (matches EliLillyCo/CMH.BNMA)
+- No compound_registry.yaml persistence
+- No Project CLAUDE.md generation
 
 ---
 
