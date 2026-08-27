@@ -112,8 +112,8 @@ reproducing that history here.
 8. Build the real model input: propose working folders, write a manifest
    recording every decision made so far, build the dataset the model will
    actually see.
-9. Now that the real study network is known, recommend random- vs.
-   fixed-effects -- informed by that real network, not asked blind.
+9. Ask random- vs. fixed-effects -- whatever the statistician picks is
+   final, with no network-informed recommendation offered afterward.
 10. Fit the model, render both the relative- and absolute-effect forest
    plots, write the per-run RMD report, and write a standalone,
    re-runnable R script -- nothing about reproducing the run depends on
@@ -372,10 +372,8 @@ Default proceeds unless the user says otherwise. Once confirmed, update
 the manifest with `model_type`.
 
 **This decision is final.** Once the user answers Heterogeneity here,
-don't re-ask — not even if Step 7's star-network check recommends
-something else. A recommendation surfaced after the fact is information,
-not a renewed prompt; see Step 7's star-network check for how to report it
-without re-litigating a choice the user already made.
+don't re-ask, and don't re-litigate it later — whatever they pick is
+used as-is, with no post-hoc network-based recommendation.
 
 ## Step 7 — Produce analysis outputs and visualisations
 
@@ -428,17 +426,6 @@ let a `--contrast` follow-up or a re-plot skip re-running MCMC within the
 same session; they are not part of the audit trail (the manifest + script
 are what make the run reproducible, not the raw posterior draws) and must
 not be copied into `programs/YYYYMMDD_<slug>/`.
-
-**Star-network check:** the build phase (which runs before the JAGS
-compile, in the same process) prints a heterogeneity estimability report.
-If a full star network is detected, tell the user:
-- "Full star network — `sigma` cannot be estimated, CIs will be
-  prior-inflated with random-effects. (Pipeline recommendation:
-  `fixed_effect`.)"
-- Report this once, as information, alongside the results. Do NOT ask
-  whether to switch and rerun — Step 6's `model_type` choice is final (see
-  Step 6). Only re-fit with a different `--model` if the user brings it up
-  on their own in a later message.
 
 **Display both plots** (Read tool) immediately.
 
@@ -494,8 +481,9 @@ rather than re-deriving anything:
 - No relative-vs-absolute question (Step 6) — every run always produces
   both plots (Step 7)
 - No model-fitting preview before design decisions
-- No re-asking Step 6's `model_type` choice once made (it's final — the
-  star-network check in Step 7 reports, it doesn't re-prompt)
+- No re-asking Step 6's `model_type` choice once made, and no post-hoc
+  network-based recommendation for it either — the statistician's answer
+  is used as-is
 - No `samples.rds`/`placebo_samples.rds` in the programs folder (MCMC
   caches stay in `/tmp` scratch; only the manifest + script + RMD report
   persist there)
@@ -779,8 +767,8 @@ unrelated concerns for a rarely-invoked feature.
 
 One mode: `--manifest` and `--model` are both required. The script always
 does the same four things in the same process, in order — load+merge PRD/QA
-→ build the BATMAN matrices (manifest fields, phantom-placebo handling,
-heterogeneity-estimability print) → fit the JAGS model (optionally the
+→ build the BATMAN matrices (manifest fields, phantom-placebo handling)
+→ fit the JAGS model (optionally the
 pooled-placebo sub-model too, via `--fit-placebo`) → render the forest plot
 (`--plot --plot-out <path>`, optional; `--contrast "a|||b"` prints a named
 posterior contrast instead and skips plotting). No `run_r.sh`/
@@ -895,41 +883,6 @@ QA_NUMERIC_COLS <- c(
 recast_numeric_cols <- function(df) {
   present <- intersect(QA_NUMERIC_COLS, names(df))
   dplyr::mutate(df, dplyr::across(dplyr::all_of(present), as.numeric))
-}
-
-#' Whether this network's data can actually support a random-effects
-#' heterogeneity estimate (see pf_nma.R's star-network precedent, quoted at
-#' length in SKILL.md Step 7's star-network check) -- per non-placebo
-#' treatment node, how many distinct studies feed it.
-compute_heterogeneity_estimability <- function(data_recon) {
-  per_node <- data_recon %>%
-    dplyr::filter(arm_ind != 1) %>%
-    dplyr::group_by(arm_ind) %>%
-    dplyr::summarise(n_studies = dplyr::n_distinct(study_ind), .groups = "drop")
-  n_multi_study  <- sum(per_node$n_studies >= 2)
-  n_single_study <- sum(per_node$n_studies == 1)
-  is_star_network <- nrow(per_node) > 0 && n_multi_study == 0
-  list(
-    n_nodes_total = nrow(per_node),
-    n_nodes_multi_study = n_multi_study,
-    n_nodes_single_study = n_single_study,
-    is_star_network = is_star_network,
-    recommendation = if (is_star_network) {
-      "fixed_effect -- every treatment node is fed by exactly one study; heterogeneity is not estimable from this data (per pf_nma.R's identical situation and rationale)."
-    } else {
-      "rand_effect (or fixed_effect, analyst's choice) -- at least one node has multi-study support, so heterogeneity can be estimated from the network as a whole."
-    }
-  )
-}
-print_heterogeneity_estimability <- function(het) {
-  cat("=== Heterogeneity Estimability ===\n")
-  cat("Treatment nodes:", het$n_nodes_total,
-      " (", het$n_nodes_multi_study, "with >=2 studies,",
-      het$n_nodes_single_study, "with exactly 1 study)\n")
-  if (het$is_star_network) {
-    cat("*** STAR NETWORK -- every node is single-study. ***\n")
-  }
-  cat("Recommended model_type:", het$recommendation, "\n")
 }
 
 # --------------------------------------------------------------------------
@@ -1243,7 +1196,7 @@ cat(
 )
 
 # ==========================================================================
-# BUILD -- manifest fields, phantom-placebo handling, heterogeneity check.
+# BUILD -- manifest fields, phantom-placebo handling.
 # Always runs before the fit below; derived fresh from the manifest every
 # invocation (no intermediate cache between build and fit, so there's no
 # risk of a stale batman_data surviving a manifest edit).
@@ -1504,8 +1457,6 @@ for (i in seq_len(ns)) {
   }
 }
 batman_data <- list(na = na_vec, M = M, ns = ns, trt = trt, y = y, se = se)
-
-print_heterogeneity_estimability(compute_heterogeneity_estimability(data_recon))
 
 arm_info <- data_recon %>%
   mutate(node = paste0("d[", arm_ind, "]")) %>%
