@@ -13,9 +13,9 @@ description: >
   plot from one, or mentions "/cmh-ci", "what's in this data", "what
   studies/compounds do we have", "run the BNMA", "run the meta-analysis",
   "BATMAN", "landscape forest plot", or "competitive intelligence deck
-  figures". Also triggers on "/cmh-ci-explain" or a plain request to walk
-  through/outline what this workflow does -- that variant only explains the
-  steps in plain language and touches no data, file, or folder.
+  figures". Every invocation opens with a landing page explaining the
+  workflow before touching any data, file, or folder, and proceeds only on
+  explicit confirmation.
 ---
 
 # /cmh-ci
@@ -58,58 +58,53 @@ don't collect modelling preferences until the real dataset — and its
 network structure — is actually known.
 
 ```
+Landing page  Explain the workflow end-to-end, ask to proceed
 Step 1  Introduce the PRD dataset, list studies, ask which to include
 Step 2  Ask whether additional, non-PRD data should be incorporated
+        (including a link/publication extraction pathway)
 Step 3  Convert and structure any additional data into the QA format
         (only if Step 2 said yes)
 Step 4  Merge the supplemental data into QA and re-load
         (only if Step 2 said yes)
 Step 5  Confirm ready to run BNMA, create folders, write manifest
-Step 6  Collect modelling preferences (random/fixed, relative/absolute,
-        route, evidence)
-Step 7  Produce analysis outputs (fit model, forest plot)
+Step 6  Collect modelling preferences (random/fixed, route, evidence)
+Step 7  Produce analysis outputs (relative + absolute forest plots,
+        RMD report)
 ```
 
 **Do not skip steps or assume defaults on the user's behalf on anything
 genuinely discretionary.** The whole point of this skill is that a low-dose
 Phase 2 study or an oral/injectable mix-up must never enter a model silently
-again. Step 1 lists studies and asks which to include. Step 2 asks about
-new data. Step 5 asks whether to actually run a BNMA. Step 6 collects
-design decisions (random/fixed, relative/absolute). Only then does
-Step 7 fit the model and produce the plot.
+again. The landing page explains the workflow and asks to proceed before
+touching anything. Step 1 lists studies and asks which to include. Step 2
+asks about new data. Step 5 asks whether to actually run a BNMA. Step 6
+collects design decisions (random/fixed). Only then does Step 7 fit the
+model and produce both plots plus the RMD report.
 
-## `/cmh-ci-explain` — describe the workflow, touch nothing
+## Landing page — shown before anything is touched
 
-A distinct, self-contained path for a statistician who wants to understand
-what this skill actually does before running it, or wants to explain it to
-a colleague — not a shortcut into the workflow itself. Only triggers on an
-explicit ask for an explanation of the workflow (literally
-`/cmh-ci-explain`, or "what does this skill do," "walk me through the
-steps," "what happens if I run this") — never inferred from a data
-question like "what's in this data," which is Step 1's own job and does
-load real data.
-
-When this fires: **do not** search for a PRD/QA file, run
-`run_bnma_pipeline.R`, propose folders, write a
-manifest, or touch `compound_registry.yaml` — nothing on this path reads or
-writes anything outside this response. Reply with the outline below, then
-end the turn. Only move into the real workflow (starting at Step 1) if the
-statistician separately says so afterward — nothing carries over from this
-explanation, since nothing was touched.
+Every `/cmh-ci` invocation opens here, before any search, read,
+`run_bnma_pipeline.R` call, manifest write, or `compound_registry.yaml`
+access. Frame it for a statistician deciding whether to run this: what
+each step asks *them* to decide and why the decision is forced into the
+open, not the R/JAGS mechanics underneath. Point to `DESIGN.md` in this
+skill's repo (or the project's `GUIDE_README.md`) for anyone who wants the
+deeper "why" — the incident history behind a given step — rather than
+reproducing that history here.
 
 ```
 1. Show what's actually in the PRD/QA data -- studies, compounds, phases,
    evidence tiers -- before asking for any decision.
-2. Ask which studies/compounds you care about, then settle endpoint,
-   route, evidence, and region -- one short question at a time, each with
-   a stated default.
+2. Ask which studies/compounds you care about, then settle route and
+   evidence -- one short question at a time, each with a stated default.
 3. Show the exact study list and any naming/route conflicts as one
    grouped confirmation -- nothing is silently assumed, especially not a
    Phase 1/2 or prediction-tier study.
 4. Ask whether that confirmed subset is enough, or whether outside data
-   (a press release, a hand-digitized slide, another workbook) should be
-   folded in.
-5-6. If yes: get that data into the right shape and merge it in, looping
+   (a press release, a hand-digitized slide, another workbook, or a link
+   to a publication) should be folded in.
+5-6. If yes: get that data into the right shape (asking observed vs.
+   predicted for anything pulled from a link) and merge it in, looping
    back to #4 until the subset is confirmed sufficient.
 7. Confirm the goal is actually to fit a model at all -- reviewing or
    updating the data can be the whole point of a session, and that's a
@@ -118,23 +113,29 @@ explanation, since nothing was touched.
    recording every decision made so far, build the dataset the model will
    actually see.
 9. Now that the real study network is known, recommend random- vs.
-   fixed-effects and relative- vs. absolute-effect -- informed by that
-   real network, not asked blind.
-10. Fit the model, render the forest plot, and write a standalone,
+   fixed-effects -- informed by that real network, not asked blind.
+10. Fit the model, render both the relative- and absolute-effect forest
+   plots, write the per-run RMD report, and write a standalone,
    re-runnable R script -- nothing about reproducing the run depends on
    this chat still existing.
 ```
 
-Frame it for a statistician, not a developer: what each step asks *them*
-to decide and why the decision is forced into the open, not the R/JAGS
-mechanics underneath. If they want more depth than this outline (why a
-given step exists, what incident it traces back to), point them at
-`DESIGN.md` in this skill's repo rather than reproducing that history here.
+End with an explicit question, e.g.:
 
-**The one thing that always still interrupts, even after that reply: a hard
-gate failure** — `run_bnma_pipeline.R` refusing to run because a study is
-missing from the manifest. Continuing silently past that would defeat the
-actual purpose of the skill, not just its UX.
+```
+Would you like me to search for the relevant PRD/QA files and get started?
+```
+
+- **Explicit yes** ("yes," "let's proceed," etc.) → proceed directly into
+  Step 1.
+- **"No" or anything non-affirmative/ambiguous** → end the turn without
+  touching anything. Nothing carries over from this page, since nothing
+  was touched.
+
+**The one thing that always still interrupts, even downstream of this
+page: a hard gate failure** — `run_bnma_pipeline.R` refusing to run
+because a study is missing from the manifest. Continuing silently past
+that would defeat the actual purpose of the skill, not just its UX.
 
 **This skill does not run any automated post-fit diagnostics** (no Rhat/ESS
 convergence check, no network-connectivity/consistency/DIC check) — matches
@@ -213,7 +214,8 @@ Once the user confirms which studies they want, ask:
 
 ```
 Do you have any additional data to add before fitting?
-(e.g. a press release, new readout, hand-digitized data, another workbook)
+(e.g. a press release, new readout, hand-digitized data, another workbook,
+or a link to a publication)
 ```
 
 If **no** → proceed to Step 5.
@@ -226,6 +228,8 @@ Get the new data in any form:
 - Pasted rows in the prompt
 - A file path (xlsx, csv)
 - "Take X from file Y" — read and filter
+- **A link attached in chat** (publication, press release, or other web
+  source) — see "Link/publication extraction pathway" below.
 
 Map it into the QA schema (`study_name`, `treatment`, `compound`, `aom`,
 `phase`, `pchg_wl_ee`, `se_wl_ee`, etc.). Fill what's known from context,
@@ -233,28 +237,90 @@ leave optional fields NA.
 
 Show the user exactly what rows will be added — a table — and confirm.
 
+### Link/publication extraction pathway
+
+When the user attaches a link instead of pasting rows or pointing at a
+file:
+
+1. Fetch/extract the study data directly from that source — generic, not
+   publication-specific (works the same for a publication, press release,
+   or any other web source).
+2. **Ask the user whether the extracted data is observed or predicted —
+   never infer this.** The answer sets the destination QA sheet
+   (`Observed` vs `Prediction`, matching `append_to_qa.R`'s `--sheet`
+   argument) and feeds `analysis_method`/`derivation_spec`.
+3. Map the extracted fields into the QA column schema:
+
+   | Column | Meaning |
+   |---|---|
+   | `time_entry` | date row entered/updated, `yyyymmdd` |
+   | `treatment` | arm label, e.g. `tirzepatide 15mg` |
+   | `compound` | compound/molecule name |
+   | `phase` | trial phase, e.g. `phase 3`; for Prediction rows, the phase it's *from*, not *for* |
+   | `sponsor` | study sponsor, e.g. `lilly` |
+   | `n` | arm sample size |
+   | `pchg_wl_ee` | % weight change, efficacy estimand (non-pbo adj) |
+   | `se_wl_ee` | SE of `pchg_wl_ee` |
+   | `pchg_wl_tre` | % weight change, treatment-regimen estimand (non-pbo adj) |
+   | `se_wl_tre` | SE of `pchg_wl_tre` |
+   | `baseline_wgt` | baseline body weight |
+   | `study_duration` | study/analysis duration, e.g. `68 week` |
+   | `study_name` | study identifier |
+   | `data_type` | source type — set to `"publication"` for this pathway (or the appropriate source-type value for the attached link) |
+   | `source` | citation/URL — set to the exact link the user provided; for Prediction rows this is the source program location for deriving the value |
+   | `population` | population, e.g. `obese non-t2d, background therapy` |
+   | `route` | `Oral` vs `Injectable` |
+   | `analysis_method` | method, e.g. `mmrm` on treatment; Prediction method |
+   | `curator_name` / `curator_note` | curator name/notes once curation is done |
+   | `qc_name` / `qc_note` | QC name/comments once QC is done |
+   | `derivation_spec` | formula/method when a value is derived |
+
+   Match column names/casing to whatever the live QA workbook actually
+   uses at read time (it also carries an `aom` route-family column and
+   split `observed`/`prediction` tabs) rather than hardcoding — the table
+   above is the authoritative field set to populate.
+
+4. **Mandatory fields — never leave blank/skipped without flagging it:**
+   `time_entry`, SE (`se_wl_ee`/`se_wl_tre` as applicable — if not
+   directly reported and must be derived, record the method in
+   `derivation_spec`), `study_duration`, `sponsor`, `baseline_wgt`,
+   `population`, and `source` (the exact link provided). If any of these
+   can't be determined from the source, flag it to the user explicitly
+   and ask them to supply it — never guess or leave it silently blank.
+5. Show the mapped row(s) for confirmation — same table-confirmation
+   pattern as any other source in this step — then follow Step 2's
+   existing merge question. This pathway feeds the same merge decision;
+   it doesn't bypass it.
+
 ## Step 4 — Merge the supplemental data with the selected PRD subset
 
-Once confirmed, append the new rows to the QA file:
+Once confirmed, target the **existing** QA file rather than assuming a
+fixed filename: find the most recent dated file matching
 
 ```
-QA file: /lillyce/qa/diabetes/bnma/obesity/data/shared/weight/cwm_wl_nont2d_qa_YYYYMMDD.xlsx
+/lillyce/qa/diabetes/bnma/obesity/data/shared/weight/cwm_wl_nont2d_qa_YYYYMMDD.xlsx
 ```
 
-(Convention: swap `/prd/` → `/qa/` and `_prd_` → `_qa_` in the filename.)
+in that directory (convention: swap `/prd/` → `/qa/` and `_prd_` →
+`_qa_` in the filename).
 
-If no QA file exists yet, create it directly — don't ask. A new QA
-workbook (PRD schema, Observed/Prediction sheets) is created and populated
-with the confirmed rows in the same step; Step 3's table confirmation is
-the only gate before this happens.
+If **no** file matching that pattern exists at all, confirm with the
+user before creating one — never create silently. Only once confirmed,
+create it directly (PRD schema, Observed/Prediction sheets) via
+`append_to_qa.R`'s `--create-from` fallback.
 
-Append (and create-if-missing) using `append_to_qa.R`:
+Append using `append_to_qa.R`, targeting the located file:
 ```bash
 module load R/4.4.2 2>/dev/null
 Rscript scripts/append_to_qa.R \
-  --qa <qa_path.xlsx> --sheet <Observed|Prediction> \
-  --rows /tmp/new_rows.rds --create-from <prd_path.xlsx>
+  --qa <located_qa_path.xlsx> --sheet <Observed|Prediction> \
+  --rows /tmp/new_rows.rds
 ```
+
+Only pass `--create-from <prd_path.xlsx>` in the rare case above (no
+existing QA file found, and the user confirmed creating a new one) —
+`--create-from` stays in the script as a fallback, it just isn't this
+step's default path anymore.
 
 Show the append (or create) summary. No separate reload is needed here —
 Step 7's `run_bnma_pipeline.R` always loads PRD + QA fresh, so the new
@@ -287,25 +353,26 @@ in the data must appear (include: true/false). This is the audit trail.
 
 ## Step 6 — Collect modelling preferences
 
-Ask the design decisions — **no model-fitting preview at this stage:**
+Ask the design decision — **no model-fitting preview at this stage:**
 
 ```
 Model specification:
-  1. Heterogeneity  ► random-effects (rand_effect) [default]
-                      or fixed-effect?
-  2. Effect         ► placebo-adjusted / relative [default]
-                      or absolute?
+  Heterogeneity  ► random-effects (rand_effect) [default]
+                   or fixed-effect?
 ```
 
 **(Region, Route, and Evidence questions are dropped entirely — not
 asked. `route_filter` and `evidence_filter` are never set by the user
 here and stay at their manifest default of `"both"`.)**
 
-Defaults proceed unless the user says otherwise. Once confirmed, update
-the manifest with `model_type` and `effect_type`.
+**Effect (relative vs. absolute) is not asked here** — Step 7 always
+produces both, so there's nothing to choose.
 
-**This decision is final.** Once the user answers Heterogeneity and Effect
-here, don't re-ask — not even if Step 7's star-network check recommends
+Default proceeds unless the user says otherwise. Once confirmed, update
+the manifest with `model_type`.
+
+**This decision is final.** Once the user answers Heterogeneity here,
+don't re-ask — not even if Step 7's star-network check recommends
 something else. A recommendation surfaced after the fact is information,
 not a renewed prompt; see Step 7's star-network check for how to report it
 without re-litigating a choice the user already made.
@@ -315,10 +382,10 @@ without re-litigating a choice the user already made.
 **This is where the script is first materialized.** Write Appendix B's
 `run_bnma_pipeline.R` to `/tmp/$(whoami)/cmh_ci_lib/run_bnma_pipeline.R`.
 It is the only script this step needs — load+merge, build BATMAN, fit the
-JAGS model, optionally fit the pooled-placebo model, and render the
-forest plot all happen in **one R process, one invocation**. There is no
+JAGS model, fit the pooled-placebo model, and render both forest plots
+happen across **two invocations of the same R script**; there is no
 separate plotting script and no shell wrapper: `module load` runs inline
-in the command below.
+in the commands below.
 
 Model file selection:
 - `rand_effect` → `model_random.txt`
@@ -328,18 +395,23 @@ Model file selection:
 
 MCMC: n.adapt=10000, burn-in=10000, 20000 iterations thinned by 10, 3 chains.
 
-**Relative effect (default):**
+**Every run always produces both effect plots — this is not a user
+choice (see Step 6).** Run the relative-effect invocation first, then the
+absolute-effect invocation; the second reuses the first's `--cache`
+samples, so the JAGS model is fit once, not twice.
+
+**1. Relative effect:**
 ```bash
 module load R/4.4.2 jags 2>/dev/null
 Rscript /tmp/$(whoami)/cmh_ci_lib/run_bnma_pipeline.R \
   --prd <prd_path.xlsx> [--qa <qa_path.xlsx>] \
   --manifest <manifest.yaml> --model <model_file> \
   --cache /tmp/$(whoami)/cmh_ci_lib/samples.rds \
-  --plot --plot-out <output_folder>/forest_plot.png
+  --plot --plot-out <output_folder>/forest_plot_relative.png
 ```
 
-**Absolute effect** (`effect_type: absolute`) additionally fits the
-pooled-placebo model in the same invocation via `--fit-placebo`:
+**2. Absolute effect** (always run — needs `--fit-placebo` with
+`--placebo-cache` in this same invocation):
 ```bash
 module load R/4.4.2 jags 2>/dev/null
 Rscript /tmp/$(whoami)/cmh_ci_lib/run_bnma_pipeline.R \
@@ -347,7 +419,7 @@ Rscript /tmp/$(whoami)/cmh_ci_lib/run_bnma_pipeline.R \
   --manifest <manifest.yaml> --model <model_file> \
   --cache /tmp/$(whoami)/cmh_ci_lib/samples.rds \
   --fit-placebo --placebo-cache /tmp/$(whoami)/cmh_ci_lib/placebo_samples.rds \
-  --plot --plot-out <output_folder>/forest_plot.png --effect absolute
+  --plot --plot-out <output_folder>/forest_plot_absolute.png --effect absolute
 ```
 
 `--cache`/`--placebo-cache` point at the same `/tmp` scratch dir the script
@@ -368,10 +440,14 @@ If a full star network is detected, tell the user:
   Step 6). Only re-fit with a different `--model` if the user brings it up
   on their own in a later message.
 
-**Display the plot** (Read tool) immediately.
+**Display both plots** (Read tool) immediately.
+
+**Then write the per-run RMD report** — see "RMD report" below.
 
 Save outputs:
-- Forest plot → `/lillyce/qa/diabetes/bnma/obesity/output/shared/YYYYMMDD_<slug>/`
+- Both forest plots →
+  `/lillyce/qa/diabetes/bnma/obesity/output/shared/YYYYMMDD_<slug>/forest_plot_relative.png`
+  and `.../forest_plot_absolute.png`
 - Manifest (written in Step 5) →
   `/lillyce/qa/diabetes/bnma/obesity/programs/YYYYMMDD_<slug>/study_selection_manifest.yaml`
 - **A copy of the exact `run_bnma_pipeline.R` used for the fit** →
@@ -380,27 +456,51 @@ Save outputs:
   the `/tmp` copy is scratch and may not survive the session; the programs
   folder is the permanent audit trail, per Step 5's "every study... is the
   audit trail" convention. Without this copy, reproducing the run depends
-  on this chat session still existing.) Copy it after the fit succeeds, e.g.
+  on this chat session still existing.) Copy it after both fits succeed, e.g.
   `cp /tmp/$(whoami)/cmh_ci_lib/run_bnma_pipeline.R
   <programs_folder>/run_bnma_pipeline.R`.
+- **The per-run RMD report** →
+  `/lillyce/qa/diabetes/bnma/obesity/programs/YYYYMMDD_<slug>/report.Rmd`
 
-The programs folder holds **only the manifest and the script** — no
-`samples.rds`/`placebo_samples.rds`. Those MCMC caches stay in `/tmp` scratch
-(see the `--cache`/`--placebo-cache` paths above); the manifest + script pair
-is sufficient to reproduce a fit from scratch, and keeping the sample caches
-out of the shared programs folder avoids stale/oversized `.rds` files
-accumulating there across reruns.
+The programs folder holds **only the manifest, the script, and the RMD
+report** — no `samples.rds`/`placebo_samples.rds`. Those MCMC caches stay
+in `/tmp` scratch (see the `--cache`/`--placebo-cache` paths above); the
+manifest + script + report are sufficient to reproduce and describe a fit
+from scratch, and keeping the sample caches out of the shared programs
+folder avoids stale/oversized `.rds` files accumulating there across
+reruns.
+
+### RMD report
+
+Generate a fresh `report.Rmd` every run (never accumulated across runs),
+written to the same run's programs folder alongside the manifest and
+script. Pull its content from the manifest already written in Step 5/6
+rather than re-deriving anything:
+
+- The design choices made this run: `model_type` (random vs. fixed
+  effects), `route_filter`, `evidence_filter`, and any supplemental data
+  merged in via Step 2/3 — including the observed-vs-predicted
+  determination for anything pulled in via the link/publication pathway.
+- The scripts used to produce the two plots (the copied
+  `run_bnma_pipeline.R` path, and each invocation's arguments).
+- Links to the two output plots (relative-effect and absolute-effect) in
+  this run's output folder.
 
 ## What this skill does NOT do
 
+- No `/cmh-ci-explain` command — the landing page is shown on every
+  `/cmh-ci` invocation instead
 - No region, route, or evidence questions (dropped — always "both")
+- No relative-vs-absolute question (Step 6) — every run always produces
+  both plots (Step 7)
 - No model-fitting preview before design decisions
-- No re-asking Step 6's model_type/effect_type choice once made (it's final
-  — the star-network check in Step 7 reports, it doesn't re-prompt)
+- No re-asking Step 6's `model_type` choice once made (it's final — the
+  star-network check in Step 7 reports, it doesn't re-prompt)
 - No `samples.rds`/`placebo_samples.rds` in the programs folder (MCMC
-  caches stay in `/tmp` scratch; only the manifest + script persist there)
+  caches stay in `/tmp` scratch; only the manifest + script + RMD report
+  persist there)
 - No automated post-fit diagnostics (matches EliLillyCo/CMH.BNMA)
-- No placebo QC plot (removed — only the forest plot itself is produced)
+- No placebo QC plot (removed — only the two forest plots are produced)
 - No compound_registry.yaml persistence
 - No Project CLAUDE.md generation
 
@@ -558,8 +658,8 @@ model{
 
 ### A4. Random-effects baseline, fixed-effect delta (`model_simultaneous_fixed.txt`)
 
-Use for: absolute-effect forest on a full-star network (see Step 6's Effect
-question and Step 7's model-file selection) —
+Use for: absolute-effect forest on a full-star network (see Step 7's
+model-file selection) —
 same hierarchical/pooled `phi`/`m` as A3 (still needed for the
 absolute-effect baseline), but with A2's **deterministic** `delta[i,j]`
 instead of A3's stochastic one, so a star network's CIs track the arms' own
