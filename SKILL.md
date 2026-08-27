@@ -1348,9 +1348,11 @@ scripts/run_r.sh scripts/make_forest_plot.R \
   --effect relative --out <output_folder>/forest_plot.png
 ```
 
-The script prints the footnote text it embedded in the plot — surface that
-back to the user so they can confirm it's traceable, per the workflow doc's
-footnote requirement. With `--arm-rows` passed (the default per 8c), the
+**The footnote is no longer rendered on the plot image itself** (per
+2026-08-27 request — the plot ships clean, no caption). The script still
+prints the footnote text to the console — surface that back to the user so
+they have a traceability record in the chat transcript, even though it's not
+on the PNG. With `--arm-rows` passed (the default per 8c), the printed
 footnote breaks "Contributing studies" out **per treatment** — e.g.
 `semaglutide: surmount-1, surmount-4` on its own line — rather than one
 flat list for the whole plot, so a reviewer can tell which studies fed
@@ -1370,7 +1372,8 @@ type — `°` for observed, `ᵖ` for projection, `°ᵖ` for an arm fed by both
 (e.g. a shared placebo arm) — so a reviewer QC'ing the PNG can tell which
 arms are real trial data vs. modeled without cross-referencing the manifest.
 A one-line legend ("° = observed, ᵖ = projection") is appended to the
-footnote automatically.
+console-printed footnote automatically — not on the image itself, since the
+footnote is no longer rendered there (see above).
 
 **Never produce both `--effect relative` and `--effect absolute` "for
 completeness" unless the user explicitly asked, or the manifest states
@@ -1473,7 +1476,9 @@ frozen, already-validated result that comes out the other end.
    - `geom_pointrange(aes(col=Compound))` + `coord_flip()` +
      `geom_text(label, vjust=1.6, size=4.5)`
    - Font sizes: axis 18pt, title 14pt bold, legend 18pt
-   - Caption: source file, studies, estimand, model, date
+   - No caption on the plot itself (matches the interactive session's own
+     make_forest_plot.R — see Step 10c) — trace the run via the manifest and
+     this script's own header instead.
    - `ggsave(width=14, height=max(8, 0.45*n_trts+2), dpi=150)`
 
 7. **Read data + call helpers** — `read_excel() %>% rename(study=Study, treat=Treatment)`,
@@ -4048,12 +4053,11 @@ footnote_lines <- c(
   strwrap(paste0("Source program: ", manifest$source_program %||% "(not recorded)"), width = footnote_wrap_width)
 )
 footnote_lines <- c(footnote_lines, "^o^ = observed, ^p^ = projection, ^s^ = supplementary (hand-added, not yet in QA/PRD)")
-# ggtext's markdown parser (needed for the axis superscripts) treats a bare
-# "\n" as a soft wrap, not a forced line break -- confirmed by testing: with
-# "\n" the whole caption collapsed onto one line and got clipped by the
-# panel edge rather than wrapping. "<br>" is the actual forced-break syntax
-# it respects.
-footnote_text <- paste(footnote_lines, collapse = "<br>")
+# Plain "\n" here, not "<br>" -- footnote_text is only ever cat()'d to the
+# console now (the caption is no longer rendered on the plot itself, see
+# below), so there's no ggtext markdown parser reading this string anymore.
+# "<br>" would print as literal, visible text in the console output.
+footnote_text <- paste(footnote_lines, collapse = "\n")
 
 # Reference palette (2026-08-19, per the user's team-standard T2D forest
 # plot): fixed, named colors for the compounds it showed, so our output
@@ -4127,7 +4131,6 @@ pforest <- ggplot(
   xlab("") +
   ylab(ylab_text) +
   ggtitle(title_text, subtitle = subtitle_text) +
-  labs(caption = footnote_text) +
   theme_bw() +
   theme(
     axis.title = element_text(size = 16),
@@ -4141,19 +4144,21 @@ pforest <- ggplot(
     axis.text.x = element_text(size = 14),
     plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
     plot.subtitle = element_text(size = 11, color = "grey35", hjust = 0.5),
-    plot.caption = ggtext::element_markdown(size = 9, hjust = 0, face = "italic"),
     legend.text = element_text(size = 13),
     legend.title = element_text(size = 13)
   )
 
-
+# footnote_text/footnote_lines (built above) are no longer rendered on the
+# plot itself (per 2026-08-27 request) -- kept only for the console-printed
+# traceability record below (contributing studies, source data/program
+# path), which is unaffected by this change.
 subtitle_lines <- if (is.null(subtitle_text)) 0 else lengths(regmatches(subtitle_text, gregexpr("\n", subtitle_text))) + 1
-plot_height <- max(4, 0.6 * length(trt_order)) + 0.22 * length(footnote_lines) + 0.18 * subtitle_lines
+plot_height <- max(4, 0.6 * length(trt_order)) + 0.18 * subtitle_lines
 # n_compounds/max_label_chars/plot_width already computed above (needed
-# earlier to size the footnote's wrap width) -- reused here, not recomputed.
+# earlier to size the now-unused footnote_wrap_width) -- reused here, not recomputed.
 ggsave(args$out, plot = pforest, width = plot_width, height = plot_height, dpi = 150)
 cat("Forest plot saved to:", args$out, "\n")
-cat("Footnote:\n", footnote_text, "\n")
+cat("Footnote (not rendered on the plot -- console record only):\n", footnote_text, "\n")
 ```
 
 ### B8. `make_placebo_forest_plot.R`
