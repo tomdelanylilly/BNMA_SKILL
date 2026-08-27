@@ -227,7 +227,7 @@ Show the user exactly what rows will be added — a table — and confirm.
 
 ## Step 4 — Merge the supplemental data with the selected PRD subset
 
-Once confirmed, append the new rows to the corresponding QA file:
+Once confirmed, append the new rows to the QA file:
 
 ```
 QA file: /lillyce/qa/diabetes/bnma/obesity/data/shared/weight/cwm_wl_nont2d_qa_YYYYMMDD.xlsx
@@ -235,21 +235,22 @@ QA file: /lillyce/qa/diabetes/bnma/obesity/data/shared/weight/cwm_wl_nont2d_qa_Y
 
 (Convention: swap `/prd/` → `/qa/` and `_prd_` → `_qa_` in the filename.)
 
-If no QA file exists, ask whether to create one (PRD schema, zero rows).
+If no QA file exists yet, create it directly — don't ask. A new QA
+workbook (PRD schema, Observed/Prediction sheets) is created and populated
+with the confirmed rows in the same step; Step 3's table confirmation is
+the only gate before this happens.
 
-Append using `append_to_qa.R`:
+Append (and create-if-missing) using `append_to_qa.R`:
 ```bash
-scripts/run_r.sh scripts/append_to_qa.R \
+module load R/4.4.2 2>/dev/null
+Rscript scripts/append_to_qa.R \
   --qa <qa_path.xlsx> --sheet <Observed|Prediction> \
-  --rows /tmp/new_rows.rds [--create-from <prd_path.xlsx>]
+  --rows /tmp/new_rows.rds --create-from <prd_path.xlsx>
 ```
 
-Show append summary. Then re-load with both PRD + QA to get the full
-merged dataset for fitting:
-```bash
-scripts/run_r.sh scripts/load_merge_data.R \
-  --prd <prd_path.xlsx> --qa <qa_path.xlsx> --out /tmp/bnma_merged.rds
-```
+Show the append (or create) summary. No separate reload is needed here —
+Step 7's `run_bnma_pipeline.R` always loads PRD + QA fresh, so the new
+rows are picked up automatically the next time it runs.
 
 Loop back to Step 2 ("anything else to add?") until the user says the
 subset is sufficient.
@@ -286,30 +287,24 @@ Model specification:
                       or fixed-effect?
   2. Effect         ► placebo-adjusted / relative [default]
                       or absolute?
-  3. Route          ► both (oral + injectable) [default]
-                      or oral only / injectable only?
-  4. Evidence       ► both (observed + prediction) [default]
-                      or observed only / prediction only?
 ```
 
-**(Region question is dropped entirely — not asked.)**
+**(Region, Route, and Evidence questions are dropped entirely — not
+asked. `route_filter` and `evidence_filter` are never set by the user
+here and stay at their manifest default of `"both"`.)**
 
 Defaults proceed unless the user says otherwise. Once confirmed, update
 the manifest with `model_type` and `effect_type`.
 
 ## Step 7 — Produce analysis outputs and visualisations
 
-**This is where scripts are first materialized.** Write Appendix D (shell
-wrappers) and Appendix B (`run_bnma_pipeline.R`, `make_forest_plot.R`) to
-`/tmp/$(whoami)/cmh_ci_lib/`.
-
-**7a. Fit the model.** Must use the JAGS wrapper:
-```bash
-scripts/run_with_jags.sh scripts/run_bnma_pipeline.R \
-  --prd <prd_path.xlsx> [--qa <qa_path.xlsx>] \
-  --manifest <manifest.yaml> --model <model_file> \
-  --cache <programs_folder>/samples.rds
-```
+**This is where the script is first materialized.** Write Appendix B's
+`run_bnma_pipeline.R` to `/tmp/$(whoami)/cmh_ci_lib/run_bnma_pipeline.R`.
+It is the only script this step needs — load+merge, build BATMAN, fit the
+JAGS model, optionally fit the pooled-placebo model, and render the
+forest plot all happen in **one R process, one invocation**. There is no
+separate plotting script and no shell wrapper: `module load` runs inline
+in the command below.
 
 Model file selection:
 - `rand_effect` → `model_random.txt`
@@ -319,32 +314,36 @@ Model file selection:
 
 MCMC: n.adapt=10000, burn-in=10000, 20000 iterations thinned by 10, 3 chains.
 
-**Star-network check:** The build step prints a heterogeneity estimability
-report. If full star network detected, inform the user:
+**Relative effect (default):**
+```bash
+module load R/4.4.2 jags 2>/dev/null
+Rscript /tmp/$(whoami)/cmh_ci_lib/run_bnma_pipeline.R \
+  --prd <prd_path.xlsx> [--qa <qa_path.xlsx>] \
+  --manifest <manifest.yaml> --model <model_file> \
+  --cache <programs_folder>/samples.rds \
+  --plot --plot-out <output_folder>/forest_plot.png
+```
+
+**Absolute effect** (`effect_type: absolute`) additionally fits the
+pooled-placebo model in the same invocation via `--fit-placebo`:
+```bash
+module load R/4.4.2 jags 2>/dev/null
+Rscript /tmp/$(whoami)/cmh_ci_lib/run_bnma_pipeline.R \
+  --prd <prd_path.xlsx> [--qa <qa_path.xlsx>] \
+  --manifest <manifest.yaml> --model <model_file> \
+  --cache <programs_folder>/samples.rds \
+  --fit-placebo --placebo-cache <programs_folder>/placebo_samples.rds \
+  --plot --plot-out <output_folder>/forest_plot.png --effect absolute
+```
+
+**Star-network check:** the build phase (which runs before the JAGS
+compile, in the same process) prints a heterogeneity estimability report.
+If a full star network is detected, inform the user:
 - "Full star network — `sigma` cannot be estimated, CIs will be
   prior-inflated with random-effects. Recommend switching to
   `fixed_effect`."
-- Do NOT auto-correct. Ask the user if they want to switch. If yes, refit
-  with `model_fixed.txt`.
-
-**7b. For `effect_type: absolute`**, also run the pooled-placebo model:
-```bash
-scripts/run_with_jags.sh scripts/fit_pooled_placebo_model.R \
-  --arm-rows <arm_rows.rds> --cache <programs_folder>/placebo_samples.rds \
-  --placebo-data-out /tmp/placebo_data.rds
-```
-
-**7c. Forest plot.**
-```bash
-scripts/run_r.sh scripts/make_forest_plot.R \
-  --samples <programs_folder>/samples.rds \
-  --arm-info /tmp/bnma_arm_info.rds \
-  --study-info /tmp/bnma_study_info.rds \
-  --manifest <manifest.yaml> \
-  --effect relative \
-  --no-footnote \
-  --out <output_folder>/forest_plot.png
-```
+- Do NOT auto-correct. Ask the user if they want to switch. If yes, rerun
+  the same command with `--model model_fixed.txt`.
 
 **Display the plot** (Read tool) immediately.
 
@@ -354,10 +353,11 @@ Save outputs:
 
 ## What this skill does NOT do
 
-- No region question (dropped)
+- No region, route, or evidence questions (dropped — always "both")
 - No model-fitting preview before design decisions
 - No driver script generation (the manifest is the audit trail)
 - No automated post-fit diagnostics (matches EliLillyCo/CMH.BNMA)
+- No placebo QC plot (removed — only the forest plot itself is produced)
 - No compound_registry.yaml persistence
 - No Project CLAUDE.md generation
 
@@ -371,8 +371,9 @@ the operative copy of every one of these lives as an R string constant
 (`MODEL_TEXTS`) inside Appendix B1's `run_bnma_pipeline.R`, passed to
 `jags.model()` via `textConnection()` at fit time, so no `model_*.txt` file
 is ever written to disk during a session (consolidated 2026-08-27 — see
-Appendix B's intro). In the standalone driver script (Step 10d), the model
-text is still written inline via `cat('...', file = model_path)`, matching
+Appendix B's intro). In the team's own separate driver script (not part of
+this skill's numbered steps), the model text is still written inline via
+`cat('...', file = model_path)`, matching
 the team's own existing convention for a script meant to run outside any
 Claude session.
 
@@ -514,7 +515,8 @@ model{
 
 ### A4. Random-effects baseline, fixed-effect delta (`model_simultaneous_fixed.txt`)
 
-Use for: absolute-effect forest on a full-star network (see Step 9b/10a) —
+Use for: absolute-effect forest on a full-star network (see Step 6's Effect
+question and Step 7's model-file selection) —
 same hierarchical/pooled `phi`/`m` as A3 (still needed for the
 absolute-effect baseline), but with A2's **deterministic** `delta[i,j]`
 instead of A3's stochastic one, so a star network's CIs track the arms' own
@@ -596,85 +598,87 @@ model{
 
 These are the exact, tested scripts this skill's pipeline runs. During the
 session, materialize whichever ones a step needs to a real file (e.g.
-`/tmp/$(whoami)/cmh_ci_lib/<name>.R` before Step 8's folders exist,
+`/tmp/$(whoami)/cmh_ci_lib/<name>.R` before Step 5's folders exist,
 `programs/<slug>/lib/<name>.R` after) via `cat('...', file = <path>)`, then
 invoke it exactly as shown in the step that references it.
 
-**Just two scripts cover the entire modeling/plotting pipeline** — B1
-`run_bnma_pipeline.R` (load → naming/pooling check → build BATMAN → fit,
-all in one file, mode-selected by which flags are passed) and B3
-`make_forest_plot.R` (plot / QC-plot / named-contrast, same one-file,
-mode-selected shape). This replaces what used to be nine separate files
-(`lib_common.R`, `load_merge_data.R`, `check_naming_pooling.R`,
-`build_batman_data.R`, `fit_bnma_model.R`, `fit_pooled_placebo_model.R`,
-`make_forest_plot.R`, `make_placebo_forest_plot.R`, `named_contrast.R`) —
-consolidated 2026-08-27 because running each pipeline stage as its own
-subprocess (re-loading R packages, re-reading the workbook, re-running
-`module load jags`) made even a simple run take 6-7 separate invocations.
-The five embedded JAGS model definitions (Appendix A) are now R string
-constants inside `run_bnma_pipeline.R` itself, passed to `jags.model()` via
-`textConnection()` — there's no more separate "materialize
-`model_random.txt` to a file first" step; Appendix A is reference
-documentation only now, not something a step instructs you to write to
-disk.
+**One script covers the entire modeling/plotting pipeline** — B1
+`run_bnma_pipeline.R`: load+merge → build BATMAN → fit the JAGS model →
+optionally fit the pooled-placebo model → render the forest plot, all in
+a single R process, no mode-switching. This replaces what used to be nine
+separate files (`lib_common.R`, `load_merge_data.R`,
+`check_naming_pooling.R`, `build_batman_data.R`, `fit_bnma_model.R`,
+`fit_pooled_placebo_model.R`, `make_forest_plot.R`,
+`make_placebo_forest_plot.R`, `named_contrast.R`), then an intermediate
+two-script/three-mode consolidation (2026-08-27) that still paid for a
+second R startup + package load between fitting and plotting. That
+intermediate step is gone too (2026-08-27): the separate "explore" and
+"build-preview" modes are removed outright — they were dead weight
+against the actual Steps 1-7 flow, which already does its own data
+exploration with inline R (Step 1) rather than by shelling out to this
+script — and plotting is folded into the same process as fitting via a
+`--plot` flag instead of a second script invocation. The placebo QC plot
+(`--qc-plot`, formerly `make_placebo_forest_plot.R`) is dropped entirely,
+per the same 2026-08-27 change — this skill now produces exactly one
+image, the forest plot itself. The five embedded JAGS model definitions
+(Appendix A) are R string constants inside `run_bnma_pipeline.R` itself,
+passed to `jags.model()` via `textConnection()` — there's no more
+separate "materialize `model_random.txt` to a file first" step; Appendix
+A is reference documentation only now, not something a step instructs you
+to write to disk.
 
-`append_to_qa.R` (B2) stays its own small file — it's Step 6's rare
+`append_to_qa.R` (B2) stays its own small file — it's Step 4's rare
 promote-to-QA path, not part of the modeling/plotting hot path, and mixing
-a shared-Excel-file write into either of the two consolidated scripts would
-tangle unrelated concerns for a rarely-invoked feature.
+a shared-Excel-file write into the consolidated script would tangle
+unrelated concerns for a rarely-invoked feature.
 
 ### B1. `run_bnma_pipeline.R`
 
-Three modes, selected by which arguments are given — covers Steps 1b/1c
-(explore), 8c/9 (build-preview), and 10a/10b (fit):
-
-- **explore** (no `--manifest`): load + merge PRD/QA, run every naming/
-  pooling check, print the data summary + naming report to stdout, exit.
-  Never touches `rjags` — doesn't need the `jags` module loaded, so use
-  `run_r.sh`, not `run_with_jags.sh`.
-- **build-preview** (`--manifest`, no `--model`): re-loads+merges (cheap,
-  deterministic — nothing from explore mode is reused or cached), applies
-  every manifest field, builds the BATMAN matrices, prints the
-  heterogeneity-estimability check, then **exits without fitting or writing
-  anything** — this call exists purely so Step 9's model-type question can
-  state a real recommendation. Still no `rjags`/`run_with_jags.sh` needed.
-- **fit** (`--manifest` **and** `--model` both given): does the same
-  load+merge+build as build-preview (always fresh from the manifest — this
-  is what fixes a real staleness risk the old two-separate-scripts design
-  had: if `model_type` changes between Step 8c and Step 9, a `--batman-in`
-  file built under the old `model_type` would silently carry stale
-  phantom-placebo-bridging decisions into the fit. Rebuilding fresh inside
-  the same fit-mode call every time removes that risk entirely), then fits
-  the JAGS model via `textConnection()`, then optionally the pooled-placebo
-  sub-model (`--fit-placebo`), and writes the two files
-  `make_forest_plot.R` needs: `--out <model_output.rds>` (bundles
-  `arm_info`/`study_info`/`arm_rows`/`batman_data`) and `--cache
-  <samples.rds>`. Needs `run_with_jags.sh`.
+One mode: `--manifest` and `--model` are both required. The script always
+does the same four things in the same process, in order — load+merge PRD/QA
+→ build the BATMAN matrices (manifest fields, phantom-placebo handling,
+heterogeneity-estimability print) → fit the JAGS model (optionally the
+pooled-placebo sub-model too, via `--fit-placebo`) → render the forest plot
+(`--plot --plot-out <path>`, optional; `--contrast "a|||b"` prints a named
+posterior contrast instead and skips plotting). No `run_r.sh`/
+`run_with_jags.sh` wrappers — `module load R jags` runs inline before the
+one `Rscript` invocation (see Step 7).
 
 ```r
 #!/usr/bin/env Rscript
-# Consolidated /cmh-ci pipeline: load+merge -> naming/pooling QA -> build
-# BATMAN -> fit JAGS model [-> pooled-placebo model]. Replaces
-# lib_common.R/load_merge_data.R/check_naming_pooling.R/build_batman_data.R/
-# fit_bnma_model.R/fit_pooled_placebo_model.R (see SKILL.md's Appendix B
-# intro for why). One file, three modes selected by which args are given --
-# see SKILL.md Steps 1b/1c (explore), 8c/9 (build-preview), 10a/10b (fit).
+# /cmh-ci pipeline: load+merge -> build BATMAN -> fit JAGS model [-> fit
+# pooled-placebo model] -> render forest plot. One file, one mode -- no
+# explore/build-preview modes (removed 2026-08-27: dead weight against the
+# actual Steps 1-7 flow, which already explores via inline R at Step 1 --
+# see SKILL.md's Appendix B intro) and no separate plotting script (the
+# forest plot renders in this same process via --plot, removing a second
+# R-startup + package-load between fit and plot). The placebo QC plot is
+# gone entirely -- this script now produces exactly one image.
 #
-# Usage:
-#   Explore:       Rscript run_bnma_pipeline.R --prd <p> [--qa <q>] [--registry <r>]
-#   Build-preview: Rscript run_bnma_pipeline.R --prd <p> [--qa <q>] --manifest <m>
-#   Fit:           Rscript run_bnma_pipeline.R --prd <p> [--qa <q>] --manifest <m> \
-#                    --model model_random.txt --cache <samples.rds> --out <model_output.rds> \
-#                    [--fit-placebo --placebo-cache <p.rds> --placebo-out <pd.rds>] [--force]
+# Usage (single invocation, everything in one process):
+#   Rscript run_bnma_pipeline.R --prd <p> [--qa <q>] --manifest <m> \
+#     --model model_random.txt --cache <samples.rds> \
+#     [--fit-placebo --placebo-cache <p.rds>] \
+#     --plot --plot-out <forest.png> [--effect relative|absolute] [--force]
 #
-# Explore and build-preview modes never load rjags -- run them via
-# run_r.sh. Fit mode needs run_with_jags.sh (module load jags).
+# Ad hoc, against an already-cached fit (skips plotting):
+#   Rscript run_bnma_pipeline.R --prd <p> [--qa <q>] --manifest <m> \
+#     --model model_random.txt --cache <samples.rds> \
+#     --contrast "treat1|||treat2"
+#
+# Needs rjags -- `module load jags` in the same shell before this runs
+# (see SKILL.md Step 7's inline `module load`; the old
+# run_r.sh/run_with_jags.sh wrapper scripts were dropped along with
+# Appendix D for the same reason as the modes above).
 
 suppressPackageStartupMessages({
   library(dplyr)
   library(readxl)
   library(yaml)
-  library(jsonlite)
+  library(rjags)
+  library(ggplot2)
+  library(coda)
+  library(ggtext)
 })
 
 # --------------------------------------------------------------------------
@@ -752,8 +756,8 @@ recast_numeric_cols <- function(df) {
 
 #' Whether this network's data can actually support a random-effects
 #' heterogeneity estimate (see pf_nma.R's star-network precedent, quoted at
-#' length in SKILL.md Step 9a) -- per non-placebo treatment node, how many
-#' distinct studies feed it.
+#' length in SKILL.md Step 7's star-network check) -- per non-placebo
+#' treatment node, how many distinct studies feed it.
 compute_heterogeneity_estimability <- function(data_recon) {
   per_node <- data_recon %>%
     dplyr::filter(arm_ind != 1) %>%
@@ -793,7 +797,7 @@ print_heterogeneity_estimability <- function(het) {
 # pooled phi/m paired with model_fixed.txt's deterministic delta[i,j] block
 # (no sigma actually drives delta here, same dead-but-present sigma/tau2
 # declaration model_fixed.txt itself keeps for structural symmetry) --
-# reconstructed from SKILL.md Step 10a's own description of this file,
+# reconstructed from SKILL.md Step 7's own model-file-selection description,
 # since the source repo's Appendix A never actually spelled it out
 # (confirmed gap, fixed here 2026-08-27).
 # --------------------------------------------------------------------------
@@ -982,38 +986,40 @@ args <- parse_args(list(
   prd           = list(default = NULL),
   qa            = list(default = NULL),
   data          = list(default = NULL),
-  manifest      = list(default = NULL),
-  model         = list(default = NULL),
-  out           = list(default = NULL),
+  manifest      = list(required = TRUE),
+  model         = list(required = TRUE),
   cache         = list(default = NULL),
   force         = list(flag = TRUE, default = FALSE),
   fit_placebo   = list(flag = TRUE, default = FALSE),
   placebo_cache = list(default = NULL),
-  placebo_out   = list(default = NULL),
-  registry      = list(default = NULL),
   n_adapt       = list(default = "10000"),
   n_burnin      = list(default = "10000"),
   n_iter        = list(default = "20000"),
   thin          = list(default = "10"),
-  seed          = list(default = "2026")
+  seed          = list(default = "2026"),
+  plot          = list(flag = TRUE, default = FALSE),
+  plot_out      = list(default = NULL),
+  effect        = list(default = "relative"),
+  title         = list(default = NULL),
+  xlab          = list(default = NULL),
+  contrast      = list(default = NULL)
 ))
 
 if (is.null(args$data) && is.null(args$prd) && is.null(args$qa)) {
   stop("At least one of --prd, --qa, or --data must be given.")
 }
+if (isTRUE(args$plot) && is.null(args$plot_out)) {
+  stop("--plot needs --plot-out <path.png>")
+}
 
 # ==========================================================================
-# ALWAYS: load + merge PRD/QA (formerly load_merge_data.R), UNLESS --data
-# points at an already-merged/adapted .rds -- the standalone-workbook
-# adapter path (SKILL.md Step 1's note) writes its own already-normalized
-# data.frame for a workbook that doesn't match the QA/PRD schema at all;
-# --data lets that .rds feed straight into naming-check/build/fit exactly
-# as if it were this block's own output, same substitution the old
-# separate-scripts design supported via check_naming_pooling.R/
-# build_batman_data.R's own `--data` argument.  Re-run fresh on every
-# invocation, every mode, when NOT using --data -- cheap and deterministic,
-# so there's never an intermediate merged.rds to hand off between separate
-# processes.
+# ALWAYS: load + merge PRD/QA, UNLESS --data points at an already-merged/
+# adapted .rds -- the standalone-workbook adapter path (SKILL.md Step 1's
+# note) writes its own already-normalized data.frame for a workbook that
+# doesn't match the QA/PRD schema at all; --data lets that .rds feed
+# straight into build/fit exactly as if it were this block's own output.
+# Re-run fresh on every invocation -- cheap and deterministic, so there's
+# never an intermediate merged.rds to hand off between separate processes.
 # ==========================================================================
 if (!is.null(args$data)) {
   if (!file.exists(args$data)) stop("--data file not found: ", args$data)
@@ -1094,146 +1100,10 @@ cat(
 )
 
 # ==========================================================================
-# EXPLORE MODE (no --manifest): data summary + naming/pooling checks,
-# stdout only, exit. Covers Steps 1b+1c in one call. Formerly
-# check_naming_pooling.R's logic.
-# ==========================================================================
-if (is.null(args$manifest)) {
-
-  cat("\n=== Dataset summary ===\n")
-  cat("Phases:", paste(sort(unique(merged$phase)), collapse = ", "), "\n")
-  cat("Evidence tiers: observed=", sum(merged$source_sheet == "observed"),
-      " prediction=", sum(merged$source_sheet == "prediction"), "\n", sep = "")
-  cat("Regions:", paste(sort(unique(merged$region)), collapse = ", "), "\n")
-
-  registry_path <- args$registry
-  registry <- if (!is.null(registry_path) && file.exists(registry_path)) yaml::read_yaml(registry_path) else list()
-  resolved_pairs <- registry$resolved_pairs %||% list()
-  pair_key <- function(a, b) paste(sort(c(a, b)), collapse = "|||")
-  is_resolved <- function(a, b) {
-    if (length(resolved_pairs) == 0) return(FALSE)
-    target <- pair_key(a, b)
-    any(vapply(resolved_pairs, function(p) pair_key(p$a, p$b) == target, logical(1)))
-  }
-
-  EDIT_THRESHOLD <- 0.25
-  compounds <- merged$compound %>% unique() %>% na.omit() %>% setdiff("placebo") %>% sort()
-  studies_by_compound <- split(merged$study_name, merged$compound)
-
-  compound_flags <- list()
-  if (length(compounds) >= 2) {
-    for (p in combn(compounds, 2, simplify = FALSE)) {
-      a <- p[1]; b <- p[2]
-      if (a == b || is_resolved(a, b)) next
-      is_substring <- (nchar(a) >= 4 && nchar(b) >= 4) && (grepl(a, b, fixed = TRUE) || grepl(b, a, fixed = TRUE))
-      edit_ratio <- adist(a, b)[1, 1] / max(nchar(a), nchar(b))
-      tier <- if (is_substring) "high" else if (edit_ratio <= EDIT_THRESHOLD) "low" else NA_character_
-      if (is.na(tier)) next
-      shared_studies <- intersect(studies_by_compound[[a]], studies_by_compound[[b]])
-      suppressed <- length(shared_studies) > 0
-      compound_flags[[length(compound_flags) + 1]] <- list(
-        compound_a = a, compound_b = b, tier = tier,
-        edit_distance_ratio = round(edit_ratio, 3), is_substring = is_substring,
-        suppressed = suppressed,
-        suppressed_reason = if (suppressed) paste0("co-occur as separate arms in ", length(shared_studies), " shared study/ies (e.g. '", shared_studies[1], "')") else NA_character_
-      )
-    }
-  }
-
-  pooling_flags <- list()
-  if ("aom" %in% names(merged)) {
-    by_compound <- merged %>% filter(compound != "placebo") %>%
-      group_by(compound) %>% summarise(aom_values = list(unique(aom)), .groups = "drop")
-    for (i in seq_len(nrow(by_compound))) {
-      cmpd <- by_compound$compound[i]; aoms <- by_compound$aom_values[[i]]
-      distinct_non_na <- unique(na.omit(aoms))
-      if (length(distinct_non_na) < 2 && !any(is.na(aoms))) next
-      rows <- merged %>% filter(compound == cmpd)
-      if (length(distinct_non_na) >= 2) {
-        collisions <- rows %>% filter(!is.na(aom)) %>% group_by(treatment) %>%
-          summarise(n_routes = n_distinct(aom), routes = list(unique(aom)), .groups = "drop") %>%
-          filter(n_routes > 1)
-        for (j in seq_len(nrow(collisions))) {
-          pooling_flags[[length(pooling_flags) + 1]] <- list(
-            kind = "route_collision", compound = cmpd, treatment = collisions$treatment[j],
-            routes = collisions$routes[[j]],
-            message = paste0("'", collisions$treatment[j], "' (", cmpd, ") appears under routes [",
-                              paste(collisions$routes[[j]], collapse = ", "), "] -- will collapse into ONE arm.")
-          )
-        }
-      }
-      if (any(is.na(aoms))) {
-        pooling_flags[[length(pooling_flags) + 1]] <- list(
-          kind = "missing_route", compound = cmpd, treatment = NA_character_, routes = list(),
-          message = paste0("'", cmpd, "' has rows with no `aom` recorded.")
-        )
-      }
-    }
-  }
-
-  integrity_flags <- list()
-  mistagged <- merged %>% filter(treatment == "placebo", !is.na(compound), compound != "placebo")
-  if (nrow(mistagged) > 0) {
-    for (i in seq_len(nrow(mistagged))) {
-      integrity_flags[[length(integrity_flags) + 1]] <- list(
-        kind = "placebo_mistag", study_name = mistagged$study_name[i], compound = mistagged$compound[i],
-        message = paste0("Study '", mistagged$study_name[i], "' has treatment=='placebo' tagged compound='", mistagged$compound[i], "'.")
-      )
-    }
-  }
-  pbo_rows <- merged %>% filter(compound == "pbo")
-  if (nrow(pbo_rows) > 0) {
-    affected_studies <- unique(pbo_rows$study_name)
-    integrity_flags[[length(integrity_flags) + 1]] <- list(
-      kind = "pbo_compound_alias", study_name = NA_character_, compound = "pbo",
-      message = paste0("compound == 'pbo' found in ", length(affected_studies), " study/ies -- propose compound_relabels: 'pbo' -> 'placebo'.")
-    )
-  }
-
-  placebo_naming_flags <- list()
-  placebo_variants <- merged %>% filter(compound == "placebo", treatment != "placebo") %>% distinct(treatment) %>% pull(treatment)
-  for (pv in placebo_variants) {
-    affected_studies <- merged %>% filter(compound == "placebo", treatment == pv) %>% pull(study_name) %>% unique()
-    placebo_naming_flags[[length(placebo_naming_flags) + 1]] <- list(
-      kind = "placebo_naming_variant", treatment = pv, affected_studies = affected_studies,
-      message = paste0("'", pv, "' is a placebo row under a non-canonical treatment string -- affects ", length(affected_studies), " study/ies.")
-    )
-  }
-
-  no_placebo_flags <- list()
-  studies_with_placebo_all <- merged %>% filter(compound == "placebo") %>% pull(study_name) %>% unique()
-  studies_without_placebo_all <- setdiff(unique(merged$study_name), studies_with_placebo_all)
-  for (sn in studies_without_placebo_all) {
-    treats <- merged %>% filter(study_name == sn) %>% pull(treatment) %>% unique()
-    no_placebo_flags[[length(no_placebo_flags) + 1]] <- list(
-      study_name = sn, treatments = treats,
-      message = paste0("'", sn, "' has no 'placebo' row.")
-    )
-  }
-
-  report <- list(
-    compound_flags = compound_flags, pooling_flags = pooling_flags,
-    integrity_flags = integrity_flags, placebo_naming_flags = placebo_naming_flags,
-    no_placebo_flags = no_placebo_flags,
-    summary = list(
-      n_compounds_checked = length(compounds), n_compound_flags = length(compound_flags),
-      n_compound_flags_active = sum(vapply(compound_flags, function(f) !f$suppressed, logical(1))),
-      n_pooling_flags = length(pooling_flags), n_integrity_flags = length(integrity_flags),
-      n_placebo_naming_flags = length(placebo_naming_flags), n_no_placebo_flags = length(no_placebo_flags)
-    )
-  )
-
-  cat("\n=== Naming/Pooling QA Report ===\n")
-  cat(jsonlite::toJSON(report, auto_unbox = TRUE, pretty = TRUE, na = "null"), "\n")
-  quit(status = 0, save = "no")
-}
-
-# ==========================================================================
-# BUILD (manifest given) -- formerly build_batman_data.R. Runs for both
-# build-preview mode (no --model, exits after this block) and fit mode
-# (--model given, continues on to fit below). Always derived fresh from
-# the manifest -- see this script's own header for why that matters when
-# model_type changes between the build-preview call and the fit call.
+# BUILD -- manifest fields, phantom-placebo handling, heterogeneity check.
+# Always runs before the fit below; derived fresh from the manifest every
+# invocation (no intermediate cache between build and fit, so there's no
+# risk of a stale batman_data surviving a manifest edit).
 # ==========================================================================
 manifest <- yaml::read_yaml(args$manifest)
 if (is.null(manifest$studies) || length(manifest$studies) == 0) {
@@ -1511,23 +1381,12 @@ study_info <- study_info %>% mutate(has_placebo = study_ind %in% has_placebo_stu
 
 cat("BATMAN data built:", ns, "studies,", M, "treatment arms.\n")
 
-model_output <- list(batman_data = batman_data, arm_info = arm_info, study_info = study_info, arm_rows = arm_rows)
-
-if (is.null(args$model)) {
-  cat("Build preview complete (no --model given) -- not fitting. Re-run with\n",
-      "--model once model_type is confirmed (Step 9). Nothing written to disk.\n")
-  quit(status = 0, save = "no")
-}
-
 # ==========================================================================
-# FIT MODE (--model given) -- formerly fit_bnma_model.R + (optionally)
-# fit_pooled_placebo_model.R. Needs rjags/module load jags -- explore and
-# build-preview modes above never reach this point.
+# FIT -- always runs (model is a required argument now; there is no
+# build-preview exit). Optionally also fits the pooled-placebo model
+# (--fit-placebo), then either prints a contrast or renders the forest
+# plot (--plot), all still in this one process.
 # ==========================================================================
-if (!is.null(args$out)) saveRDS(model_output, args$out)
-
-suppressPackageStartupMessages(library(rjags))
-
 if (!args$model %in% names(MODEL_TEXTS)) {
   stop("--model must be one of: ", paste(names(MODEL_TEXTS), collapse = ", "), " -- got: ", args$model)
 }
@@ -1578,6 +1437,37 @@ s <- summary(samples)
 d_rows <- grepl("^d\\[", rownames(s[[1]]))
 print(round(cbind(s[[1]][d_rows, "Mean", drop = FALSE], s[[2]][d_rows, c("2.5%", "97.5%")]), 2))
 
+# ==========================================================================
+# CONTRAST (--contrast given) -- a named head-to-head comparison read off
+# this run's own posterior, never a hardcoded d[k] index. Skips
+# fit-placebo and plotting entirely.
+# ==========================================================================
+if (!is.null(args$contrast)) {
+  parts <- strsplit(args$contrast, "\\|\\|\\|")[[1]]
+  if (length(parts) != 2) stop("--contrast must be \"treat1|||treat2\", got: ", args$contrast)
+  treat1 <- trimws(parts[1]); treat2 <- trimws(parts[2])
+
+  samples_mat <- as.matrix(samples)
+  find_arm <- function(name) {
+    k <- arm_info$arm_ind[tolower(arm_info$treatment) == tolower(name)]
+    if (length(k) == 0) {
+      stop("Treatment not found: '", name, "'. Available: ",
+           paste(head(sort(unique(arm_info$treatment)), 15), collapse = ", "))
+    }
+    k[1]
+  }
+  k1 <- find_arm(treat1); k2 <- find_arm(treat2)
+  d1_col <- paste0("d[", k1, "]"); d2_col <- paste0("d[", k2, "]")
+  diff <- samples_mat[, d1_col] - samples_mat[, d2_col]
+  mean_diff <- mean(diff); ci <- quantile(diff, c(0.025, 0.975))
+  p_treat1_better <- mean(diff < 0)
+
+  cat(sprintf("%s vs %s\n", treat1, treat2))
+  cat(sprintf("  contrast (arm_ind %d - arm_ind %d): %.2f (%.2f, %.2f)\n", k1, k2, mean_diff, ci[1], ci[2]))
+  cat(sprintf("  P(%s better) = %.3f\n", treat1, p_treat1_better))
+  quit(status = 0, save = "no")
+}
+
 if (isTRUE(args$fit_placebo)) {
   placebo_rows <- arm_rows %>% filter(compound == "placebo", !is.na(y), !is.na(se), se > 0, is.finite(se))
   if (nrow(placebo_rows) == 0) stop("No usable placebo rows for the pooled-placebo model.")
@@ -1585,7 +1475,6 @@ if (isTRUE(args$fit_placebo)) {
   placebo_rows <- placebo_rows %>% left_join(study_map, by = "study_ind")
   if (nrow(study_map) < 2) stop("Not enough studies with a usable placebo arm (need >= 2; found ", nrow(study_map), ").")
 
-  if (!is.null(args$placebo_out)) saveRDS(placebo_rows, args$placebo_out)
   cat("Pooled placebo model:", nrow(placebo_rows), "placebo row(s) across", nrow(study_map), "study/ies.\n")
 
   jags_data <- list(y_pct = placebo_rows$y, se_pct = placebo_rows$se, n_obs = nrow(placebo_rows),
@@ -1615,253 +1504,27 @@ if (isTRUE(args$fit_placebo)) {
   cat(sprintf("Pooled placebo baseline: m = %.3f (95%% CrI %.3f, %.3f)  sigma_m = %.3f\n",
               ps$statistics["m", "Mean"], ps$quantiles["m", "2.5%"], ps$quantiles["m", "97.5%"], ps$statistics["sigma_m", "Mean"]))
 }
-```
-### B2. `append_to_qa.R`
 
-Step 6's "promote to QA" path — appends new rows to an existing QA workbook in-place (or creates one from a PRD schema if the user confirmed). Called once per session when new data is being promoted to the shared QA file before fitting. Unchanged from before, except it no longer sources a separate `lib_common.R` (retired along with the other consolidated scripts) — its own tiny `parse_args()`/`%||%` copy is inlined instead.
-
-```r
-#!/usr/bin/env Rscript
-# Step 6 of the /cmh-ci skill (the "promote to QA" branch): append new rows
-# to the QA workbook.
-#
-# The QA file is the living working copy of the landscape data. New entries
-# (from press releases, digitized slides, subsets of other workbooks) land
-# here first, then eventually get promoted to PRD through the normal team
-# process. This script handles the physical append; the skill's Step 6
-# handles the logic of what to append and getting user confirmation.
-#
-# Usage:
-#   Rscript append_to_qa.R --qa <path.xlsx> --sheet <Observed|Prediction> \
-#     --rows <rows.rds> [--create-from <prd_path.xlsx>]
-
-suppressPackageStartupMessages({
-  library(openxlsx)
-  library(readxl)
-  library(dplyr)
-})
-
-`%||%` <- function(a, b) if (is.null(a)) b else a
-parse_args <- function(spec) {
-  raw <- commandArgs(trailingOnly = TRUE)
-  out <- list()
-  for (name in names(spec)) out[[name]] <- spec[[name]]$default
-  i <- 1
-  while (i <= length(raw)) {
-    key <- gsub("-", "_", sub("^--", "", raw[i]))
-    if (!key %in% names(spec)) stop("Unknown argument: --", raw[i])
-    if (i == length(raw)) stop("Missing value for --", raw[i])
-    out[[key]] <- raw[i + 1]
-    i <- i + 2
-  }
-  for (name in names(spec)) if (isTRUE(spec[[name]]$required) && is.null(out[[name]])) stop("Missing required argument: --", name)
-  out
-}
-
-args <- parse_args(list(
-  qa          = list(required = TRUE),
-  sheet       = list(required = TRUE),
-  rows        = list(required = TRUE),
-  create_from = list(default = NULL)
-))
-
-if (!args$sheet %in% c("Observed", "Prediction")) {
-  stop("--sheet must be 'Observed' or 'Prediction', got: ", args$sheet)
-}
-
-if (!file.exists(args$rows)) stop("--rows file not found: ", args$rows)
-new_rows <- readRDS(args$rows)
-if (!is.data.frame(new_rows) || nrow(new_rows) == 0) {
-  stop("--rows must be a non-empty data.frame, got ", nrow(new_rows), " rows.")
-}
-
-if (!file.exists(args$qa)) {
-  if (is.null(args$create_from)) {
-    stop("QA file does not exist (", args$qa, ") and --create-from was not provided.\n",
-         "The skill should ask the user before creating a new QA file.")
-  }
-  if (!file.exists(args$create_from)) stop("--create-from file not found: ", args$create_from)
-
-  cat("Creating new QA workbook from PRD schema:", args$create_from, "\n")
-  prd_obs_cols <- names(read_excel(args$create_from, sheet = "Observed", n_max = 0))
-  prd_pred_cols <- tryCatch(
-    names(read_excel(args$create_from, sheet = "Prediction", n_max = 0)),
-    error = function(e) prd_obs_cols
-  )
-
-  wb <- createWorkbook()
-  addWorksheet(wb, "Observed")
-  writeData(wb, "Observed", as.data.frame(matrix(nrow = 0, ncol = length(prd_obs_cols), dimnames = list(NULL, prd_obs_cols))))
-  addWorksheet(wb, "Prediction")
-  writeData(wb, "Prediction", as.data.frame(matrix(nrow = 0, ncol = length(prd_pred_cols), dimnames = list(NULL, prd_pred_cols))))
-
-  dir.create(dirname(args$qa), recursive = TRUE, showWarnings = FALSE)
-  saveWorkbook(wb, args$qa, overwrite = TRUE)
-  cat("Created:", args$qa, "\n")
-}
-
-wb <- loadWorkbook(args$qa)
-sheets <- names(wb)
-if (!args$sheet %in% sheets) stop("Sheet '", args$sheet, "' not found in ", args$qa, ". Available: ", paste(sheets, collapse = ", "))
-
-existing <- read.xlsx(wb, sheet = args$sheet)
-if (is.null(existing)) existing <- data.frame()
-
-existing_cols <- names(existing)
-for (col in existing_cols) if (!col %in% names(new_rows)) new_rows[[col]] <- NA
-new_rows <- new_rows[, intersect(names(new_rows), existing_cols), drop = FALSE]
-new_rows <- new_rows[, existing_cols, drop = FALSE]
-
-combined <- bind_rows(existing, new_rows)
-
-removeWorksheet(wb, args$sheet)
-addWorksheet(wb, args$sheet)
-writeData(wb, args$sheet, combined)
-
-desired_order <- intersect(c("Summary", "Observed", "Prediction"), names(wb))
-remaining <- setdiff(names(wb), desired_order)
-worksheetOrder(wb) <- match(c(desired_order, remaining), names(wb))
-
-saveWorkbook(wb, args$qa, overwrite = TRUE)
-
-cat(
-  "Appended", nrow(new_rows), "rows to sheet '", args$sheet, "' of ", args$qa, ".\n",
-  "New studies:", paste(unique(new_rows$study_name), collapse = ", "), "\n",
-  "Total rows in '", args$sheet, "' now:", nrow(combined), "\n",
-  sep = ""
-)
-```
-
-### B3. `make_forest_plot.R`
-
-Steps 10a/10b's forest plot + QC plot, plus the `named_contrast.R` utility —
-three modes on one script, selected by which arguments are given:
-
-- **plot** (default): renders the relative/absolute forest plot, reading
-  `--model-output` (B1's bundle: `arm_info`/`study_info`/`arm_rows`) instead
-  of three separate files. Fixed compound palette + fallback generator,
-  evidence-type superscripts, no caption on the image (per the 2026-08-27
-  change), footnote still printed to console.
-- **`--qc-plot <path> --placebo-data <path>`**: also renders the pooled-
-  placebo QC plot (formerly `make_placebo_forest_plot.R`) — each
-  contributing study's observed vs. posterior-shrunk placebo effect, the
-  pooled `m`, and the predictive `mu_new`.
-- **`--contrast "treat1|||treat2"`**: skips plotting entirely and prints a
-  named posterior contrast between two treatments (formerly
-  `named_contrast.R`) — resolves both by name against `--model-output`'s
-  `arm_info`, never a hardcoded posterior index.
-
-```r
-#!/usr/bin/env Rscript
-# Consolidated /cmh-ci plotting script: forest plot [+ placebo QC plot] [+
-# named contrast]. Replaces make_forest_plot.R + make_placebo_forest_plot.R +
-# named_contrast.R (see SKILL.md's Appendix B intro for why).
-#
-# Usage:
-#   Rscript make_forest_plot.R --model-output <bundle.rds> --samples <cache.rds> \
-#     --manifest <manifest.yaml> --effect relative|absolute --out <plot.png> \
-#     [--placebo-samples <p.rds>]                                    # required if --effect absolute
-#     [--qc-plot <qc.png> --placebo-data <pd.rds>]                   # optional placebo QC plot
-#     [--contrast "treat1|||treat2"]                                 # skips plotting; prints a contrast instead
-#     [--title "..."] [--xlab "..."]
-
-suppressPackageStartupMessages({
-  library(dplyr)
-  library(ggplot2)
-  library(yaml)
-  library(coda)
-  library(ggtext)
-})
-
-`%||%` <- function(a, b) if (is.null(a)) b else a
-
-parse_args <- function(spec) {
-  raw <- commandArgs(trailingOnly = TRUE)
-  out <- list()
-  for (name in names(spec)) out[[name]] <- spec[[name]]$default
-  i <- 1
-  while (i <= length(raw)) {
-    key <- gsub("-", "_", sub("^--", "", raw[i]))
-    if (!key %in% names(spec)) stop("Unknown argument: --", raw[i])
-    if (i == length(raw)) stop("Missing value for --", raw[i])
-    out[[key]] <- raw[i + 1]
-    i <- i + 2
-  }
-  for (name in names(spec)) if (isTRUE(spec[[name]]$required) && is.null(out[[name]])) stop("Missing required argument: --", name)
-  out
-}
-
-args <- parse_args(list(
-  model_output    = list(required = TRUE),
-  samples         = list(default = NULL),
-  manifest        = list(required = TRUE),
-  effect          = list(default = "relative"),
-  placebo_samples = list(default = NULL),
-  out             = list(default = NULL),
-  qc_plot         = list(default = NULL),
-  placebo_data    = list(default = NULL),
-  contrast        = list(default = NULL),
-  title           = list(default = NULL),
-  xlab            = list(default = NULL)
-))
-
-bundle <- readRDS(args$model_output)
-arm_info <- bundle$arm_info
-study_info <- bundle$study_info
-arm_rows <- bundle$arm_rows
-manifest <- yaml::read_yaml(args$manifest)
-
-# ==========================================================================
-# CONTRAST MODE -- formerly named_contrast.R. Resolves a named head-to-head
-# comparison from an already-fitted run's posterior, never a hardcoded d[k]
-# index. Skips plotting entirely.
-# ==========================================================================
-if (!is.null(args$contrast)) {
-  parts <- strsplit(args$contrast, "\\|\\|\\|")[[1]]
-  if (length(parts) != 2) stop("--contrast must be \"treat1|||treat2\", got: ", args$contrast)
-  treat1 <- trimws(parts[1]); treat2 <- trimws(parts[2])
-
-  if (is.null(args$samples)) stop("--contrast needs --samples <cache.rds>")
-  samples <- readRDS(args$samples)
-  cn <- colnames(samples[[1]])
-  samples_mat <- do.call(rbind, lapply(samples, function(x) x[, , drop = FALSE]))
-  colnames(samples_mat) <- cn
-
-  find_arm <- function(name) {
-    k <- arm_info$arm_ind[tolower(arm_info$treatment) == tolower(name)]
-    if (length(k) == 0) {
-      stop("Treatment not found: '", name, "'. Available: ",
-           paste(head(sort(unique(arm_info$treatment)), 15), collapse = ", "))
-    }
-    k[1]
-  }
-  k1 <- find_arm(treat1); k2 <- find_arm(treat2)
-  d1_col <- paste0("d[", k1, "]"); d2_col <- paste0("d[", k2, "]")
-  diff <- samples_mat[, d1_col] - samples_mat[, d2_col]
-  mean_diff <- mean(diff); ci <- quantile(diff, c(0.025, 0.975))
-  p_treat1_better <- mean(diff < 0)
-
-  cat(sprintf("%s vs %s\n", treat1, treat2))
-  cat(sprintf("  contrast (arm_ind %d - arm_ind %d): %.2f (%.2f, %.2f)\n", k1, k2, mean_diff, ci[1], ci[2]))
-  cat(sprintf("  P(%s better) = %.3f\n", treat1, p_treat1_better))
+if (!isTRUE(args$plot)) {
+  cat("No --plot given -- fit complete, nothing rendered.\n")
   quit(status = 0, save = "no")
 }
 
 # ==========================================================================
-# PLOT MODE (default) -- formerly make_forest_plot.R
+# PLOT (--plot given) -- forest plot, rendered in this same process so
+# there's no second R startup / package-reload between fitting and
+# plotting (formerly a separate make_forest_plot.R invocation). The
+# placebo QC plot mode is gone entirely -- this is the only image this
+# script produces.
 # ==========================================================================
 if (!args$effect %in% c("relative", "absolute")) stop("--effect must be 'relative' or 'absolute'")
-if (is.null(args$samples)) stop("--samples <cache.rds> is required for plotting")
-if (is.null(args$out)) stop("--out <plot.png> is required for plotting")
+if (args$effect == "absolute" && !isTRUE(args$fit_placebo)) {
+  stop("--effect absolute needs --fit-placebo (with --placebo-cache) in this same invocation.")
+}
 
-samples <- readRDS(args$samples)
 samples_mat <- as.matrix(samples)
-
 if (args$effect == "absolute") {
-  if (is.null(args$placebo_samples)) stop("--effect absolute needs --placebo-samples <path> (from run_bnma_pipeline.R --fit-placebo).")
-  if (!file.exists(args$placebo_samples)) stop("--placebo-samples file not found: ", args$placebo_samples)
-  placebo_samples_mat <- as.matrix(readRDS(args$placebo_samples))
-  if (!"m" %in% colnames(placebo_samples_mat)) stop("--placebo-samples file has no 'm' node.")
+  placebo_samples_mat <- as.matrix(placebo_samples)
   m_samples <- sample(placebo_samples_mat[, "m"], nrow(samples_mat), replace = TRUE)
   sigma_m_samples <- sample(placebo_samples_mat[, "sigma_m"], nrow(samples_mat), replace = TRUE)
   cat("Pooled placebo baseline loaded -- mean m =", round(mean(m_samples), 3), "\n")
@@ -1904,7 +1567,6 @@ data_plot <- data_plot %>%
 
 trt_order <- unique(data_plot$treatment_label)
 
-effect_col <- manifest$effect_col %||% "pchg_wl_ee"
 endpoint_label <- manifest$effect_label %||% (if (effect_col == "pchg_wl_ee") "Body Weight" else effect_col)
 ylab_text <- args$xlab %||% sprintf("Mean (95%% CI) of %s Percent Change in %s (%%)",
                                      if (args$effect == "relative") "Pbo-adj" else "Absolute", endpoint_label)
@@ -1935,22 +1597,17 @@ if (!is.null(subtitle_text)) {
   subtitle_text <- paste(strwrap(subtitle_text, width = subtitle_wrap_width), collapse = "\n")
 }
 
-if (!is.null(arm_rows)) {
-  by_treatment <- arm_rows %>% filter(treatment %in% c(plot_treatments, "placebo")) %>%
-    distinct(treatment, study_name) %>% group_by(treatment) %>%
-    summarise(studies = paste(sort(study_name), collapse = ", "), .groups = "drop")
-  by_treatment <- by_treatment[match(c(plot_treatments, "placebo"), by_treatment$treatment), ]
-  by_treatment <- by_treatment[!is.na(by_treatment$treatment), ]
-  contributing_lines <- c(
-    "Contributing studies by treatment:",
-    unlist(lapply(seq_len(nrow(by_treatment)), function(i) {
-      strwrap(paste0(by_treatment$treatment[i], ": ", by_treatment$studies[i]), width = footnote_wrap_width)
-    }))
-  )
-} else {
-  contributing_studies <- paste(sort(study_info$study_name), collapse = ", ")
-  contributing_lines <- strwrap(paste0("Contributing studies: ", contributing_studies), width = footnote_wrap_width)
-}
+by_treatment <- arm_rows %>% filter(treatment %in% c(plot_treatments, "placebo")) %>%
+  distinct(treatment, study_name) %>% group_by(treatment) %>%
+  summarise(studies = paste(sort(study_name), collapse = ", "), .groups = "drop")
+by_treatment <- by_treatment[match(c(plot_treatments, "placebo"), by_treatment$treatment), ]
+by_treatment <- by_treatment[!is.na(by_treatment$treatment), ]
+contributing_lines <- c(
+  "Contributing studies by treatment:",
+  unlist(lapply(seq_len(nrow(by_treatment)), function(i) {
+    strwrap(paste0(by_treatment$treatment[i], ": ", by_treatment$studies[i]), width = footnote_wrap_width)
+  }))
+)
 footnote_lines <- c(
   contributing_lines,
   strwrap(paste0("Source data: ", manifest$source_data$prd %||% "(not recorded)",
@@ -2002,164 +1659,123 @@ pforest <- ggplot(
 
 subtitle_lines <- if (is.null(subtitle_text)) 0 else lengths(regmatches(subtitle_text, gregexpr("\n", subtitle_text))) + 1
 plot_height <- max(4, 0.6 * length(trt_order)) + 0.18 * subtitle_lines
-ggsave(args$out, plot = pforest, width = plot_width, height = plot_height, dpi = 150)
-cat("Forest plot saved to:", args$out, "\n")
+ggsave(args$plot_out, plot = pforest, width = plot_width, height = plot_height, dpi = 150)
+cat("Forest plot saved to:", args$plot_out, "\n")
 cat("Footnote (not rendered on the plot -- console record only):\n", footnote_text, "\n")
+```
+### B2. `append_to_qa.R`
 
-# ==========================================================================
-# QC PLOT (--qc-plot given) -- formerly make_placebo_forest_plot.R
-# ==========================================================================
-if (!is.null(args$qc_plot)) {
-  if (is.null(args$placebo_data)) stop("--qc-plot needs --placebo-data <path> (from run_bnma_pipeline.R --fit-placebo's --placebo-out).")
-  if (is.null(args$placebo_samples)) stop("--qc-plot needs --placebo-samples too.")
+Step 4's "promote to QA" path — appends new rows to an existing QA workbook in-place, creating it directly from the PRD schema if it doesn't exist yet (no separate user confirmation beyond Step 3's row-table confirmation). Called once per session when new data is being promoted to the shared QA file before fitting. Unchanged from before, except it no longer sources a separate `lib_common.R` (retired along with the other consolidated scripts) — its own tiny `parse_args()`/`%||%` copy is inlined instead.
 
-  placebo_data <- readRDS(args$placebo_data)
-  ps <- summary(readRDS(args$placebo_samples))
-  m_mean <- ps$statistics["m", "Mean"]; m_lo <- ps$quantiles["m", "2.5%"]; m_hi <- ps$quantiles["m", "97.5%"]
-  sigma_mean <- ps$statistics["sigma_m", "Mean"]; sigma_lo <- ps$quantiles["sigma_m", "2.5%"]; sigma_hi <- ps$quantiles["sigma_m", "97.5%"]
-  mu_new_mean <- ps$statistics["mu_new", "Mean"]; mu_new_lo <- ps$quantiles["mu_new", "2.5%"]; mu_new_hi <- ps$quantiles["mu_new", "97.5%"]
+```r
+#!/usr/bin/env Rscript
+# Step 4 of the /cmh-ci skill (the "promote to QA" branch): append new rows
+# to the QA workbook.
+#
+# The QA file is the living working copy of the landscape data. New entries
+# (from press releases, digitized slides, subsets of other workbooks) land
+# here first, then eventually get promoted to PRD through the normal team
+# process. This script handles the physical append (and create-if-missing);
+# the skill's Step 3 handles getting the rows confirmed before this runs.
+#
+# Usage:
+#   Rscript append_to_qa.R --qa <path.xlsx> --sheet <Observed|Prediction> \
+#     --rows <rows.rds> --create-from <prd_path.xlsx>
 
-  mu_rows <- grepl("^mu\\[", rownames(ps$statistics))
-  mu_summary <- data.frame(
-    study_idx = as.integer(gsub("mu\\[(\\d+)\\]", "\\1", rownames(ps$statistics)[mu_rows])),
-    post_mean = ps$statistics[mu_rows, "Mean"], post_lower = ps$quantiles[mu_rows, "2.5%"], post_upper = ps$quantiles[mu_rows, "97.5%"]
+suppressPackageStartupMessages({
+  library(openxlsx)
+  library(readxl)
+  library(dplyr)
+})
+
+`%||%` <- function(a, b) if (is.null(a)) b else a
+parse_args <- function(spec) {
+  raw <- commandArgs(trailingOnly = TRUE)
+  out <- list()
+  for (name in names(spec)) out[[name]] <- spec[[name]]$default
+  i <- 1
+  while (i <= length(raw)) {
+    key <- gsub("-", "_", sub("^--", "", raw[i]))
+    if (!key %in% names(spec)) stop("Unknown argument: --", raw[i])
+    if (i == length(raw)) stop("Missing value for --", raw[i])
+    out[[key]] <- raw[i + 1]
+    i <- i + 2
+  }
+  for (name in names(spec)) if (isTRUE(spec[[name]]$required) && is.null(out[[name]])) stop("Missing required argument: --", name)
+  out
+}
+
+args <- parse_args(list(
+  qa          = list(required = TRUE),
+  sheet       = list(required = TRUE),
+  rows        = list(required = TRUE),
+  create_from = list(default = NULL)
+))
+
+if (!args$sheet %in% c("Observed", "Prediction")) {
+  stop("--sheet must be 'Observed' or 'Prediction', got: ", args$sheet)
+}
+
+if (!file.exists(args$rows)) stop("--rows file not found: ", args$rows)
+new_rows <- readRDS(args$rows)
+if (!is.data.frame(new_rows) || nrow(new_rows) == 0) {
+  stop("--rows must be a non-empty data.frame, got ", nrow(new_rows), " rows.")
+}
+
+if (!file.exists(args$qa)) {
+  if (is.null(args$create_from)) {
+    stop("QA file does not exist (", args$qa, ") and --create-from was not provided.\n",
+         "Step 4 always passes --create-from so a missing QA file is created directly.")
+  }
+  if (!file.exists(args$create_from)) stop("--create-from file not found: ", args$create_from)
+
+  cat("Creating new QA workbook from PRD schema:", args$create_from, "\n")
+  prd_obs_cols <- names(read_excel(args$create_from, sheet = "Observed", n_max = 0))
+  prd_pred_cols <- tryCatch(
+    names(read_excel(args$create_from, sheet = "Prediction", n_max = 0)),
+    error = function(e) prd_obs_cols
   )
 
-  qc_data <- placebo_data %>% left_join(mu_summary, by = "study_idx") %>%
-    mutate(obs_lower = y - 1.96 * se, obs_upper = y + 1.96 * se,
-           Label = sprintf("%.1f (%.1f, %.1f)", post_mean, post_lower, post_upper)) %>%
-    arrange(study_name)
+  wb <- createWorkbook()
+  addWorksheet(wb, "Observed")
+  writeData(wb, "Observed", as.data.frame(matrix(nrow = 0, ncol = length(prd_obs_cols), dimnames = list(NULL, prd_obs_cols))))
+  addWorksheet(wb, "Prediction")
+  writeData(wb, "Prediction", as.data.frame(matrix(nrow = 0, ncol = length(prd_pred_cols), dimnames = list(NULL, prd_pred_cols))))
 
-  study_order <- c("New study (predicted)", "Pooled (m)", rev(qc_data$study_name))
-  rows_obs <- qc_data %>% transmute(label = study_name, kind = "Observed", mean = y, lo = obs_lower, hi = obs_upper)
-  rows_post <- qc_data %>% transmute(label = study_name, kind = "Posterior (shrunk)", mean = post_mean, lo = post_lower, hi = post_upper)
-  rows_pooled <- data.frame(label = "Pooled (m)", kind = "Pooled", mean = m_mean, lo = m_lo, hi = m_hi)
-  rows_new <- data.frame(label = "New study (predicted)", kind = "Predicted (mu_new)", mean = mu_new_mean, lo = mu_new_lo, hi = mu_new_hi)
-  qc_plot_data <- bind_rows(rows_obs, rows_post, rows_pooled, rows_new) %>% mutate(label = factor(label, levels = study_order))
-
-  qc_endpoint_label <- manifest$effect_label %||% (if (effect_col == "pchg_wl_ee") "Body Weight" else effect_col)
-  qc_xlab <- sprintf("Mean (95%% CI) Placebo Percent Change in %s (%%)", qc_endpoint_label)
-  qc_title <- sprintf("Pooled Placebo Effect: %s", qc_endpoint_label)
-  qc_subtitle <- sprintf("Pooled m = %.2f%% (95%% CrI: %.2f, %.2f)   between-study SD (sigma_m) = %.2f (95%% CrI: %.2f, %.2f)",
-                          m_mean, m_lo, m_hi, sigma_mean, sigma_lo, sigma_hi)
-
-  qc_p <- ggplot(qc_plot_data, aes(x = label, y = mean, ymin = lo, ymax = hi, color = kind, shape = kind)) +
-    geom_pointrange(position = position_dodge(width = 0.4), size = 0.5) +
-    geom_hline(yintercept = 0, linetype = 2, linewidth = 0.6) +
-    scale_color_manual(values = c("Observed" = "#7F8C8D", "Posterior (shrunk)" = "#1B4F72", "Pooled" = "#000000", "Predicted (mu_new)" = "#7B241C")) +
-    scale_shape_manual(values = c("Observed" = 1, "Posterior (shrunk)" = 16, "Pooled" = 18, "Predicted (mu_new)" = 17)) +
-    coord_flip() + xlab("") + ylab(qc_xlab) +
-    ggtitle(qc_title, subtitle = qc_subtitle) +
-    labs(color = "", shape = "") +
-    theme_bw() +
-    theme(plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
-          plot.subtitle = element_text(size = 10, color = "grey35", hjust = 0.5), legend.position = "bottom")
-
-  ggsave(args$qc_plot, plot = qc_p, width = 9, height = max(4, 0.45 * length(study_order) + 2), dpi = 150)
-  cat("Placebo QC plot saved to:", args$qc_plot, "\n")
-  cat(sprintf("Pooled placebo effect (m): %.2f%% (95%% CrI: %.2f, %.2f)\n", m_mean, m_lo, m_hi))
-  cat(sprintf("Predicted placebo effect in a new study (mu_new): %.2f%% (95%% CrI: %.2f, %.2f)\n", mu_new_mean, mu_new_lo, mu_new_hi))
+  dir.create(dirname(args$qa), recursive = TRUE, showWarnings = FALSE)
+  saveWorkbook(wb, args$qa, overwrite = TRUE)
+  cat("Created:", args$qa, "\n")
 }
-```
----
 
-## Appendix D — Session Environment Wrappers (embedded, no external files needed)
+wb <- loadWorkbook(args$qa)
+sheets <- names(wb)
+if (!args$sheet %in% sheets) stop("Sheet '", args$sheet, "' not found in ", args$qa, ". Available: ", paste(sheets, collapse = ", "))
 
-This HPC environment doesn't guarantee `Rscript` on `PATH`, and `rjags`
-needs `module load jags` run in the same shell before it links — these three
-wrappers resolve that portably. Materialize them the same way as Appendix B
-(write to a real file, `chmod +x`, then exec). Now shared by just the two
-consolidated scripts instead of nine: D2 for `run_bnma_pipeline.R`'s
-explore/build-preview modes and `make_forest_plot.R` (none of these load
-`rjags`), D3 only for `run_bnma_pipeline.R`'s fit mode.
+existing <- read.xlsx(wb, sheet = args$sheet)
+if (is.null(existing)) existing <- data.frame()
 
-### D1. `_resolve_rscript.sh`
+existing_cols <- names(existing)
+for (col in existing_cols) if (!col %in% names(new_rows)) new_rows[[col]] <- NA
+new_rows <- new_rows[, intersect(names(new_rows), existing_cols), drop = FALSE]
+new_rows <- new_rows[, existing_cols, drop = FALSE]
 
-Shared Rscript resolution, sourced by D2/D3 below (not run directly): explicit override, PATH, then `module load R`, then PATH again.
+combined <- bind_rows(existing, new_rows)
 
-```bash
-#!/usr/bin/env bash
+removeWorksheet(wb, args$sheet)
+addWorksheet(wb, args$sheet)
+writeData(wb, args$sheet, combined)
 
-# Shared Rscript resolution, sourced by run_r.sh and run_with_jags.sh.
-# Not meant to be run directly. Sets RSCRIPT_BIN.
-#
-# Resolution order: explicit override, PATH, `module load R` (whichever
-# version this session tags default) then PATH again. Neither "on PATH" nor
-# "one fixed install path" can be assumed across different analysts'
-# Positron sessions -- confirmed by testing: Rscript is NOT on PATH by
-# default in at least one real session here, and R itself is provisioned
-# via `module load R/<version>` there, same as JAGS.
+desired_order <- intersect(c("Summary", "Observed", "Prediction"), names(wb))
+remaining <- setdiff(names(wb), desired_order)
+worksheetOrder(wb) <- match(c(desired_order, remaining), names(wb))
 
-if [ -f /etc/profile.d/modules.sh ]; then
-  source /etc/profile.d/modules.sh
-fi
+saveWorkbook(wb, args$qa, overwrite = TRUE)
 
-RSCRIPT_BIN="${BNMA_RSCRIPT:-}"
-if [ -z "$RSCRIPT_BIN" ]; then
-  RSCRIPT_BIN="$(command -v Rscript || true)"
-fi
-if [ -z "$RSCRIPT_BIN" ] && command -v module >/dev/null 2>&1; then
-  module load R >/dev/null 2>&1 || true
-  RSCRIPT_BIN="$(command -v Rscript || true)"
-fi
-if [ -z "$RSCRIPT_BIN" ]; then
-  echo "ERROR: no Rscript found on PATH, and 'module load R' didn't put one there." >&2
-  echo "Set BNMA_RSCRIPT=/path/to/Rscript to pin a specific install." >&2
-  exit 1
-fi
-```
-
-### D2. `run_r.sh`
-
-Wrapper for any script that does NOT need rjags/JAGS.
-
-```bash
-#!/usr/bin/env bash
-# Wrapper for any /cmh-ci script that does NOT need rjags/JAGS -- resolves
-# Rscript portably (see _resolve_rscript.sh) and execs it. Use
-# run_with_jags.sh instead for run_bnma_pipeline.R's fit mode.
-#
-# Usage: scripts/run_r.sh <path/to/script.R> [args...]
-set -euo pipefail
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/_resolve_rscript.sh"
-
-exec "$RSCRIPT_BIN" "$@"
-```
-
-### D3. `run_with_jags.sh`
-
-Wrapper for `run_bnma_pipeline.R`'s fit mode (`--model` given): loads the `jags` environment module before exec'ing Rscript.
-
-
-```bash
-#!/usr/bin/env bash
-# Wrapper for any /bnma script that needs rjags: resolves Rscript (see
-# _resolve_rscript.sh), loads the `jags` environment module (rjags is
-# installed but fails to link its shared library without this -- confirmed:
-# requireNamespace("rjags") is FALSE until `module load jags` has run in the
-# same shell), then execs Rscript.
-#
-# Usage: scripts/run_with_jags.sh <path/to/script.R> [args...]
-set -euo pipefail
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/_resolve_rscript.sh"
-
-if command -v module >/dev/null 2>&1; then
-  if module avail jags 2>&1 | grep -qi jags; then
-    module load jags
-  else
-    echo "WARNING: environment modules are available here but no 'jags' module was found." >&2
-    echo "  rjags will likely fail to load unless JAGS is on the library path some other way." >&2
-    echo "  Run 'module avail' to check what this session actually calls it." >&2
-  fi
-else
-  echo "NOTE: no 'module' command in this session -- assuming JAGS is already reachable" >&2
-  echo "  (either not needed here, or provisioned some other way than environment modules)." >&2
-fi
-
-exec "$RSCRIPT_BIN" "$@"
+cat(
+  "Appended", nrow(new_rows), "rows to sheet '", args$sheet, "' of ", args$qa, ".\n",
+  "New studies:", paste(unique(new_rows$study_name), collapse = ", "), "\n",
+  "Total rows in '", args$sheet, "' now:", nrow(combined), "\n",
+  sep = ""
+)
 ```
 
