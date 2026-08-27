@@ -58,25 +58,17 @@ don't collect modelling preferences until the real dataset — and its
 network structure — is actually known.
 
 ```
-Step 1  Introduce and explain the available PRD dataset (always first)
-Step 2  Ask which studies you're interested in (named studies and/or
-        compounds first, then endpoint/route/evidence/region -- one
-        question at a time)
-Step 3  Create and review a subset of the PRD data based on those
-        selections (naming/pooling flags + study list, grouped confirmation)
+Step 1  Introduce and explain the available PRD dataset
+Step 2  Ask which studies you're interested in
+Step 3  Create and review a subset of the PRD data based on those selections
 Step 4  Ask whether additional, non-PRD data should be incorporated
-Step 5  Convert and structure any additional data into the QA format
+Step 5  Convert and structure any additional data into the expected QA format
         (only if Step 4 said yes)
 Step 6  Merge the supplemental data with the selected PRD subset
-        (only if Step 4 said yes; loops back to Step 4)
-Step 7  Confirm whether to proceed to a BNMA run, or stop here (the goal
-        may have just been reviewing/updating the data)
-Step 8  Generate the BNMA using the prepared dataset (propose folders,
-        write the manifest, build the BATMAN data structure)
-Step 9  Collect modelling preferences (heterogeneity, effect type,
-        no-placebo-arm bridging -- informed by Step 8's real network)
-Step 10 Produce analysis outputs and visualisations (fit, forest plot,
-        driver script, promote/discard a scratch run)
+        (only if Step 4 said yes)
+Step 7  Generate the BNMA using the prepared dataset
+Step 8  Collect modelling preferences (model specification, reporting options)
+Step 9  Produce analysis outputs and visualisations
 ```
 
 **Do not skip steps or assume defaults on the user's behalf on anything
@@ -168,116 +160,58 @@ this skill to flag it.
 
 ## Step 1 — Introduce and explain the available PRD dataset
 
-Runs at the very start of every trigger, before anything else. This is the
-entry experience for someone opening this skill against a folder that
-already has PRD/QA data sitting in it (the common case: a statistician's
-own project directory) — and, per the team's 2026-08-26 workflow-narrative
-discussion (see DESIGN.md's design-iteration history), the mandatory first
-stop for *everyone*, whether they already know exactly what they want or
-are just asking "what's in this data?" This step never proposes folders,
-never asks about custom data, and never demands a study-selection
-decision — those come later (Steps 4 and 8), so someone who only wants to
-look around never gets dragged into project setup.
+**The PRD dataset for this skill is the non-T2D weight-loss landscape:**
 
-**1a. Locate the base dataset — PRD-first.** This step is specifically
-about the PRD tier (a newer QA file, if one exists, is Step 4's concern —
-"additional, non-PRD data" — not this one). Only ask if the initial prompt
-didn't already make this clear:
-- **An exact file path was given.** Use exactly what's given — don't guess
-  a filename. If the statistician explicitly names a QA file instead of a
-  PRD one, that's fine (use it directly), but don't substitute a QA file on
-  their behalf when they asked for or pointed at PRD.
-- **Both a PRD and a QA path were given together up front.** Load only the
-  PRD path here (1b) — same "never merge before Step 4 asks" rule as
-  everywhere else in this step — but don't silently drop the QA path
-  either: hold onto it and offer it as the stated default answer when Step
-  4 asks about additional data, so the statistician isn't asked to repeat
-  themselves for something they already told you.
-- **No specific file was given** — a working directory was named, or
-  nothing was given at all (default to the project's own working
-  directory, the common case: a statistician's own project folder). Either
-  way, **search that directory for PRD files** — depth-limited (e.g. `find
-  <dir> -maxdepth 6 -iname "*.xlsx"` — never a full recursive walk, and
-  never a directory that's itself a mount root, see the org's
-  filesystem-search policy). **Use `-maxdepth 6`, not a shallower guess** —
-  confirmed real case, 2026-08-27: pointed at `/lillyce/prd/diabetes/bnma/`,
-  the actual PRD file lived 5 levels down at
-  `obesity/data/shared/weight/cwm_wl_nont2d_prd_*.xlsx`; a shallower depth
-  (3, used previously) silently found nothing and looked like "no PRD data
-  here" when the file was right there, just nested deeper than expected. If
-  a depth-6 search still finds nothing, that's a real empty result worth
-  reporting as such — don't keep escalating the depth unprompted, ask the
-  statistician for a more specific path instead (see below). Match this
-  project's own PRD naming convention, not QA's. **Always list every PRD
-  candidate found, with modified dates, and get an explicit pick — even
-  when only one file looks
-  plausible.** Silently choosing "the newest" or "the best name match" is
-  exactly the class of silent assumption this skill exists to eliminate
-  everywhere else; the directory search finds candidates, it never
-  substitutes for confirming which one. Don't ask "where's your data?"
-  first when a depth-limited local search can answer it directly — search,
-  then present the list for a pick.
-- **No PRD files found at all** in the searched directory — say so plainly
-  and ask the statistician for a path (or a different directory to search)
-  before doing anything else. Don't silently fall back to a QA file here
-  even if one is sitting right next to where a PRD file was expected.
+```
+/lillyce/prd/diabetes/bnma/obesity/data/shared/weight/cwm_wl_nont2d_prd_20260805.xlsx
+```
 
-**1b. Load & introduce what's actually in it, then ask what to include.**
-Once the base dataset is located, read it directly with R — **no script
-materialization needed at this stage**. A simple inline R call is all
-that's required to show the user what's in their data:
+(T2D datasets will be added later; for now this skill targets the nont2d
+structure only.)
+
+Read it directly with inline R — no script materialization needed:
 
 ```bash
 module load R/4.4.2 2>/dev/null
 Rscript -e '
 library(readxl); library(dplyr)
-f <- "<prd_path.xlsx>"
+f <- "/lillyce/prd/diabetes/bnma/obesity/data/shared/weight/cwm_wl_nont2d_prd_20260805.xlsx"
 sheets <- excel_sheets(f)
-cat("Sheets:", paste(sheets, collapse=", "), "\n\n")
 for (s in sheets[!tolower(s) %in% c("summary","revision history")]) {
   d <- read_excel(f, sheet=s)
-  if ("study_name" %in% names(d) || "Study" %in% names(d)) {
-    study_col <- if ("study_name" %in% names(d)) "study_name" else "Study"
-    treat_col <- if ("treatment" %in% names(d)) "treatment" else "Treatment"
-    comp_col  <- if ("compound" %in% names(d)) "compound" else "Compound"
+  if ("study_name" %in% names(d)) {
     cat("Sheet:", s, "| Rows:", nrow(d), "\n")
-    cat("  Studies:", paste(sort(unique(d[[study_col]])), collapse=", "), "\n")
-    cat("  Compounds:", paste(sort(unique(d[[comp_col]])), collapse=", "), "\n")
-    cat("  Treatments:", paste(sort(unique(d[[treat_col]])), collapse=", "), "\n\n")
+    studies <- d %>% group_by(study_name) %>%
+      summarise(compound = paste(sort(unique(compound)), collapse=", "),
+                treatments = paste(sort(unique(treatment)), collapse=", "),
+                .groups="drop")
+    for (i in seq_len(nrow(studies))) {
+      cat("  ", i, ". ", studies$study_name[i], " -- ", studies$compound[i], "\n", sep="")
+      cat("       treatments: ", studies$treatments[i], "\n")
+    }
+    cat("\n")
   }
 }
 '
 ```
 
-**No scripts are materialized, no RDS files are written to `/tmp`, no
-lib_common.R is sourced.** This is a read-only peek at the Excel file. The
-pipeline scripts (`run_bnma_pipeline.R`, `make_forest_plot.R`) are only
-materialized later in Step 10 when the actual fit is happening.
-
-**Then, in the same message, list the studies and ask which to include.**
-Present each study with its phase, evidence tier, and treatments — and ask
-which ones the user wants in the BNMA:
+**Then, in the same message, list the studies and ask which to include:**
 
 ```
-Here's what's in <dataset>:
+Here's what's in the PRD (cwm_wl_nont2d):
 
   STUDIES (N total):
-    1. <study_name> (phase 3, observed) — <compound> <doses>
-    2. <study_name> (phase 2, observed) — <compound> <doses>
-    3. <study_name> (phase 3, prediction) — <compound> <doses>
-    ...
+    1. <study_name> (phase, evidence_tier) — <compound> <treatments>
+    2. ...
 
-  Which studies do you want to include? (default: all phase 3 observed;
-  phase 2 / prediction-tier need an explicit yes)
+  Which studies do you want to include?
+  (default: all phase 3 observed; phase 2 / prediction-tier need explicit yes)
 
   Any new data to add before fitting?
 ```
 
-This keeps Step 1 fast (~2-3 seconds) and gets the key decision (study
-selection) in the same first message, rather than deferring it to a
-separate Step 2 round trip. If the user already named specific treatments
-in their prompt, pre-resolve those against the data and propose them as
-the include list instead of asking cold.
+If the user already named specific treatments in their prompt, pre-resolve
+those against the data and propose them as the include list.
 
 **1c. Naming/pooling QA gate — only surfaced once run-intent is
 established.** This gate exists to protect an eventual model fit (route
