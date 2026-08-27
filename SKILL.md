@@ -222,10 +222,10 @@ didn't already make this clear:
   before doing anything else. Don't silently fall back to a QA file here
   even if one is sitting right next to where a PRD file was expected.
 
-**1b. Load & introduce what's actually in it.** Once the base dataset is
-located, read it directly with R — **no script materialization needed at
-this stage**. A simple inline R call is all that's required to show the
-user what's in their data:
+**1b. Load & introduce what's actually in it, then ask what to include.**
+Once the base dataset is located, read it directly with R — **no script
+materialization needed at this stage**. A simple inline R call is all
+that's required to show the user what's in their data:
 
 ```bash
 module load R/4.4.2 2>/dev/null
@@ -252,24 +252,32 @@ for (s in sheets[!tolower(s) %in% c("summary","revision history")]) {
 **No scripts are materialized, no RDS files are written to `/tmp`, no
 lib_common.R is sourced.** This is a read-only peek at the Excel file. The
 pipeline scripts (`run_bnma_pipeline.R`, `make_forest_plot.R`) are only
-materialized later in Step 3 when the actual fit is happening.
+materialized later in Step 10 when the actual fit is happening.
 
-This keeps Step 1 fast (~2-3 seconds) regardless of how large the workbook
-is. The full pipeline machinery is deferred until Step 3 when the user has
-confirmed what they want.
+**Then, in the same message, list the studies and ask which to include.**
+Present each study with its phase, evidence tier, and treatments — and ask
+which ones the user wants in the BNMA:
 
-Use its printed summary to give the statistician a real answer to "what's
-available here" *before* asking them to decide anything: distinct studies,
-compounds, phases, evidence tiers (observed vs. prediction row counts), and
-regions present. This is always shown, even when the initial prompt already
-named specific studies/compounds — it's a one- or two-sentence preamble
-folded into whatever message comes next: **Step 1d's explore-or-run fork**
-if the prompt gave no run signal yet (1c's naming/pooling gate does not
-surface yet in that case — see 1c's own gating note below), or straight
-into 1c's naming gate and Step 2's first question if the prompt already
-signaled run-intent. Loading and summarizing the data is never itself the
-cue to start surfacing the naming/pooling gate or anything past it — that's
-a separate, deliberate decision made next, not an automatic continuation.
+```
+Here's what's in <dataset>:
+
+  STUDIES (N total):
+    1. <study_name> (phase 3, observed) — <compound> <doses>
+    2. <study_name> (phase 2, observed) — <compound> <doses>
+    3. <study_name> (phase 3, prediction) — <compound> <doses>
+    ...
+
+  Which studies do you want to include? (default: all phase 3 observed;
+  phase 2 / prediction-tier need an explicit yes)
+
+  Any new data to add before fitting?
+```
+
+This keeps Step 1 fast (~2-3 seconds) and gets the key decision (study
+selection) in the same first message, rather than deferring it to a
+separate Step 2 round trip. If the user already named specific treatments
+in their prompt, pre-resolve those against the data and propose them as
+the include list instead of asking cold.
 
 **1c. Naming/pooling QA gate — only surfaced once run-intent is
 established.** This gate exists to protect an eventual model fit (route
