@@ -148,18 +148,26 @@ this skill to flag it.
 
 ## Step 1 — Introduce and explain the available PRD dataset
 
-**The PRD dataset is:**
+**The PRD dataset lives at:**
 ```
-/lillyce/prd/diabetes/bnma/obesity/data/shared/weight/cwm_wl_nont2d_prd_20260805.xlsx
+/lillyce/prd/diabetes/bnma/obesity/data/shared/weight/cwm_wl_nont2d_prd_YYYYMMDD.xlsx
 ```
 
-Read it directly with inline R (no script materialization):
+**Locate the most recent dated file matching that pattern first** — one
+cheap `ls`, not a search — rather than assuming a fixed date. New dated
+PRD extracts land in that directory periodically; treating a specific
+date as permanent (or, worse, improvising an ad hoc check for whether
+it's still current) is exactly the kind of slow, unscoped work this step
+should avoid. Resolve it in the same command that reads the file, no
+separate step:
 
 ```bash
 module load R/4.4.2 2>/dev/null
+export PRD_FILE=$(ls -t /lillyce/prd/diabetes/bnma/obesity/data/shared/weight/cwm_wl_nont2d_prd_*.xlsx 2>/dev/null | head -1)
+echo "Using PRD file: $PRD_FILE"
 Rscript -e '
 library(readxl); library(dplyr)
-f <- "/lillyce/prd/diabetes/bnma/obesity/data/shared/weight/cwm_wl_nont2d_prd_20260805.xlsx"
+f <- Sys.getenv("PRD_FILE")
 sheets <- excel_sheets(f)
 for (s in sheets[!tolower(sheets) %in% c("summary","revision history")]) {
   d <- read_excel(f, sheet=s)
