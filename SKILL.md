@@ -274,25 +274,37 @@ a separate, deliberate decision made next, not an automatic continuation.
 **1c. Naming/pooling QA gate — only surfaced once run-intent is
 established.** This gate exists to protect an eventual model fit (route
 mix-ups, placebo-naming collisions corrupting the network) — it has no
-reason to matter before there's a run in sight. **Check this before doing
-anything else in this step:**
+reason to matter before there's a run in sight.
+
+**Do this check with inline R — no script materialization needed.** The
+naming/pooling check is string-similarity on compound names + detecting
+route collisions + flagging placebo variants. All of this can be done by
+reading the already-loaded data directly:
+
+```bash
+module load R/4.4.2 2>/dev/null
+Rscript -e '
+library(readxl); library(dplyr); library(stringdist)
+f <- "<prd_path.xlsx>"
+# ... read sheets, normalize names, run checks ...
+# Check 1: compound-name similarity (string distance < 3)
+# Check 2: route-pooling collisions (same treatment, different aom)
+# Check 3: placebo-naming variants (compound=="placebo" but treatment!="placebo")
+# Check 4: studies with no placebo arm
+# Print findings as structured text
+'
+```
+
+**No scripts materialized, no RDS files, no lib_common.R.** Just read the
+xlsx, compute the checks, print findings. The full pipeline scripts are
+still deferred to Step 8/10.
+
+**Check this before doing anything else in this step:**
 - If the initial prompt already signaled run-intent (an endpoint, named
   studies/compounds, a mention of a BNMA/forest plot), surface this gate's
-  findings now, as before.
+  findings now.
 - If it didn't, **resolve Step 1d's explore-or-run fork first** and only
-  come back to surface these findings once the answer is "set up a run" —
-  never as an automatic mention during pure exploration, even though 1b's
-  call already computed them. A reply merely confirming *which file* to
-  load (1a's "should I use this file?") — "yes, proceed," "yes," "that's
-  the one" — is **not** a run signal; a real session this tripped up had
-  exactly that exchange (prompt: "I want to use this skill, how can it help
-  me" → file located and confirmed → the correct next stop was still Step
-  1d's fork, not a jump straight into surfacing this gate).
-
-Read the naming/pooling report from 1b's own output, but **do not stop
-here to resolve flags one at a time** — for every active (non-suppressed)
-`compound_flags`/`pooling_flags` entry, work out a proposed resolution to
-carry into Step 3's message instead:
+  come back to surface these findings once the answer is "set up a run."
 
 - A compound-name flag: propose `different` unless the substring/prefix
   signal is strong (one name is literally a substring of the other — the
@@ -1047,25 +1059,28 @@ Save it into `programs/<slug>/` (created moments ago, above), e.g.
 `run_bnma_pipeline.R`'s build step (below) enforces this itself and will
 refuse to run otherwise — that's intentional, not a bug to work around.
 
-**8c. Build-preview: confirm the manifest is complete and see the real
-network.** Materialize Appendix D1/D2 (if not already done) and Appendix
-B1 (`run_bnma_pipeline.R`, if not already done this session — it's the
-same file 1b already materialized), then run in **build-preview mode** —
-`--manifest` given, no `--model` yet:
+**8c. Validate the manifest is complete — inline, no pipeline script
+needed.** Before moving on, verify that every study in the merged data
+appears under `studies:` in the manifest. This is a simple check:
 
 ```bash
-scripts/run_r.sh scripts/run_bnma_pipeline.R \
-  --prd <prd_path.xlsx> --manifest <manifest.yaml>
+module load R/4.4.2 2>/dev/null
+Rscript -e '
+library(readxl); library(dplyr); library(yaml)
+manifest <- yaml::read_yaml("<manifest.yaml>")
+# Read the PRD (and QA if given) to get the actual study list
+# Compare against manifest$studies -- error if any missing
+'
 ```
 
-No `rjags`/`run_with_jags.sh` needed for this call — it loads+merges,
-applies the manifest, builds the BATMAN matrices, prints the
-heterogeneity-estimability check (feeds Step 9's question), and exits
-without writing anything to disk. **Nothing from this call is reused
-later** — Step 10a's fit re-derives everything fresh, in the same process
-as the fit itself, once `model_type` is actually known (see that step for
-why: reusing a build artifact across the Step 9 boundary would silently
-carry stale phantom-placebo-bridging decisions if `model_type` changes).
+If studies are missing — go back to steps 2-7 with the user, don't patch
+around it.
+
+**The star-network / heterogeneity-estimability check is deferred to Step
+10a** — it's computed as part of the actual BATMAN build (which Step 10
+does anyway before fitting), and its finding feeds Step 9's question. This
+avoids running the full pipeline twice (once here, once to fit). Step 9's
+questions come *after* Step 10a's build reports the network structure.
 
 If this errors because studies are missing from the manifest, that's the
 intended guard — go back to steps 2-7 with the user, don't patch around it.
@@ -1083,13 +1098,24 @@ information) not worth carrying into the fit or its convergence scoring.
 
 ## Step 9 — Collect modelling preferences
 
-`run_bnma_pipeline.R`'s build step (Step 8c) also prints a **heterogeneity estimability**
-check — for every non-placebo treatment node, how many distinct studies
-feed it. Because this step now runs *after* the dataset is finalized and
-the network structure is actually known, the heterogeneity and effect-type
-questions below can state the real recommendation directly — no "ask blind,
-then correct after the fact" needed, unlike this same pair of questions
-under the old step ordering.
+**Before asking these questions, run a quick inline network-structure
+check** — count how many distinct studies feed each non-placebo treatment
+node in the confirmed study list. This is a simple count from the data
+(no pipeline script needed):
+
+```bash
+module load R/4.4.2 2>/dev/null
+Rscript -e '
+library(readxl); library(dplyr)
+# Read the PRD data, filter to included studies from manifest
+# Count: for each treatment, how many distinct studies contribute
+# Report: is this a full star? (zero nodes with >=2 studies)
+'
+```
+
+Because this check runs *after* the dataset is finalized and the network
+structure is actually known, the heterogeneity and effect-type questions
+below can state the real recommendation directly.
 
 **9a. Heterogeneity.** If the check reports a **star network** (zero nodes
 with ≥2 contributing studies — the exact situation in `pf_nma.R`, a
@@ -1156,16 +1182,15 @@ and let the statistician confirm or override it once, directly.
 
 ## Step 10 — Produce analysis outputs and visualisations
 
-**10a. Fit the model.** Fit (or load a cached fit of) the model in the same
-call as the build — **fit mode** is `run_bnma_pipeline.R` with both
-`--manifest` and `--model` given; it re-derives the BATMAN matrices fresh
-(same as 8c's build-preview, cheap) before fitting, so there's no
-`--batman-in`/intermediate file to hand off and no risk of fitting against
-a build that predates the `model_type` decided in Step 9. **Must go through
-the JAGS wrapper** — plain `Rscript` will fail to load `rjags` in this
-environment. Materialize Appendix D (wrappers, if not already done) — no
-new R script to materialize, `run_bnma_pipeline.R` is the same file 1b/8c
-already wrote — then run:
+**10a. Fit the model.** This is where the pipeline scripts are first
+materialized this session — **Appendix D** (shell wrappers: `run_r.sh`,
+`run_with_jags.sh`) and **Appendix B1** (`run_bnma_pipeline.R`) get written
+to `/tmp/$(whoami)/cmh_ci_lib/`. Nothing before this step needs them.
+
+Fit (or load a cached fit of) the model — `run_bnma_pipeline.R` with both
+`--manifest` and `--model` given builds the BATMAN matrices fresh and fits
+in one call. **Must go through the JAGS wrapper** — plain `Rscript` will
+fail to load `rjags` in this environment:
 
 ```bash
 scripts/run_with_jags.sh scripts/run_bnma_pipeline.R \
