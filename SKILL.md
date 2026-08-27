@@ -252,12 +252,23 @@ file:
 
 1. Fetch/extract the study data directly from that source — generic, not
    publication-specific (works the same for a publication, press release,
-   or any other web source).
-2. **Ask the user whether the extracted data is observed or predicted —
+   or any other web source). A single link often covers more than one
+   study or arm (e.g. a press release bundling two trial readouts) —
+   extract all of them, not just the one study the user named.
+2. **Flag any population/scope mismatch explicitly, per study extracted —
+   don't fold it quietly into `curator_note` and move on.** Check each
+   extracted study's population against this dataset's scope (e.g. T2D
+   vs. non-T2D for `cwm_wl_nont2d`) before mapping anything. If a study
+   is out of scope, call it out on its own line (e.g. "TRIUMPH-2 is a T2D
+   population — out of scope for this non-T2D dataset, excluding it") and
+   confirm the exclusion with the user, the same way Step 1's
+   naming/route conflicts get a grouped confirmation rather than a silent
+   decision. Only studies confirmed in-scope proceed to mapping.
+3. **Ask the user whether the extracted data is observed or predicted —
    never infer this.** The answer sets the destination QA sheet
    (`Observed` vs `Prediction`, matching `append_to_qa.R`'s `--sheet`
    argument) and feeds `analysis_method`/`derivation_spec`.
-3. Map the extracted fields into the QA column schema:
+4. Map the extracted fields into the QA column schema:
 
    | Column | Meaning |
    |---|---|
@@ -288,14 +299,18 @@ file:
    split `observed`/`prediction` tabs) rather than hardcoding — the table
    above is the authoritative field set to populate.
 
-4. **Mandatory fields — never leave blank/skipped without flagging it:**
+5. **Mandatory fields — never leave blank/skipped without flagging it:**
    `time_entry`, SE (`se_wl_ee`/`se_wl_tre` as applicable — if not
    directly reported and must be derived, record the method in
    `derivation_spec`), `study_duration`, `sponsor`, `baseline_wgt`,
    `population`, and `source` (the exact link provided). If any of these
    can't be determined from the source, flag it to the user explicitly
    and ask them to supply it — never guess or leave it silently blank.
-5. Show the mapped row(s) for confirmation — same table-confirmation
+   The same goes for anything else inferred rather than directly stated
+   (e.g. dosing frequency, per-arm `n` derived from a randomization
+   ratio) — surface the assumption and ask, don't bury it in
+   `derivation_spec`/`curator_note` as the only record of it.
+6. Show the mapped row(s) for confirmation — same table-confirmation
    pattern as any other source in this step — then follow Step 2's
    existing merge question. This pathway feeds the same merge decision;
    it doesn't bypass it.
