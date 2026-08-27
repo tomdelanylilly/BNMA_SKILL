@@ -322,6 +322,11 @@ existing QA file found, and the user confirmed creating a new one) —
 `--create-from` stays in the script as a fallback, it just isn't this
 step's default path anymore.
 
+**A located QA file's target sheet is often genuinely empty (0 rows)** —
+a freshly created workbook, or a sheet nobody has populated yet. That's
+a normal case to append into, not a sign something's wrong; `append_to_qa.R`
+handles it (see Appendix B2's 2026-08-27 fix).
+
 Show the append (or create) summary. No separate reload is needed here —
 Step 7's `run_bnma_pipeline.R` always loads PRD + QA fresh, so the new
 rows are picked up automatically the next time it runs.
@@ -348,8 +353,15 @@ If **yes** → create working folders and write the manifest:
 Derive `<slug>` from the endpoint/scope (e.g. `cwm_wl_nont2d`,
 `wl_oral_only`). Create both folders.
 
-Write `study_selection_manifest.yaml` into the programs folder. Every study
-in the data must appear (include: true/false). This is the audit trail.
+Write `study_selection_manifest.yaml` to
+`/tmp/$(whoami)/cmh_ci_lib/study_selection_manifest.yaml` — **scratch,
+not the programs folder.** Every study in the data must still appear with
+an explicit `include: true/false`; `run_bnma_pipeline.R`'s
+missing-decision gate is unchanged and needs exactly that. What's
+different is persistence: the manifest itself is no longer a kept
+deliverable — Step 7's RMD report is, and it names only the studies that
+were actually included rather than dumping the full true/false list (see
+Step 7).
 
 ## Step 6 — Collect modelling preferences
 
@@ -423,9 +435,9 @@ Rscript /tmp/$(whoami)/cmh_ci_lib/run_bnma_pipeline.R \
 `--cache`/`--placebo-cache` point at the same `/tmp` scratch dir the script
 itself is materialized into — never the programs folder. They only exist to
 let a `--contrast` follow-up or a re-plot skip re-running MCMC within the
-same session; they are not part of the audit trail (the manifest + script
-are what make the run reproducible, not the raw posterior draws) and must
-not be copied into `programs/YYYYMMDD_<slug>/`.
+same session; they are not part of the audit trail (the script + RMD
+report are what make the run reproducible, not the raw posterior draws)
+and must not be copied into `programs/YYYYMMDD_<slug>/`.
 
 **Display both plots** (Read tool) immediately.
 
@@ -435,35 +447,39 @@ Save outputs:
 - Both forest plots →
   `/lillyce/qa/diabetes/bnma/obesity/output/shared/YYYYMMDD_<slug>/forest_plot_relative.png`
   and `.../forest_plot_absolute.png`
-- Manifest (written in Step 5) →
-  `/lillyce/qa/diabetes/bnma/obesity/programs/YYYYMMDD_<slug>/study_selection_manifest.yaml`
 - **A copy of the exact `run_bnma_pipeline.R` used for the fit** →
   `/lillyce/qa/diabetes/bnma/obesity/programs/YYYYMMDD_<slug>/run_bnma_pipeline.R`
   (copy, don't move, from the `/tmp/$(whoami)/cmh_ci_lib/` materialization —
   the `/tmp` copy is scratch and may not survive the session; the programs
-  folder is the permanent audit trail, per Step 5's "every study... is the
-  audit trail" convention. Without this copy, reproducing the run depends
-  on this chat session still existing.) Copy it after both fits succeed, e.g.
-  `cp /tmp/$(whoami)/cmh_ci_lib/run_bnma_pipeline.R
+  folder is the permanent audit trail. Without this copy, reproducing the
+  run depends on this chat session still existing.) Copy it after both
+  fits succeed, e.g. `cp /tmp/$(whoami)/cmh_ci_lib/run_bnma_pipeline.R
   <programs_folder>/run_bnma_pipeline.R`.
 - **The per-run RMD report** →
   `/lillyce/qa/diabetes/bnma/obesity/programs/YYYYMMDD_<slug>/report.Rmd`
+  — this is the permanent audit trail now, not the manifest (see below).
 
-The programs folder holds **only the manifest, the script, and the RMD
-report** — no `samples.rds`/`placebo_samples.rds`. Those MCMC caches stay
-in `/tmp` scratch (see the `--cache`/`--placebo-cache` paths above); the
-manifest + script + report are sufficient to reproduce and describe a fit
-from scratch, and keeping the sample caches out of the shared programs
-folder avoids stale/oversized `.rds` files accumulating there across
-reruns.
+The programs folder holds **only the script and the RMD report** — no
+`study_selection_manifest.yaml`, and no `samples.rds`/`placebo_samples.rds`
+either. The manifest stays in `/tmp` scratch
+(`/tmp/$(whoami)/cmh_ci_lib/study_selection_manifest.yaml`, written in
+Step 5) — `run_bnma_pipeline.R` still needs it as an input, and its
+missing-decision gate still forces an explicit `true`/`false` for every
+study, but the manifest itself is no longer kept as a deliverable; its
+substance carries forward into the RMD report instead, which is what
+actually persists in the programs folder.
 
 ### RMD report
 
 Generate a fresh `report.Rmd` every run (never accumulated across runs),
-written to the same run's programs folder alongside the manifest and
-script. Pull its content from the manifest already written in Step 5/6
-rather than re-deriving anything:
+written to the same run's programs folder alongside the script. Pull its
+content from the manifest written in Step 5/6 rather than re-deriving
+anything, but **summarize, don't dump**:
 
+- **Studies included** — just the studies with `include: true` (e.g.
+  "scale maintenance, believe, zupreme-1, triumph-3"). Don't enumerate the
+  `false` ones — the manifest already made that decision explicit at fit
+  time; the report doesn't need to repeat it study by study.
 - The design choices made this run: `model_type` (random vs. fixed
   effects), `route_filter`, `evidence_filter`, and any supplemental data
   merged in via Step 2/3 — including the observed-vs-predicted
@@ -484,9 +500,11 @@ rather than re-deriving anything:
 - No re-asking Step 6's `model_type` choice once made, and no post-hoc
   network-based recommendation for it either — the statistician's answer
   is used as-is
-- No `samples.rds`/`placebo_samples.rds` in the programs folder (MCMC
-  caches stay in `/tmp` scratch; only the manifest + script + RMD report
-  persist there)
+- No `study_selection_manifest.yaml`, `samples.rds`, or
+  `placebo_samples.rds` in the programs folder — the manifest and MCMC
+  caches all stay in `/tmp` scratch; only the script + RMD report persist
+  there, and the report summarizes just the included studies, not a full
+  true/false dump
 - No automated post-fit diagnostics (matches EliLillyCo/CMH.BNMA)
 - No placebo QC plot (removed — only the two forest plots are produced)
 - No compound_registry.yaml persistence
@@ -1759,7 +1777,7 @@ cat("Footnote (not rendered on the plot -- console record only):\n", footnote_te
 ```
 ### B2. `append_to_qa.R`
 
-Step 4's "promote to QA" path — appends new rows to an existing QA workbook in-place, creating it directly from the PRD schema if it doesn't exist yet (no separate user confirmation beyond Step 3's row-table confirmation). Called once per session when new data is being promoted to the shared QA file before fitting. Unchanged from before, except it no longer sources a separate `lib_common.R` (retired along with the other consolidated scripts) — its own tiny `parse_args()`/`%||%` copy is inlined instead.
+Step 4's "promote to QA" path — appends new rows to an existing QA workbook in-place, creating it directly from the PRD schema if it doesn't exist yet (no separate user confirmation beyond Step 3's row-table confirmation). Called once per session when new data is being promoted to the shared QA file before fitting. No longer sources a separate `lib_common.R` (retired along with the other consolidated scripts) — its own tiny `parse_args()`/`%||%` copy is inlined instead. Also fixed (2026-08-27): appending to a QA sheet that currently has 0 rows used to crash `bind_rows()` with a type-mismatch error, because `read.xlsx` infers an all-logical-NA schema for an empty sheet, which conflicts with `new_rows`' real types — a genuinely common case, since a freshly created or not-yet-populated QA sheet is blank far more often than not.
 
 ```r
 #!/usr/bin/env Rscript
@@ -1853,7 +1871,14 @@ for (col in existing_cols) if (!col %in% names(new_rows)) new_rows[[col]] <- NA
 new_rows <- new_rows[, intersect(names(new_rows), existing_cols), drop = FALSE]
 new_rows <- new_rows[, existing_cols, drop = FALSE]
 
-combined <- bind_rows(existing, new_rows)
+# An existing sheet with 0 rows (a QA workbook that was just created, or a
+# sheet nobody has populated yet) has every column inferred as logical NA
+# by read.xlsx -- there's no data to infer real types from. bind_rows then
+# errors on the type mismatch against new_rows' actual types (character,
+# numeric, ...), even though there's nothing of substance in `existing` to
+# lose. Skip the bind in that case; new_rows (already reordered to
+# existing_cols above) is the whole answer.
+combined <- if (nrow(existing) == 0) new_rows else bind_rows(existing, new_rows)
 
 removeWorksheet(wb, args$sheet)
 addWorksheet(wb, args$sheet)
