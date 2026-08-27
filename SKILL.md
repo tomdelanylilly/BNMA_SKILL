@@ -222,40 +222,41 @@ didn't already make this clear:
   before doing anything else. Don't silently fall back to a QA file here
   even if one is sitting right next to where a PRD file was expected.
 
-**1b. Load & merge, then introduce what's actually in it.** Once the base
-dataset is located, materialize Appendix D1/D2 (`_resolve_rscript.sh`,
-`run_r.sh` — **not** D3's `run_with_jags.sh`, not needed until Step 10's
-JAGS fit) and Appendix B1 (`run_bnma_pipeline.R`) to this session's lib dir
-(e.g. `/tmp/$(whoami)/cmh_ci_lib/` before Step 8's folders exist,
-`programs/<slug>/lib/` after) if not already done this session, then run:
+**1b. Load & introduce what's actually in it.** Once the base dataset is
+located, read it directly with R — **no script materialization needed at
+this stage**. A simple inline R call is all that's required to show the
+user what's in their data:
 
 ```bash
-scripts/run_r.sh scripts/run_bnma_pipeline.R --prd <prd_path.xlsx>
+module load R/4.4.2 2>/dev/null
+Rscript -e '
+library(readxl); library(dplyr)
+f <- "<prd_path.xlsx>"
+sheets <- excel_sheets(f)
+cat("Sheets:", paste(sheets, collapse=", "), "\n\n")
+for (s in sheets[!tolower(s) %in% c("summary","revision history")]) {
+  d <- read_excel(f, sheet=s)
+  if ("study_name" %in% names(d) || "Study" %in% names(d)) {
+    study_col <- if ("study_name" %in% names(d)) "study_name" else "Study"
+    treat_col <- if ("treatment" %in% names(d)) "treatment" else "Treatment"
+    comp_col  <- if ("compound" %in% names(d)) "compound" else "Compound"
+    cat("Sheet:", s, "| Rows:", nrow(d), "\n")
+    cat("  Studies:", paste(sort(unique(d[[study_col]])), collapse=", "), "\n")
+    cat("  Compounds:", paste(sort(unique(d[[comp_col]])), collapse=", "), "\n")
+    cat("  Treatments:", paste(sort(unique(d[[treat_col]])), collapse=", "), "\n\n")
+  }
+}
+'
 ```
 
-**One call now covers both this step and 1c below** — explore mode always
-computes the data summary *and* the naming/pooling report together (see
-Appendix B1), since it's the same load+merge either way and there's no
-separate script to avoid running a second time anymore. What differs by
-run-intent (1c, below) is purely **what you do with the naming/pooling half
-of that same output** — surface and propose resolutions now, or hold onto
-it quietly until Step 1d's fork resolves to "set up a run." Nothing is
-written to disk by this call — everything is read straight from its stdout.
+**No scripts are materialized, no RDS files are written to `/tmp`, no
+lib_common.R is sourced.** This is a read-only peek at the Excel file. The
+pipeline scripts (`run_bnma_pipeline.R`, `make_forest_plot.R`) are only
+materialized later in Step 3 when the actual fit is happening.
 
-**PRD only here — never pass `--qa` at this step, even if the statistician
-happened to name a QA file back in 1a.** Merging QA/custom data in is
-Step 6's job, reached only after Step 4 explicitly asks and the
-statistician says yes; running it here would pre-empt that question with
-data they never confirmed they wanted merged in yet. (When `--qa` is
-omitted, the merge branch never executes — `merged <- prd_data` unchanged —
-so this is a real behavioral guarantee, not just a documentation nicety.)
-
-**Nothing from this call persists anywhere, on purpose.** The run's real
-`programs/YYYYMMDD_<slug>/` folder isn't created until Step 8 (Step 4 has
-to confirm the subset is sufficient first), so there's nothing durable to
-write yet — and even once it exists, re-running this same call is a cheap,
-deterministic re-derivation from the source file(s), never something a
-later step depends on having been cached anywhere.
+This keeps Step 1 fast (~2-3 seconds) regardless of how large the workbook
+is. The full pipeline machinery is deferred until Step 3 when the user has
+confirmed what they want.
 
 Use its printed summary to give the statistician a real answer to "what's
 available here" *before* asking them to decide anything: distinct studies,
