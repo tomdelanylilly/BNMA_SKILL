@@ -175,9 +175,14 @@ own project directory) — and, per the team's 2026-08-26 workflow-narrative
 discussion (see DESIGN.md's design-iteration history), the mandatory first
 stop for *everyone*, whether they already know exactly what they want or
 are just asking "what's in this data?" This step never proposes folders,
-never asks about custom data, and never demands a study-selection
-decision — those come later (Steps 4 and 8), so someone who only wants to
-look around never gets dragged into project setup.
+never asks about custom data, and never *forces* a study-selection
+decision before moving on — those firm commitments come later (Steps 2-3,
+4, and 8), so someone who only wants to look around never gets dragged into
+project setup. It does, however (2026-08-27, per explicit direction),
+always list the actual study names and explicitly *invite* a subset
+selection right here in 1b — a plain "no, show me everything" is a
+complete, valid answer that keeps things in explore mode; the point is that
+the real list and the invitation are never withheld or deferred.
 
 **1a. Locate the base dataset — PRD-first.** This step is specifically
 about the PRD tier (a newer QA file, if one exists, is Step 4's concern —
@@ -260,15 +265,36 @@ later step depends on having been cached anywhere.
 Use its printed summary to give the statistician a real answer to "what's
 available here" *before* asking them to decide anything: distinct studies,
 compounds, phases, evidence tiers (observed vs. prediction row counts), and
-regions present. This is always shown, even when the initial prompt already
-named specific studies/compounds — it's a one- or two-sentence preamble
-folded into whatever message comes next: **Step 1d's explore-or-run fork**
-if the prompt gave no run signal yet (1c's naming/pooling gate does not
-surface yet in that case — see 1c's own gating note below), or straight
-into 1c's naming gate and Step 2's first question if the prompt already
-signaled run-intent. Loading and summarizing the data is never itself the
-cue to start surfacing the naming/pooling gate or anything past it — that's
-a separate, deliberate decision made next, not an automatic continuation.
+regions present.
+
+**Always list the actual study names, not just a count** (2026-08-27, per
+explicit direction — a bare "70 studies" tells the statistician nothing
+about *which* studies are actually here, and that's exactly the kind of
+gap this skill exists to close). Group the list for readability on a real
+landscape run — e.g. by phase and evidence tier ("Phase 3 observed (42):
+surmount-1, surmount-4, ... / Phase 1-2 or prediction-tier (11): ...") —
+rather than one flat, unscannable list. This is always shown, even when the
+initial prompt already named specific studies/compounds.
+
+**Immediately after the list, explicitly ask whether they want to work
+with the full set or select specific studies from it** — e.g. "Do you want
+to use all of these, or focus on a subset (name the studies/compounds, a
+phase, an endpoint, or anything else to narrow by)?" This is a real,
+standalone question waited on before continuing, not a line folded into
+other text or deferred to a later step. Its answer is what resolves **Step
+1d's explore-or-run fork** below:
+- A reply naming specific studies/compounds, or asking to narrow by
+  phase/endpoint/route/etc., **is** the run signal — 2a below already
+  knows how to resolve named studies/compounds against this same list, so
+  hand it off there; then 1c's naming/pooling gate should now surface,
+  followed by the rest of Step 2.
+- A reply like "use all of them," "just show me everything," or a further
+  exploratory question instead of narrowing is **not** a run signal — stay
+  in Step 1d's exploring branch.
+
+Loading and summarizing the data is never itself the cue to start
+surfacing the naming/pooling gate or anything past it — that's this
+question's answer to make, not an automatic continuation.
 
 **1c. Naming/pooling QA gate — only surfaced once run-intent is
 established.** This gate exists to protect an eventual model fit (route
@@ -352,12 +378,17 @@ unflagged, never compared against `"placebo"` at all, and would have been
 silently treated as some unrelated extra compound. Propose a
 `compound_relabels` entry (`pbo` → `placebo`) when this fires.
 
-**1d. Explore, or set up a run?** Only ask this explicitly when the initial
-prompt gave no run signal at all — no endpoint, no named studies/compounds,
-no mention of a BNMA/forest plot, just "what data do we have" or similar.
-(If the prompt already signals run-intent, skip straight to Step 2 after
-the 1b/1c preamble — don't manufacture a question where the intent is
-already clear.)
+**1d. Explore, or set up a run?** As of 2026-08-27, 1b's own study list
+already carries an explicit "use all, or select a subset?" question, so
+this fork is normally resolved by that answer, not asked a second time.
+Two cases:
+- **The initial prompt already named specific studies/compounds** (an
+  endpoint, a BNMA/forest-plot mention, "I want ATTAIN-1 vs. SURMOUNT-4")
+  — 1b's list is still shown in full for context, but don't re-ask the
+  question it already answered; hand off straight to 2a to resolve those
+  names against the list, then proceed to Step 2 after the 1b/1c preamble.
+- **Otherwise** — wait for the reply to 1b's own question before doing
+  anything else in this step.
 
 - **If exploring:** stay conversational. Answer whatever breakdowns they
   ask for — studies by phase, compounds by route, coverage by region, the
