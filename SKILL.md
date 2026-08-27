@@ -160,7 +160,7 @@ Rscript -e '
 library(readxl); library(dplyr)
 f <- "/lillyce/prd/diabetes/bnma/obesity/data/shared/weight/cwm_wl_nont2d_prd_20260805.xlsx"
 sheets <- excel_sheets(f)
-for (s in sheets[!tolower(s) %in% c("summary","revision history")]) {
+for (s in sheets[!tolower(sheets) %in% c("summary","revision history")]) {
   d <- read_excel(f, sheet=s)
   if ("study_name" %in% names(d)) {
     cat("\nSheet:", s, "| Rows:", nrow(d), "\n")
@@ -195,6 +195,14 @@ Here's what's in the PRD (cwm_wl_nont2d):
 
   Which studies do you want to include?
 ```
+
+**Both sheets get the identical per-study numbered format** — `N. <study_name>
+(<phase>) — <compound>: <treatments>`, one line per study. Never collapse the
+Prediction list into a summary paragraph (a compound-name roundup like
+"includes amycretin, cagrilintide, ...") just because it's the second sheet —
+a Prediction study is exactly as eligible for selection as an Observed one,
+and hiding its phase/treatments behind a name-only mention makes it too easy
+to pick the wrong study by accident.
 
 If the user already named specific treatments/studies in their prompt,
 pre-resolve those and propose them as the include list.
@@ -296,6 +304,12 @@ here and stay at their manifest default of `"both"`.)**
 Defaults proceed unless the user says otherwise. Once confirmed, update
 the manifest with `model_type` and `effect_type`.
 
+**This decision is final.** Once the user answers Heterogeneity and Effect
+here, don't re-ask — not even if Step 7's star-network check recommends
+something else. A recommendation surfaced after the fact is information,
+not a renewed prompt; see Step 7's star-network check for how to report it
+without re-litigating a choice the user already made.
+
 ## Step 7 — Produce analysis outputs and visualisations
 
 **This is where the script is first materialized.** Write Appendix B's
@@ -320,7 +334,7 @@ module load R/4.4.2 jags 2>/dev/null
 Rscript /tmp/$(whoami)/cmh_ci_lib/run_bnma_pipeline.R \
   --prd <prd_path.xlsx> [--qa <qa_path.xlsx>] \
   --manifest <manifest.yaml> --model <model_file> \
-  --cache <programs_folder>/samples.rds \
+  --cache /tmp/$(whoami)/cmh_ci_lib/samples.rds \
   --plot --plot-out <output_folder>/forest_plot.png
 ```
 
@@ -331,31 +345,60 @@ module load R/4.4.2 jags 2>/dev/null
 Rscript /tmp/$(whoami)/cmh_ci_lib/run_bnma_pipeline.R \
   --prd <prd_path.xlsx> [--qa <qa_path.xlsx>] \
   --manifest <manifest.yaml> --model <model_file> \
-  --cache <programs_folder>/samples.rds \
-  --fit-placebo --placebo-cache <programs_folder>/placebo_samples.rds \
+  --cache /tmp/$(whoami)/cmh_ci_lib/samples.rds \
+  --fit-placebo --placebo-cache /tmp/$(whoami)/cmh_ci_lib/placebo_samples.rds \
   --plot --plot-out <output_folder>/forest_plot.png --effect absolute
 ```
 
+`--cache`/`--placebo-cache` point at the same `/tmp` scratch dir the script
+itself is materialized into — never the programs folder. They only exist to
+let a `--contrast` follow-up or a re-plot skip re-running MCMC within the
+same session; they are not part of the audit trail (the manifest + script
+are what make the run reproducible, not the raw posterior draws) and must
+not be copied into `programs/YYYYMMDD_<slug>/`.
+
 **Star-network check:** the build phase (which runs before the JAGS
 compile, in the same process) prints a heterogeneity estimability report.
-If a full star network is detected, inform the user:
+If a full star network is detected, tell the user:
 - "Full star network — `sigma` cannot be estimated, CIs will be
-  prior-inflated with random-effects. Recommend switching to
-  `fixed_effect`."
-- Do NOT auto-correct. Ask the user if they want to switch. If yes, rerun
-  the same command with `--model model_fixed.txt`.
+  prior-inflated with random-effects. (Pipeline recommendation:
+  `fixed_effect`.)"
+- Report this once, as information, alongside the results. Do NOT ask
+  whether to switch and rerun — Step 6's `model_type` choice is final (see
+  Step 6). Only re-fit with a different `--model` if the user brings it up
+  on their own in a later message.
 
 **Display the plot** (Read tool) immediately.
 
 Save outputs:
 - Forest plot → `/lillyce/qa/diabetes/bnma/obesity/output/shared/YYYYMMDD_<slug>/`
-- Samples/manifest → `/lillyce/qa/diabetes/bnma/obesity/programs/YYYYMMDD_<slug>/`
+- Manifest (written in Step 5) →
+  `/lillyce/qa/diabetes/bnma/obesity/programs/YYYYMMDD_<slug>/study_selection_manifest.yaml`
+- **A copy of the exact `run_bnma_pipeline.R` used for the fit** →
+  `/lillyce/qa/diabetes/bnma/obesity/programs/YYYYMMDD_<slug>/run_bnma_pipeline.R`
+  (copy, don't move, from the `/tmp/$(whoami)/cmh_ci_lib/` materialization —
+  the `/tmp` copy is scratch and may not survive the session; the programs
+  folder is the permanent audit trail, per Step 5's "every study... is the
+  audit trail" convention. Without this copy, reproducing the run depends
+  on this chat session still existing.) Copy it after the fit succeeds, e.g.
+  `cp /tmp/$(whoami)/cmh_ci_lib/run_bnma_pipeline.R
+  <programs_folder>/run_bnma_pipeline.R`.
+
+The programs folder holds **only the manifest and the script** — no
+`samples.rds`/`placebo_samples.rds`. Those MCMC caches stay in `/tmp` scratch
+(see the `--cache`/`--placebo-cache` paths above); the manifest + script pair
+is sufficient to reproduce a fit from scratch, and keeping the sample caches
+out of the shared programs folder avoids stale/oversized `.rds` files
+accumulating there across reruns.
 
 ## What this skill does NOT do
 
 - No region, route, or evidence questions (dropped — always "both")
 - No model-fitting preview before design decisions
-- No driver script generation (the manifest is the audit trail)
+- No re-asking Step 6's model_type/effect_type choice once made (it's final
+  — the star-network check in Step 7 reports, it doesn't re-prompt)
+- No `samples.rds`/`placebo_samples.rds` in the programs folder (MCMC
+  caches stay in `/tmp` scratch; only the manifest + script persist there)
 - No automated post-fit diagnostics (matches EliLillyCo/CMH.BNMA)
 - No placebo QC plot (removed — only the forest plot itself is produced)
 - No compound_registry.yaml persistence
