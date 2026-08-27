@@ -200,11 +200,21 @@ didn't already make this clear:
   themselves for something they already told you.
 - **No specific file was given** — a working directory was named, or
   nothing was given at all (default to the project's own working
-  directory, the common case: a statistician's own project folder). Either
-  way, **search that directory for PRD files** — depth-limited (e.g. `find
-  <dir> -maxdepth 6 -iname "*.xlsx"` — never a full recursive walk, and
-  never a directory that's itself a mount root, see the org's
-  filesystem-search policy). **Use `-maxdepth 6`, not a shallower guess** —
+  directory, the common case: a statistician's own project folder).
+  **Search for the non-T2D weight-loss PRD file specifically, not PRD
+  files in general** (2026-08-27, per explicit direction) — this skill's
+  pipeline currently only understands that dataset's structure (`Observed`/
+  `Prediction` sheets with `study_name`/`treatment`/`compound`/`aom`/
+  `region`/`pchg_wl_ee`/`se_wl_ee` columns); other PRD files that happen to
+  live under the same `/lillyce/prd/diabetes/bnma/` tree — T2D weight loss,
+  T2D HbA1c, CVOT/ASCVD lipid endpoints, OA/Pain WOMAC, NASH — use
+  different schemas this pipeline hasn't been adapted for yet. Don't
+  surface those as candidates; T2D (and the others) is a deliberate future
+  addition, not something to guess at today. Search depth-limited and
+  scoped to the non-T2D naming convention (e.g. `find <dir> -maxdepth 6
+  -iname "*nont2d*.xlsx"` — never a full recursive walk, and never a
+  directory that's itself a mount root, see the org's filesystem-search
+  policy). **Use `-maxdepth 6`, not a shallower guess** —
   confirmed real case, 2026-08-27: pointed at `/lillyce/prd/diabetes/bnma/`,
   the actual PRD file lived 5 levels down at
   `obesity/data/shared/weight/cwm_wl_nont2d_prd_*.xlsx`; a shallower depth
@@ -212,25 +222,32 @@ didn't already make this clear:
   here" when the file was right there, just nested deeper than expected. If
   a depth-6 search still finds nothing, that's a real empty result worth
   reporting as such — don't keep escalating the depth unprompted, ask the
-  statistician for a more specific path instead (see below). Match this
-  project's own PRD naming convention, not QA's. **Always list every PRD
-  candidate found, with modified dates, and get an explicit pick — even
-  when only one file looks
+  statistician for a more specific path instead (see below). **Always list
+  every non-T2D PRD candidate found (current + prior_versions), with
+  modified dates, and get an explicit pick — even when only one file looks
   plausible.** Silently choosing "the newest" or "the best name match" is
   exactly the class of silent assumption this skill exists to eliminate
   everywhere else; the directory search finds candidates, it never
   substitutes for confirming which one. Don't ask "where's your data?"
   first when a depth-limited local search can answer it directly — search,
   then present the list for a pick.
+- **The statistician explicitly names or points at a T2D (or other
+  non-weight-loss) PRD file** — that's an explicit, informed request, so
+  use it directly rather than refusing; the "don't surface as a candidate"
+  rule above is about unprompted directory search results only, not about
+  overriding a direct instruction. Flag plainly that this skill's pipeline
+  was built and tested against the non-T2D weight-loss schema and hasn't
+  been verified against this file's own structure, so treat any output
+  with extra scrutiny.
 - **No PRD files found at all** in the searched directory — say so plainly
   and ask the statistician for a path (or a different directory to search)
   before doing anything else. Don't silently fall back to a QA file here
   even if one is sitting right next to where a PRD file was expected.
 
 **1b. Load & merge, then introduce what's actually in it.** Once the base
-dataset is located, materialize Appendix D1/D2 (`_resolve_rscript.sh`,
-`run_r.sh` — **not** D3's `run_with_jags.sh`, not needed until Step 10's
-JAGS fit) and Appendix B1 (`run_bnma_pipeline.R`) to this session's lib dir
+dataset is located, materialize Appendix D1 (`run_r.sh` — **not** D2's
+`run_with_jags.sh`, not needed until Step 10's JAGS fit) and Appendix B1
+(`run_bnma_pipeline.R`) to this session's lib dir
 (e.g. `/tmp/$(whoami)/cmh_ci_lib/` before Step 8's folders exist,
 `programs/<slug>/lib/` after) if not already done this session, then run:
 
@@ -1078,7 +1095,7 @@ Save it into `programs/<slug>/` (created moments ago, above), e.g.
 refuse to run otherwise — that's intentional, not a bug to work around.
 
 **8c. Build-preview: confirm the manifest is complete and see the real
-network.** Materialize Appendix D1/D2 (if not already done) and Appendix
+network.** Materialize Appendix D1 (`run_r.sh`, if not already done) and Appendix
 B1 (`run_bnma_pipeline.R`, if not already done this session — it's the
 same file 1b already materialized), then run in **build-preview mode** —
 `--manifest` given, no `--model` yet:
@@ -3336,29 +3353,48 @@ if (!is.null(args$qc_plot)) {
 ## Appendix D — Session Environment Wrappers (embedded, no external files needed)
 
 This HPC environment doesn't guarantee `Rscript` on `PATH`, and `rjags`
-needs `module load jags` run in the same shell before it links — these three
+needs `module load jags` run in the same shell before it links — these
 wrappers resolve that portably. Materialize them the same way as Appendix B
-(write to a real file, `chmod +x`, then exec). Now shared by just the two
-consolidated scripts instead of nine: D2 for `run_bnma_pipeline.R`'s
-explore/build-preview modes and `make_forest_plot.R` (none of these load
-`rjags`), D3 only for `run_bnma_pipeline.R`'s fit mode.
+(write to a real file, `chmod +x`, then exec).
 
-### D1. `_resolve_rscript.sh`
+**Down to two self-contained files, not three (2026-08-27)** — the earlier
+design split Rscript-resolution into its own `_resolve_rscript.sh`, sourced
+by both `run_r.sh` and `run_with_jags.sh`. In practice that meant a step
+that only ever needs `run_r.sh` (Step 1's explore mode, the naming/pooling
+gate, build-preview, the forest plot, the `--contrast` utility — none of
+these load `rjags`) still had to materialize *two* shell files before
+writing anything R-related, on top of `run_bnma_pipeline.R` itself — three
+files on disk just to see what's in the PRD. `run_r.sh` now inlines that
+same resolution logic directly; `run_with_jags.sh` carries its own copy
+too, so it stays a fully standalone file rather than depending on a
+same-materialized-first sibling script. The ~15 lines duplicated between
+them are cheap and stable (this is the "three similar lines is better than
+a premature abstraction" case, not a shared-behavior risk) — the payoff is
+that **Step 1b's explore call now writes exactly one wrapper file
+(`run_r.sh`) plus `run_bnma_pipeline.R`, two files total**, and
+`run_with_jags.sh` is only ever materialized later, in Step 10, when a fit
+actually needs JAGS.
 
-Shared Rscript resolution, sourced by D2/D3 below (not run directly): explicit override, PATH, then `module load R`, then PATH again.
+### D1. `run_r.sh`
+
+Wrapper for any script that does NOT need rjags/JAGS — covers every call
+in Steps 1, 6, 8c, and 10c, plus the `--contrast` utility.
 
 ```bash
 #!/usr/bin/env bash
-
-# Shared Rscript resolution, sourced by run_r.sh and run_with_jags.sh.
-# Not meant to be run directly. Sets RSCRIPT_BIN.
+# Wrapper for any /cmh-ci script that does NOT need rjags/JAGS -- resolves
+# Rscript portably and execs it. Use run_with_jags.sh instead for
+# run_bnma_pipeline.R's fit mode.
 #
-# Resolution order: explicit override, PATH, `module load R` (whichever
-# version this session tags default) then PATH again. Neither "on PATH" nor
-# "one fixed install path" can be assumed across different analysts'
-# Positron sessions -- confirmed by testing: Rscript is NOT on PATH by
-# default in at least one real session here, and R itself is provisioned
-# via `module load R/<version>` there, same as JAGS.
+# Rscript resolution order: explicit override, PATH, `module load R`
+# (whichever version this session tags default), then PATH again. Neither
+# "on PATH" nor "one fixed install path" can be assumed across different
+# analysts' Positron sessions -- confirmed by testing: Rscript is NOT on
+# PATH by default in at least one real session here, and R itself is
+# provisioned via `module load R/<version>` there, same as JAGS.
+#
+# Usage: scripts/run_r.sh <path/to/script.R> [args...]
+set -euo pipefail
 
 if [ -f /etc/profile.d/modules.sh ]; then
   source /etc/profile.d/modules.sh
@@ -3377,45 +3413,46 @@ if [ -z "$RSCRIPT_BIN" ]; then
   echo "Set BNMA_RSCRIPT=/path/to/Rscript to pin a specific install." >&2
   exit 1
 fi
-```
-
-### D2. `run_r.sh`
-
-Wrapper for any script that does NOT need rjags/JAGS.
-
-```bash
-#!/usr/bin/env bash
-# Wrapper for any /cmh-ci script that does NOT need rjags/JAGS -- resolves
-# Rscript portably (see _resolve_rscript.sh) and execs it. Use
-# run_with_jags.sh instead for run_bnma_pipeline.R's fit mode.
-#
-# Usage: scripts/run_r.sh <path/to/script.R> [args...]
-set -euo pipefail
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/_resolve_rscript.sh"
 
 exec "$RSCRIPT_BIN" "$@"
 ```
 
-### D3. `run_with_jags.sh`
+### D2. `run_with_jags.sh`
 
-Wrapper for `run_bnma_pipeline.R`'s fit mode (`--model` given): loads the `jags` environment module before exec'ing Rscript.
-
+Wrapper for `run_bnma_pipeline.R`'s fit mode (`--model` given): resolves
+Rscript the same way D1 does, then also loads the `jags` environment
+module before exec'ing. Only ever needed starting at Step 10 — never
+materialize this just to explore or build-preview.
 
 ```bash
 #!/usr/bin/env bash
-# Wrapper for any /bnma script that needs rjags: resolves Rscript (see
-# _resolve_rscript.sh), loads the `jags` environment module (rjags is
-# installed but fails to link its shared library without this -- confirmed:
-# requireNamespace("rjags") is FALSE until `module load jags` has run in the
-# same shell), then execs Rscript.
+# Wrapper for any /bnma script that needs rjags: resolves Rscript (same
+# logic as run_r.sh -- kept inline here so this file has no dependency on
+# a sibling script being materialized first), loads the `jags` environment
+# module (rjags is installed but fails to link its shared library without
+# this -- confirmed: requireNamespace("rjags") is FALSE until `module load
+# jags` has run in the same shell), then execs Rscript.
 #
 # Usage: scripts/run_with_jags.sh <path/to/script.R> [args...]
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/_resolve_rscript.sh"
+if [ -f /etc/profile.d/modules.sh ]; then
+  source /etc/profile.d/modules.sh
+fi
+
+RSCRIPT_BIN="${BNMA_RSCRIPT:-}"
+if [ -z "$RSCRIPT_BIN" ]; then
+  RSCRIPT_BIN="$(command -v Rscript || true)"
+fi
+if [ -z "$RSCRIPT_BIN" ] && command -v module >/dev/null 2>&1; then
+  module load R >/dev/null 2>&1 || true
+  RSCRIPT_BIN="$(command -v Rscript || true)"
+fi
+if [ -z "$RSCRIPT_BIN" ]; then
+  echo "ERROR: no Rscript found on PATH, and 'module load R' didn't put one there." >&2
+  echo "Set BNMA_RSCRIPT=/path/to/Rscript to pin a specific install." >&2
+  exit 1
+fi
 
 if command -v module >/dev/null 2>&1; then
   if module avail jags 2>&1 | grep -qi jags; then
