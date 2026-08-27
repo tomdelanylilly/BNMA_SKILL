@@ -13,7 +13,9 @@ description: >
   plot from one, or mentions "/cmh-ci", "what's in this data", "what
   studies/compounds do we have", "run the BNMA", "run the meta-analysis",
   "BATMAN", "landscape forest plot", or "competitive intelligence deck
-  figures".
+  figures". Also triggers on "/cmh-ci-explain" or a plain request to walk
+  through/outline what this workflow does -- that variant only explains the
+  steps in plain language and touches no data, file, or folder.
 ---
 
 # /cmh-ci
@@ -97,6 +99,59 @@ data into QA, and that's a complete outcome, not a shortfall. Heterogeneity
 and effect type aren't asked until Step 9, *after* Step 8 has already
 built the real network structure — so that question states the actual
 recommendation directly instead of asking blind and correcting later.
+
+## `/cmh-ci-explain` — describe the workflow, touch nothing
+
+A distinct, self-contained path for a statistician who wants to understand
+what this skill actually does before running it, or wants to explain it to
+a colleague — not a shortcut into the workflow itself. Only triggers on an
+explicit ask for an explanation of the workflow (literally
+`/cmh-ci-explain`, or "what does this skill do," "walk me through the
+steps," "what happens if I run this") — never inferred from a data
+question like "what's in this data," which is Step 1's own job and does
+load real data.
+
+When this fires: **do not** search for a PRD/QA file, run
+`load_merge_data.R`/`check_naming_pooling.R`, propose folders, write a
+manifest, or touch `compound_registry.yaml` — nothing on this path reads or
+writes anything outside this response. Reply with the outline below, then
+end the turn. Only move into the real workflow (starting at Step 1) if the
+statistician separately says so afterward — nothing carries over from this
+explanation, since nothing was touched.
+
+```
+1. Show what's actually in the PRD/QA data -- studies, compounds, phases,
+   evidence tiers -- before asking for any decision.
+2. Ask which studies/compounds you care about, then settle endpoint,
+   route, evidence, and region -- one short question at a time, each with
+   a stated default.
+3. Show the exact study list and any naming/route conflicts as one
+   grouped confirmation -- nothing is silently assumed, especially not a
+   Phase 1/2 or prediction-tier study.
+4. Ask whether that confirmed subset is enough, or whether outside data
+   (a press release, a hand-digitized slide, another workbook) should be
+   folded in.
+5-6. If yes: get that data into the right shape and merge it in, looping
+   back to #4 until the subset is confirmed sufficient.
+7. Confirm the goal is actually to fit a model at all -- reviewing or
+   updating the data can be the whole point of a session, and that's a
+   complete outcome on its own.
+8. Build the real model input: propose working folders, write a manifest
+   recording every decision made so far, build the dataset the model will
+   actually see.
+9. Now that the real study network is known, recommend random- vs.
+   fixed-effects and relative- vs. absolute-effect -- informed by that
+   real network, not asked blind.
+10. Fit the model, render the forest plot, and write a standalone,
+   re-runnable R script -- nothing about reproducing the run depends on
+   this chat still existing.
+```
+
+Frame it for a statistician, not a developer: what each step asks *them*
+to decide and why the decision is forced into the open, not the R/JAGS
+mechanics underneath. If they want more depth than this outline (why a
+given step exists, what incident it traces back to), point them at
+`DESIGN.md` in this skill's repo rather than reproducing that history here.
 
 **The one thing that always still interrupts, even after that reply: a hard
 gate failure** — `build_batman_data.R` refusing to run because a study is
