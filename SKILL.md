@@ -95,8 +95,8 @@ reproducing that history here.
 ```
 1. Show what's actually in the PRD/QA data -- studies, compounds, phases,
    evidence tiers -- before asking for any decision.
-2. Ask which studies/compounds you care about, then settle route and
-   evidence -- one short question at a time, each with a stated default.
+2. Ask which studies/compounds you care about -- route and evidence
+   aren't separately asked (dropped by design, always "both").
 3. Show the exact study list and any naming/route conflicts as one
    grouped confirmation -- nothing is silently assumed, especially not a
    Phase 1/2 or prediction-tier study.
