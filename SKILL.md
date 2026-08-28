@@ -112,7 +112,9 @@ assumed silently.
     1 ─ Read the PRD/QA data; list every study, compound, phase, and
         evidence tier.
     2 ─ You pick the studies and compounds to include.
-    3 ─ Naming and route conflicts are shown for your sign-off.
+    3 ─ Phase, route, and compound are stated plainly with your
+        selection; a genuine overlap or naming inconsistency still
+        gets its own call-out.
     4 ─ You say whether outside data (press release, publication link,
         digitized slide, another workbook) goes in.
     5 ─ Any outside data is mapped to the QA schema and merged — you
@@ -181,10 +183,13 @@ for (s in sheets[!tolower(sheets) %in% c("summary","revision history")]) {
     studies <- d %>% group_by(study_name) %>%
       summarise(compounds = paste(sort(unique(compound)), collapse=", "),
                 treatments = paste(sort(unique(treatment)), collapse="; "),
-                phase = first(phase), .groups="drop")
+                phase = first(phase),
+                routes = paste(sort(unique(na.omit(aom))), collapse="/"),
+                .groups="drop")
     for (i in seq_len(nrow(studies))) {
+      route_str <- if (nzchar(studies$routes[i])) paste0(", ", studies$routes[i]) else ""
       cat("  ", i, ". ", studies$study_name[i],
-          " (", studies$phase[i], ", ", tolower(s), ")",
+          " (", studies$phase[i], route_str, ", ", tolower(s), ")",
           " -- ", studies$compounds[i], "\n", sep="")
       cat("       ", studies$treatments[i], "\n")
     }
@@ -200,26 +205,45 @@ Present the output to the user showing **all studies from both sheets**
 Here's what's in the PRD (cwm_wl_nont2d):
 
   OBSERVED (N studies):
-    1. <study_name> (<phase>) — <compound>: <treatments>
+    1. <study_name> (<phase>, <route>) — <compound>: <treatments>
     2. ...
 
   PREDICTION (M studies):
-    1. <study_name> (<phase>) — <compound>: <treatments>
+    1. <study_name> (<phase>, <route>) — <compound>: <treatments>
     2. ...
 
   Which studies do you want to include?
 ```
 
 **Both sheets get the identical per-study numbered format** — `N. <study_name>
-(<phase>) — <compound>: <treatments>`, one line per study. Never collapse the
-Prediction list into a summary paragraph (a compound-name roundup like
-"includes amycretin, cagrilintide, ...") just because it's the second sheet —
-a Prediction study is exactly as eligible for selection as an Observed one,
-and hiding its phase/treatments behind a name-only mention makes it too easy
-to pick the wrong study by accident.
+(<phase>, <route>) — <compound>: <treatments>`, one line per study. Never
+collapse the Prediction list into a summary paragraph (a compound-name
+roundup like "includes amycretin, cagrilintide, ...") just because it's
+the second sheet — a Prediction study is exactly as eligible for selection
+as an Observed one, and hiding its phase/treatments behind a name-only
+mention makes it too easy to pick the wrong study by accident.
 
 If the user already named specific treatments/studies in their prompt,
 pre-resolve those and propose them as the include list.
+
+**Once the user picks studies, echo the confirmed selection in this same
+format** — phase, route, and compound stated plainly per study, right in
+the confirmation itself, not as a separate question. Mixing routes (oral
++ injectable) or phases across the selection is a legitimate modeling
+choice, not something to gate on — an oral/injectable combined analysis
+is a completely normal thing to want. State what's in the selection;
+don't ask permission for it. The same goes for compound naming: if it's
+spelled consistently, this line already shows that — there's no separate
+naming/route round-trip needed for the routine case, and skipping it is
+real time saved over the course of a session.
+
+This is different from a genuine anomaly that a phase/route/compound line
+wouldn't surface on its own — e.g. two selected studies that are actually
+the same underlying trial at different follow-up points (a base study and
+its extension), or a literal spelling inconsistency where what should be
+one compound is written two different ways across rows. Those are actual
+data problems, not a modeling choice, and still deserve their own explicit
+call-out and confirmation before proceeding.
 
 ## Step 2 — Ask whether additional, non-PRD data should be incorporated
 
