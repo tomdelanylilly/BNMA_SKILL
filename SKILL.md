@@ -81,6 +81,16 @@ asks about new data. Step 5 asks whether to actually run a BNMA. Step 6
 collects design decisions (random/fixed). Only then does Step 7 fit the
 model and produce both plots plus the RMD report.
 
+**Every discrete-choice decision point uses the structured question tool,
+not a plain-text question typed as chat.** Whenever this skill is asking
+the statistician to pick from a small set of named options — Heterogeneity
+(random/fixed), SE-fallback handling, observed-vs-predicted, "ready to run
+a BNMA on this subset?", a naming/route/cross-tier anomaly resolution, any
+of it — raise it through the harness's own question tool so it renders as
+a proper prompt, not free text they have to type a reply to. This applies
+everywhere in Steps 1 through 6, without exception; it's a presentation
+convention, not something each step needs to repeat.
+
 ## Landing page — shown before anything is touched
 
 Every `/cmh-ci` invocation opens here, before any search, read,
@@ -291,7 +301,14 @@ across and one row per arm — with undecided cells (SE and the rest) shown
 blank, so the statistician sees exactly which fields are still theirs to
 fill.** Display the core columns below; if the schema is wider than fits,
 split into two aligned horizontal tables (identity+efficacy, then
-provenance) — never pivot to a vertical key/value dump.
+provenance) — never pivot to a vertical key/value dump. **Never
+abbreviate a repeated value as `(same)` or similar shorthand — write the
+real value out in every row of the preview**, even when it's identical
+across all of them (e.g. the same `source` link for every arm of one
+study). This preview is what the statistician actually checks before
+approving the merge; a placeholder standing in for the real value is
+exactly the kind of thing that's easy to wave through without reading —
+the workbook itself was never going to get a placeholder either.
 
 ```
 Extracted from <source> — mapped to QA schema (Observed/Prediction TBD).
@@ -390,7 +407,21 @@ file:
    `time_entry` is **not** part of this ask-if-ambiguous list — it's
    always just today's date, filled in automatically (see the schema
    table above).
-6. Show the mapped row(s) for confirmation — same table-confirmation
+6. **If SE fallback is chosen, compute it immediately — don't defer it
+   to fit time.** When the source has no CI/SE and the user opts to
+   approximate one (`fallback_sd / sqrt(n)`, default `fallback_sd = 10`
+   unless the user gives a better estimate), work out the actual number
+   right then and put it in `se_wl_ee`/`se_wl_tre` itself — in the
+   preview table and in what gets written to the QA workbook — instead
+   of leaving the cell blank for `run_bnma_pipeline.R`'s manifest-level
+   `se_fallback` mechanism to fill in silently at fit time. Record the
+   derivation in `derivation_spec` (e.g. `"se_wl_ee derived as
+   fallback_sd=10 / sqrt(n) -- source reported no CI/SE for this
+   endpoint"`). The manifest's own `se_fallback` option still exists for
+   rows genuinely handled some other way, but a row built through this
+   pathway shouldn't need it — its SE is already a real number by the
+   time it's written, not a placeholder.
+7. Show the mapped row(s) for confirmation — same table-confirmation
    pattern as any other source in this step — then follow Step 2's
    existing merge question. This pathway feeds the same merge decision;
    it doesn't bypass it.
@@ -572,36 +603,32 @@ Save outputs:
 - Both forest plots →
   `/lillyce/qa/diabetes/bnma/obesity/output/shared/YYYYMMDD_<slug>/forest_plot_relative.png`
   and `.../forest_plot_absolute.png`
-- **A copy of the exact `run_bnma_pipeline.R` used for the fit** →
-  `/lillyce/qa/diabetes/bnma/obesity/programs/YYYYMMDD_<slug>/run_bnma_pipeline.R`
-  (copy, don't move, from the `/tmp/$(whoami)/cmh_ci_lib/` materialization —
-  the `/tmp` copy is scratch and may not survive the session; the programs
-  folder is the permanent audit trail. Without this copy, reproducing the
-  run depends on this chat session still existing.) Copy it after both
-  fits succeed, e.g. `cp /tmp/$(whoami)/cmh_ci_lib/run_bnma_pipeline.R
-  <programs_folder>/run_bnma_pipeline.R`.
 - **The per-run RMD report** →
   `/lillyce/qa/diabetes/bnma/obesity/programs/YYYYMMDD_<slug>/report.Rmd`
-  — this is the permanent audit trail now, not the manifest (see below).
+  — this is the permanent audit trail, and it's the *only* thing this step
+  writes to the programs folder. The exact `run_bnma_pipeline.R` used for
+  the fit is embedded **inside** this report (see "Reproducing this run"
+  below) rather than copied there as its own file — one self-contained
+  document instead of a report-plus-script pair to keep in sync.
 
-The programs folder holds **only the script and the RMD report** — no
-`study_selection_manifest.yaml`, and no `samples.rds`/`placebo_samples.rds`
-either. The manifest stays in `/tmp` scratch
-(`/tmp/$(whoami)/cmh_ci_lib/study_selection_manifest.yaml`, written in
-Step 5) — `run_bnma_pipeline.R` still needs it as an input, but the
-manifest itself is no longer kept as a deliverable; its substance (the
-studies included) carries forward into the RMD report instead, which is
-what actually persists in the programs folder.
+The programs folder holds **only the RMD report** — no
+`study_selection_manifest.yaml`, no separate copy of `run_bnma_pipeline.R`,
+and no `samples.rds`/`placebo_samples.rds` either. The manifest stays in
+`/tmp` scratch (`/tmp/$(whoami)/cmh_ci_lib/study_selection_manifest.yaml`,
+written in Step 5) — `run_bnma_pipeline.R` still needs it as an input, but
+the manifest itself is no longer kept as a deliverable; its substance
+(the studies included) carries forward into the RMD report instead, which
+is what actually persists in the programs folder.
 
 ### RMD report
 
 Generate a fresh `report.Rmd` every run (never accumulated across runs),
-written to the same run's programs folder alongside the copied script.
-Pull its content from the manifest written in Step 5/6 rather than
-re-deriving anything. This is the thing a user opens cold, months later,
-to answer "how was this produced, and can I reproduce it" — so while
-study selection stays a summary (see below), the provenance and
-reproduction sections must be literal, not summarized:
+written to the same run's programs folder. Pull its content from the
+manifest written in Step 5/6 rather than re-deriving anything. This is
+the thing a user opens cold, months later, to answer "how was this
+produced, and can I reproduce it" — so while study selection stays a
+summary (see below), the provenance and reproduction sections must be
+literal, not summarized:
 
 - **How the data was produced** — the exact PRD and QA file paths this
   run read (`source_data.prd`/`.qa` from the manifest); any supplemental
@@ -618,13 +645,15 @@ reproduction sections must be literal, not summarized:
   time; the report doesn't need to repeat it study by study.
 - **Design choices** — `model_type` (random vs. fixed effects),
   `route_filter`, `evidence_filter`.
-- **Reproducing this run** — an actual runnable code block with the exact
-  `module load` + `Rscript` invocation used (the same `--effect both`
-  command from Step 7, with this run's real paths filled in, not a
-  placeholder), plus a note that the exact `run_bnma_pipeline.R` this
-  invocation depends on is saved alongside this report in the same
-  folder — the report and that script file are the reproducible pair;
-  neither one alone is enough.
+- **Reproducing this run** — the exact `run_bnma_pipeline.R` used for
+  this fit, embedded verbatim as an R code chunk (`{r, eval=FALSE}` —
+  documenting it, not re-running it as part of any render), followed by
+  an actual runnable code block with the exact `module load` + `Rscript`
+  invocation used (the same `--effect both` command from Step 7, with
+  this run's real paths filled in, not a placeholder). This report is
+  the entire reproducible artifact by itself — no sibling script file to
+  keep in sync with it, no separate copy that could drift from what
+  actually ran.
 - **Results** — links to the two output plots (relative-effect and
   absolute-effect) in this run's output folder.
 
@@ -857,7 +886,6 @@ suppressPackageStartupMessages({
   library(rjags)
   library(ggplot2)
   library(coda)
-  library(ggtext)
 })
 
 # --------------------------------------------------------------------------
@@ -1470,9 +1498,6 @@ arm_info <- data_recon %>%
   distinct() %>%
   arrange(arm_ind, is.na(compound)) %>%
   distinct(arm_ind, .keep_all = TRUE)
-arm_evidence <- data_recon %>% filter(!is.na(source_sheet)) %>% group_by(arm_ind) %>%
-  summarise(evidence_type = paste(sort(unique(source_sheet)), collapse = ","), .groups = "drop")
-arm_info <- arm_info %>% left_join(arm_evidence, by = "arm_ind")
 
 study_info <- data_recon %>% select(study_ind, study_name = study) %>% distinct() %>% arrange(study_ind)
 has_placebo_study <- data_recon %>% filter(arm_ind == 1, !is.na(.data[[effect_col]])) %>% pull(study_ind) %>% unique()
@@ -1633,7 +1658,6 @@ samples_mat <- as.matrix(samples)
 if (effect == "absolute") {
   placebo_samples_mat <- as.matrix(placebo_samples)
   m_samples <- sample(placebo_samples_mat[, "m"], nrow(samples_mat), replace = TRUE)
-  sigma_m_samples <- sample(placebo_samples_mat[, "sigma_m"], nrow(samples_mat), replace = TRUE)
   cat("Pooled placebo baseline loaded -- mean m =", round(mean(m_samples), 3), "\n")
 }
 
@@ -1652,7 +1676,7 @@ rows <- lapply(seq_len(nrow(arm_lookup)), function(i) {
     post <- if (arm_k == 1) m_samples else m_samples + samples_mat[, paste0("d[", arm_k, "]")]
   }
   data.frame(treatment = trt_name, compound = if (trt_name == "placebo") "placebo" else cmpd,
-             evidence_type = arm_lookup$evidence_type[i], mean = mean(post),
+             mean = mean(post),
              val2.5pc = quantile(post, 0.025), val97.5pc = quantile(post, 0.975))
 })
 
@@ -1661,18 +1685,7 @@ data_plot <- bind_rows(rows) %>%
   arrange(match(treatment, c("placebo", plot_treatments))) %>%
   mutate(Label = paste0(round(mean, 1), " (", round(val2.5pc, 1), ", ", round(val97.5pc, 1), ")"))
 
-type_code <- c(observed = "o", prediction = "p", supplementary = "s")
-data_plot <- data_plot %>%
-  mutate(
-    evidence_marker = vapply(evidence_type, function(et) {
-      if (is.na(et) || !nzchar(et)) return("")
-      codes <- type_code[strsplit(et, ",")[[1]]]
-      paste0("^", paste(codes, collapse = ","), "^")
-    }, character(1)),
-    treatment_label = paste0(treatment, evidence_marker)
-  )
-
-trt_order <- unique(data_plot$treatment_label)
+trt_order <- unique(data_plot$treatment)
 
 endpoint_label <- manifest$effect_label %||% (if (effect_col == "pchg_wl_ee") "Body Weight" else effect_col)
 ylab_text <- args$xlab %||% sprintf("Mean (95%% CI) of %s Percent Change in %s (%%)",
@@ -1680,29 +1693,10 @@ ylab_text <- args$xlab %||% sprintf("Mean (95%% CI) of %s Percent Change in %s (
 title_text <- args$title %||% sprintf("%s Percent %s Change",
                                        if (effect == "relative") "Placebo-Adjusted" else "Absolute", endpoint_label)
 
-subtitle_text <- NULL
-if (effect == "absolute") {
-  mu_mean <- mean(m_samples); mu_ci <- quantile(m_samples, c(0.025, 0.975))
-  sigma_mu_mean <- mean(sigma_m_samples)
-  mu_part <- sprintf("Absolute = pooled placebo μ (%.1f%%; 95%% CrI: %.1f, %.1f; between-study σ=%.2f, standalone placebo-only model) + d[j]",
-                      mu_mean, mu_ci[1], mu_ci[2], sigma_mu_mean)
-  if ("sigma" %in% colnames(samples_mat)) {
-    tau_mean <- mean(samples_mat[, "sigma"]); tau_ci <- quantile(samples_mat[, "sigma"], c(0.025, 0.975))
-    subtitle_text <- sprintf("%s    τ = %.2f (95%% CrI: %.2f, %.2f)", mu_part, tau_mean, tau_ci[1], tau_ci[2])
-  } else {
-    subtitle_text <- paste0(mu_part, "    (no τ for this fit -- either a fixed-effect delta model, or refit to capture 'sigma')")
-  }
-}
-
 n_compounds <- length(unique(data_plot$compound))
 max_label_chars <- max(nchar(data_plot$Label))
 plot_width <- 10 + 0.15 * max_label_chars + 0.25 * n_compounds
 footnote_wrap_width <- max(40, floor(plot_width * 11))
-
-if (!is.null(subtitle_text)) {
-  subtitle_wrap_width <- max(40, floor(plot_width * 9))
-  subtitle_text <- paste(strwrap(subtitle_text, width = subtitle_wrap_width), collapse = "\n")
-}
 
 by_treatment <- arm_rows %>% filter(treatment %in% c(plot_treatments, "placebo")) %>%
   distinct(treatment, study_name) %>% group_by(treatment) %>%
@@ -1721,7 +1715,6 @@ footnote_lines <- c(
                  if (!is.null(manifest$source_data$qa)) paste0("  +  ", manifest$source_data$qa) else ""), width = footnote_wrap_width),
   strwrap(paste0("Source program: ", manifest$source_program %||% "(not recorded)"), width = footnote_wrap_width)
 )
-footnote_lines <- c(footnote_lines, "^o^ = observed, ^p^ = projection, ^s^ = supplementary (hand-added, not yet in QA/PRD)")
 footnote_text <- paste(footnote_lines, collapse = "\n")
 
 FIXED_COMPOUND_COLORS <- c(
@@ -1742,7 +1735,7 @@ compound_colors <- c(FIXED_COMPOUND_COLORS, fallback_colors)
 
 pforest <- ggplot(
   data_plot,
-  aes(x = factor(treatment_label, levels = rev(trt_order)), y = mean, ymin = val2.5pc, ymax = val97.5pc)
+  aes(x = factor(treatment, levels = rev(trt_order)), y = mean, ymin = val2.5pc, ymax = val97.5pc)
 ) +
   geom_pointrange(aes(col = compound), size = 0.5) +
   geom_hline(yintercept = 0, linewidth = 1, linetype = 2) +
@@ -1752,20 +1745,18 @@ pforest <- ggplot(
   scale_x_discrete(expand = expansion(add = c(0.6, 0.6))) +
   coord_flip() +
   xlab("") + ylab(ylab_text) +
-  ggtitle(title_text, subtitle = subtitle_text) +
+  ggtitle(title_text) +
   theme_bw() +
   theme(
     axis.title = element_text(size = 16),
-    axis.text.y = ggtext::element_markdown(size = 14),
+    axis.text.y = element_text(size = 14),
     axis.text.x = element_text(size = 14),
     plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
-    plot.subtitle = element_text(size = 11, color = "grey35", hjust = 0.5),
     legend.text = element_text(size = 13),
     legend.title = element_text(size = 13)
   )
 
-subtitle_lines <- if (is.null(subtitle_text)) 0 else lengths(regmatches(subtitle_text, gregexpr("\n", subtitle_text))) + 1
-plot_height <- max(4, 0.6 * length(trt_order)) + 0.18 * subtitle_lines
+plot_height <- max(4, 0.6 * length(trt_order))
 ggsave(out_path, plot = pforest, width = plot_width, height = plot_height, dpi = 150)
 cat("Forest plot (", effect, ") saved to:", out_path, "\n")
 cat("Footnote (not rendered on the plot -- console record only):\n", footnote_text, "\n")
