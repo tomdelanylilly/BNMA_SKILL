@@ -594,22 +594,37 @@ actually persists in the programs folder.
 ### RMD report
 
 Generate a fresh `report.Rmd` every run (never accumulated across runs),
-written to the same run's programs folder alongside the script. Pull its
-content from the manifest written in Step 5/6 rather than re-deriving
-anything, but **summarize, don't dump**:
+written to the same run's programs folder alongside the copied script.
+Pull its content from the manifest written in Step 5/6 rather than
+re-deriving anything. This is the thing a user opens cold, months later,
+to answer "how was this produced, and can I reproduce it" — so while
+study selection stays a summary (see below), the provenance and
+reproduction sections must be literal, not summarized:
 
+- **How the data was produced** — the exact PRD and QA file paths this
+  run read (`source_data.prd`/`.qa` from the manifest); any supplemental
+  data merged in via Step 2/3 this run, with its source (link/file), the
+  observed-vs-predicted determination, and what was extracted vs.
+  derived; and any data adjustments the manifest recorded — `se_fallback`
+  (with its reason and SD), `placebo_clamp`, `row_exclusions`,
+  `compound_relabels`/`treatment_relabels` — each with the reason field
+  that came with it. If a field wasn't used this run, say so rather than
+  omitting it silently.
 - **Studies included** — just the studies with `include: true` (e.g.
   "scale maintenance, believe, zupreme-1, triumph-3"). Don't enumerate the
   `false` ones — the manifest already made that decision explicit at fit
   time; the report doesn't need to repeat it study by study.
-- The design choices made this run: `model_type` (random vs. fixed
-  effects), `route_filter`, `evidence_filter`, and any supplemental data
-  merged in via Step 2/3 — including the observed-vs-predicted
-  determination for anything pulled in via the link/publication pathway.
-- The scripts used to produce the two plots (the copied
-  `run_bnma_pipeline.R` path, and each invocation's arguments).
-- Links to the two output plots (relative-effect and absolute-effect) in
-  this run's output folder.
+- **Design choices** — `model_type` (random vs. fixed effects),
+  `route_filter`, `evidence_filter`.
+- **Reproducing this run** — an actual runnable code block with the exact
+  `module load` + `Rscript` invocation used (the same `--effect both`
+  command from Step 7, with this run's real paths filled in, not a
+  placeholder), plus a note that the exact `run_bnma_pipeline.R` this
+  invocation depends on is saved alongside this report in the same
+  folder — the report and that script file are the reproducible pair;
+  neither one alone is enough.
+- **Results** — links to the two output plots (relative-effect and
+  absolute-effect) in this run's output folder.
 
 ## What this skill does NOT do
 
