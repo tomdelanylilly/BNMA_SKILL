@@ -113,8 +113,8 @@ unnoticed across runs.
 From the PRD/QA weight-loss dataset to a fitted BNMA. This skill reads
 the data, has you select studies and settle any conflicts, folds in any
 outside data you supply, fits the model, and returns both forest plots
-(placebo-adjusted and absolute), a per-run report, and a standalone
-re-runnable script.
+(placebo-adjusted and absolute) and a self-contained per-run report —
+the exact re-runnable script is embedded inside it, not a separate file.
 
 It runs in steps. Each step needs one decision from you — nothing is
 assumed silently.
@@ -130,8 +130,8 @@ assumed silently.
     5 ─ Any outside data is mapped to the QA schema and merged — you
         confirm the rows.
     6 ─ You choose random- or fixed-effects for the BNMA.
-    7 ─ Fit, then output both forest plots, the report, and a
-        standalone re-runnable script.
+    7 ─ Fit, then output both forest plots and the report — the
+        re-runnable script is embedded inside the report itself.
 
 Stopping after any step is a valid outcome — reviewing or updating the
 data without fitting is a complete session.
@@ -670,9 +670,9 @@ literal, not summarized:
   is used as-is
 - No `study_selection_manifest.yaml`, `samples.rds`, or
   `placebo_samples.rds` in the programs folder — the manifest and MCMC
-  caches all stay in `/tmp` scratch; only the script + RMD report persist
-  there, and the report summarizes just the included studies, not a full
-  true/false dump
+  caches all stay in `/tmp` scratch; only the RMD report persists there
+  (with the script embedded inside it), and the report summarizes just
+  the included studies, not a full true/false dump
 - No requirement to enumerate every study in the merged data with an
   explicit `include: true/false` — the manifest is just the set of
   studies wanted (`include: true`); anything unlisted is excluded
