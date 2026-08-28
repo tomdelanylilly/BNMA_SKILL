@@ -85,45 +85,48 @@ model and produce both plots plus the RMD report.
 
 Every `/cmh-ci` invocation opens here, before any search, read,
 `run_bnma_pipeline.R` call, manifest write, or `compound_registry.yaml`
-access. Frame it for a statistician deciding whether to run this: what
-each step asks *them* to decide and why the decision is forced into the
-open, not the R/JAGS mechanics underneath. Point to `DESIGN.md` in this
-skill's repo (or the project's `GUIDE_README.md`) for anyone who wants the
-deeper "why" — the incident history behind a given step — rather than
-reproducing that history here.
+access. **Print the block below verbatim — do not paraphrase, regenerate,
+reorder, or restyle it.** It is fixed text so the page reads identically
+on every run, for every user; the point is a stable operator banner, not
+a fresh description each session — a paraphrased banner is exactly how a
+stale claim (like a dropped question the page still promised) survives
+unnoticed across runs.
 
 ```
-1. Show what's actually in the PRD/QA data -- studies, compounds, phases,
-   evidence tiers -- before asking for any decision.
-2. Ask which studies/compounds you care about -- route and evidence
-   aren't separately asked (dropped by design, always "both").
-3. Show the exact study list and any naming/route conflicts as one
-   grouped confirmation -- nothing is silently assumed, especially not a
-   Phase 1/2 or prediction-tier study.
-4. Ask whether that confirmed subset is enough, or whether outside data
-   (a press release, a hand-digitized slide, another workbook, or a link
-   to a publication) should be folded in.
-5-6. If yes: get that data into the right shape (asking observed vs.
-   predicted for anything pulled from a link) and merge it in, looping
-   back to #4 until the subset is confirmed sufficient.
-7. Confirm the goal is actually to fit a model at all -- reviewing or
-   updating the data can be the whole point of a session, and that's a
-   complete outcome on its own.
-8. Build the real model input: propose working folders, write a manifest
-   recording every decision made so far, build the dataset the model will
-   actually see.
-9. Ask random- vs. fixed-effects -- whatever the statistician picks is
-   final, with no network-informed recommendation offered afterward.
-10. Fit the model, render both the relative- and absolute-effect forest
-   plots, write the per-run RMD report, and write a standalone,
-   re-runnable R script -- nothing about reproducing the run depends on
-   this chat still existing.
-```
+════════════════════════════════════════════════════════════════════
 
-End with an explicit question, e.g.:
+                          /cmh-ci
+        Bayesian Network Meta-Analysis · CMH Competitive Intelligence
 
-```
-Would you like me to search for the relevant PRD/QA files and get started?
+════════════════════════════════════════════════════════════════════
+
+From the PRD/QA weight-loss dataset to a fitted BNMA. This skill reads
+the data, has you select studies and settle any conflicts, folds in any
+outside data you supply, fits the model, and returns both forest plots
+(placebo-adjusted and absolute), a per-run report, and a standalone
+re-runnable script.
+
+It runs in steps. Each step needs one decision from you — nothing is
+assumed silently.
+
+    1 ─ Read the PRD/QA data; list every study, compound, phase, and
+        evidence tier.
+    2 ─ You pick the studies and compounds to include.
+    3 ─ Naming and route conflicts are shown for your sign-off.
+    4 ─ You say whether outside data (press release, publication link,
+        digitized slide, another workbook) goes in.
+    5 ─ Any outside data is mapped to the QA schema and merged — you
+        confirm the rows.
+    6 ─ You choose random- or fixed-effects.
+    7 ─ Fit, then output both forest plots, the report, and a
+        standalone re-runnable script.
+
+Stopping after any step is a valid outcome — reviewing or updating the
+data without fitting is a complete session.
+
+────────────────────────────────────────────────────────────────────
+  Shall I read the PRD dataset and list the studies?   ( yes / no )
+────────────────────────────────────────────────────────────────────
 ```
 
 - **Explicit yes** ("yes," "let's proceed," etc.) → proceed directly into
@@ -132,18 +135,20 @@ Would you like me to search for the relevant PRD/QA files and get started?
   touching anything. Nothing carries over from this page, since nothing
   was touched.
 
-**The one thing that always still interrupts, even downstream of this
-page: a hard gate failure** — `run_bnma_pipeline.R` refusing to run
-because a study is missing from the manifest. Continuing silently past
-that would defeat the actual purpose of the skill, not just its UX.
-
-**This skill does not run any automated post-fit diagnostics** (no Rhat/ESS
-convergence check, no network-connectivity/consistency/DIC check) — matches
-the real production `EliLillyCo/CMH.BNMA` app's own behavior (confirmed
-2026-08-24: it fits and plots with no such checks). If a fit's plausibility
-needs verifying, inspect the posterior manually (`coda::gelman.diag()`,
-`coda::effectiveSize()` on the cached `samples.rds`) rather than expecting
-this skill to flag it.
+Operator notes (not printed on the page above):
+- Deeper "why" for any step — the incident history behind it — lives in
+  `DESIGN.md` in this skill's repo (or the project's `GUIDE_README.md`),
+  not here.
+- **One thing still interrupts downstream of this page: a hard gate
+  failure** — `run_bnma_pipeline.R` refusing to run because a study is
+  missing from the manifest. Continuing silently past it defeats the
+  skill's purpose, not just its UX.
+- **No automated post-fit diagnostics are run** (no Rhat/ESS,
+  network-connectivity/consistency/DIC) — matches the production
+  `EliLillyCo/CMH.BNMA` app's own behavior (confirmed 2026-08-24: it fits
+  and plots with no such checks). To verify a fit, inspect the posterior
+  manually (`coda::gelman.diag()`, `coda::effectiveSize()` on the cached
+  `samples.rds`) rather than expecting this skill to flag it.
 
 
 ## Step 1 — Introduce and explain the available PRD dataset
@@ -239,11 +244,35 @@ Get the new data in any form:
 - **A link attached in chat** (publication, press release, or other web
   source) — see "Link/publication extraction pathway" below.
 
-Map it into the QA schema (`study_name`, `treatment`, `compound`, `aom`,
-`phase`, `pchg_wl_ee`, `se_wl_ee`, etc.). Fill what's known from context,
-leave optional fields NA.
+Map it into the QA schema (canonical column list in the table below).
+Fill what's known from context — mainly baseline values; `source` is the
+link/file/reference the user provided to extract from; `curator_note` is
+`AI extraction` whenever the AI did the extraction (link/pdf/ppt/etc.).
+Leave undecided fields blank rather than guessing.
 
-Show the user exactly what rows will be added — a table — and confirm.
+**Show the mapped row(s) back as the schema itself — horizontally, columns
+across and one row per arm — with undecided cells (SE and the rest) shown
+blank, so the statistician sees exactly which fields are still theirs to
+fill.** Display the core columns below; if the schema is wider than fits,
+split into two aligned horizontal tables (identity+efficacy, then
+provenance) — never pivot to a vertical key/value dump.
+
+```
+Extracted from <source> — mapped to QA schema (Observed/Prediction TBD).
+Blank cells are still yours to decide.
+
+| study_name | treatment | compound | phase | n | pchg_wl_ee | se_wl_ee | baseline_wgt | study_duration | population | route | source | data_type | curator_note |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| ...        | ...       | ...      | ...   |...|    ...     |          |     ...      |      ...       |    ...    |       | <link> | publication| AI extraction|
+
+(+ N optional schema fields — qc_name, qc_note, derivation_spec, … —
+written to the workbook blank; not shown here.)
+```
+
+This is a **display** projection. The **insert** (what
+`append_to_qa.R` writes to the workbook) always carries the full column
+set below, blanks as NA — nothing persisted is dropped just because the
+display was trimmed.
 
 ### Link/publication extraction pathway
 
@@ -268,36 +297,40 @@ file:
    never infer this.** The answer sets the destination QA sheet
    (`Observed` vs `Prediction`, matching `append_to_qa.R`'s `--sheet`
    argument) and feeds `analysis_method`/`derivation_spec`.
-4. Map the extracted fields into the QA column schema:
+4. Map the extracted fields into the QA column schema. **This is the
+   canonical, full column set — the insert writes all of it; the display
+   above shows the ★-marked core subset.**
 
    | Column | Meaning |
    |---|---|
    | `time_entry` | date this row is entered — **always today's run date (`yyyymmdd`), auto-filled, never asked.** It records when the row was curated, not a "data as of" date from the source — don't confuse the two, and don't prompt the user for it. |
-   | `treatment` | arm label, e.g. `tirzepatide 15mg` |
-   | `compound` | compound/molecule name |
-   | `phase` | trial phase, e.g. `phase 3`; for Prediction rows, the phase it's *from*, not *for* |
+   | ★ `study_name` | study identifier |
+   | ★ `treatment` | arm label, e.g. `tirzepatide 15mg` |
+   | ★ `compound` | compound/molecule name |
+   | ★ `phase` | trial phase; for Prediction rows, the phase it's *from* |
+   | ★ `n` | arm sample size |
+   | ★ `pchg_wl_ee` | % weight change, efficacy estimand (non-pbo adj) |
+   | ★ `se_wl_ee` | SE of `pchg_wl_ee` |
+   | ★ `baseline_wgt` | baseline body weight |
+   | ★ `study_duration` | study/analysis duration, e.g. `68 week` |
+   | ★ `population` | population, e.g. `obese non-t2d, background therapy` |
+   | ★ `route` | `Oral` vs `Injectable` |
+   | ★ `source` | citation/URL — the exact link provided |
+   | ★ `data_type` | source type — `publication` for this pathway |
+   | ★ `curator_note` | `AI extraction` when the AI extracted the row |
    | `sponsor` | study sponsor, e.g. `lilly` |
-   | `n` | arm sample size |
-   | `pchg_wl_ee` | % weight change, efficacy estimand (non-pbo adj) |
-   | `se_wl_ee` | SE of `pchg_wl_ee` |
    | `pchg_wl_tre` | % weight change, treatment-regimen estimand (non-pbo adj) |
    | `se_wl_tre` | SE of `pchg_wl_tre` |
-   | `baseline_wgt` | baseline body weight |
-   | `study_duration` | study/analysis duration, e.g. `68 week` |
-   | `study_name` | study identifier |
-   | `data_type` | source type — set to `"publication"` for this pathway (or the appropriate source-type value for the attached link) |
-   | `source` | citation/URL — set to the exact link the user provided; for Prediction rows this is the source program location for deriving the value |
-   | `population` | population, e.g. `obese non-t2d, background therapy` |
-   | `route` | `Oral` vs `Injectable` |
    | `analysis_method` | method, e.g. `mmrm` on treatment; Prediction method |
-   | `curator_name` / `curator_note` | curator name/notes once curation is done |
+   | `curator_name` | curator name once curation is done |
    | `qc_name` / `qc_note` | QC name/comments once QC is done |
    | `derivation_spec` | formula/method when a value is derived |
 
-   Match column names/casing to whatever the live QA workbook actually
-   uses at read time (it also carries an `aom` route-family column and
-   split `observed`/`prediction` tabs) rather than hardcoding — the table
-   above is the authoritative field set to populate.
+   For Prediction rows, `source` is the source-program location for
+   deriving the value. Match column names/casing to whatever the live QA
+   workbook actually uses at read time (it also carries an `aom`
+   route-family column and split `observed`/`prediction` tabs) rather than
+   hardcoding — this full table is the authoritative field set to populate.
 
 5. **Mandatory fields — never leave blank/skipped without flagging it:**
    SE (`se_wl_ee`/`se_wl_tre` as applicable — if not directly reported and
@@ -335,10 +368,13 @@ user before creating one — never create silently. Only once confirmed,
 create it directly (PRD schema, Observed/Prediction sheets) via
 `append_to_qa.R`'s `--create-from` fallback.
 
-Append using `append_to_qa.R`, targeting the located file:
+Append using `append_to_qa.R`, targeting the located file. If the scripts
+haven't been materialized yet this session, run Appendix B's extraction
+command first (it writes both scripts to `/tmp/$(whoami)/cmh_ci_lib/` in
+one pass — never retype them):
 ```bash
 module load R/4.4.2 2>/dev/null
-Rscript scripts/append_to_qa.R \
+Rscript /tmp/$(whoami)/cmh_ci_lib/append_to_qa.R \
   --qa <located_qa_path.xlsx> --sheet <Observed|Prediction> \
   --rows /tmp/new_rows.rds
 ```
@@ -423,13 +459,16 @@ used as-is, with no post-hoc network-based recommendation.
 
 ## Step 7 — Produce analysis outputs and visualisations
 
-**This is where the script is first materialized.** Write Appendix B's
-`run_bnma_pipeline.R` to `/tmp/$(whoami)/cmh_ci_lib/run_bnma_pipeline.R`.
+**This is where the script is first materialized (if Step 4 didn't
+already).** Extract Appendix B's `run_bnma_pipeline.R` to
+`/tmp/$(whoami)/cmh_ci_lib/run_bnma_pipeline.R` using **Appendix B's
+extraction command — never retype the script text.**
 It is the only script this step needs — load+merge, build BATMAN, fit the
-JAGS model, fit the pooled-placebo model, and render both forest plots
-happen across **two invocations of the same R script**; there is no
-separate plotting script and no shell wrapper: `module load` runs inline
-in the commands below.
+JAGS model, fit the pooled-placebo model, and render **both** forest plots
+happen in **one invocation of one R script, in one R process**
+(`--effect both`); there is no separate plotting script, no second
+invocation to re-plot from cache, and no shell wrapper: `module load` runs
+inline in the command below.
 
 Model file selection:
 - `rand_effect` → `model_random.txt`
@@ -440,22 +479,12 @@ Model file selection:
 MCMC: n.adapt=10000, burn-in=10000, 20000 iterations thinned by 10, 3 chains.
 
 **Every run always produces both effect plots — this is not a user
-choice (see Step 6).** Run the relative-effect invocation first, then the
-absolute-effect invocation; the second reuses the first's `--cache`
-samples, so the JAGS model is fit once, not twice.
+choice (see Step 6).** `--effect both` renders the relative and the
+absolute plot from the same process and the same fit: the JAGS model is
+fit once, the pooled-placebo model is fit once (for the absolute plot's
+baseline), and both PNGs are saved before the process exits — no second
+R startup, package load, Excel re-read, or BATMAN rebuild between them.
 
-**1. Relative effect:**
-```bash
-module load R/4.4.2 jags 2>/dev/null
-Rscript /tmp/$(whoami)/cmh_ci_lib/run_bnma_pipeline.R \
-  --prd <prd_path.xlsx> [--qa <qa_path.xlsx>] \
-  --manifest <manifest.yaml> --model <model_file> \
-  --cache /tmp/$(whoami)/cmh_ci_lib/samples.rds \
-  --plot --plot-out <output_folder>/forest_plot_relative.png
-```
-
-**2. Absolute effect** (always run — needs `--fit-placebo` with
-`--placebo-cache` in this same invocation):
 ```bash
 module load R/4.4.2 jags 2>/dev/null
 Rscript /tmp/$(whoami)/cmh_ci_lib/run_bnma_pipeline.R \
@@ -463,8 +492,14 @@ Rscript /tmp/$(whoami)/cmh_ci_lib/run_bnma_pipeline.R \
   --manifest <manifest.yaml> --model <model_file> \
   --cache /tmp/$(whoami)/cmh_ci_lib/samples.rds \
   --fit-placebo --placebo-cache /tmp/$(whoami)/cmh_ci_lib/placebo_samples.rds \
-  --plot --plot-out <output_folder>/forest_plot_absolute.png --effect absolute
+  --plot --effect both \
+  --plot-out <output_folder>/forest_plot_relative.png \
+  --plot-out-absolute <output_folder>/forest_plot_absolute.png
 ```
+
+(For an ad hoc single-plot re-render later in a session, `--effect
+relative` or `--effect absolute` with one `--plot-out` still works and
+reuses `--cache`, so nothing refits.)
 
 `--cache`/`--placebo-cache` point at the same `/tmp` scratch dir the script
 itself is materialized into — never the programs folder. They only exist to
@@ -529,7 +564,7 @@ anything, but **summarize, don't dump**:
   `/cmh-ci` invocation instead
 - No region, route, or evidence questions (dropped — always "both")
 - No relative-vs-absolute question (Step 6) — every run always produces
-  both plots (Step 7)
+  both plots, in one invocation (Step 7's `--effect both`)
 - No model-fitting preview before design decisions
 - No re-asking Step 6's `model_type` choice once made, and no post-hoc
   network-based recommendation for it either — the statistician's answer
@@ -546,244 +581,110 @@ anything, but **summarize, don't dump**:
 
 ---
 
-## Appendix A — JAGS Model Text (reference documentation)
+## Appendix A — JAGS Models (reference documentation)
 
-These are the exact model definitions this skill uses. **This is reference
-documentation only, not something a step instructs you to materialize** —
-the operative copy of every one of these lives as an R string constant
-(`MODEL_TEXTS`) inside Appendix B1's `run_bnma_pipeline.R`, passed to
-`jags.model()` via `textConnection()` at fit time, so no `model_*.txt` file
-is ever written to disk during a session (consolidated 2026-08-27 — see
-Appendix B's intro). In the team's own separate driver script (not part of
-this skill's numbered steps), the model text is still written inline via
-`cat('...', file = model_path)`, matching
-the team's own existing convention for a script meant to run outside any
-Claude session.
+This appendix documents the model definitions this skill uses. **It is
+reference documentation only, not something a step instructs you to
+materialize** — the single operative copy of every model lives inside
+Appendix B1's `run_bnma_pipeline.R` (`MODEL_TEXTS`, built by
+`make_network_model()`), passed to `jags.model()` via `textConnection()`
+at fit time, so no `model_*.txt` file is ever written to disk during a
+session. The model text is deliberately **not** repeated here as code
+blocks: a second verbatim copy previously lived in this appendix and had
+already drifted in formatting from the operative one — one source of
+truth, described here, defined in B1. In the team's own separate driver
+script (not part of this skill's numbered steps), the model text is still
+written inline via `cat('...', file = model_path)`, matching the team's
+existing convention for a script meant to run outside any Claude session.
 
-### A1. Random-effects, flat baselines (DEFAULT — `model_random.txt`)
+### The five models, and how they relate
 
-Use for: placebo-adjusted forest (the standard deliverable). Production default.
+The four network models are compositions along exactly two axes, and B1's
+`make_network_model(pooled_baseline, fixed_delta)` builds each one from a
+single shared likelihood body plus those two toggles — so the shared
+structure (arm likelihood, `eta`, the `w`/`sw` multi-arm correction,
+`Dbar`, the `d[k]` priors, `sigma`/`tau2`) is written exactly once and
+cannot drift between variants:
 
-```jags
-model{
-    for(i in 1:ns){
-        phi[i]~dnorm(0.0, 0.0001)
-    }
-    for(i in 1:ns){
-        for(j in 1:na[i]){
-            y[i,j]~dnorm(eta[i,j], 1/se[i,j]^2)
-            dev[i,j] <- (y[i,j]-eta[i,j])*(y[i,j]-eta[i,j])*(1/se[i,j]^2)
-        }
-        devstudy[i] <- sum(dev[i,1:na[i]])
-    }
-    for(i in 1:ns){
-        eta[i,1]<-phi[i]+delta[i,1]
-        for(j in 2:na[i]){
-            eta[i,j]<-phi[i] + delta[i,j]
-        }
-    }
-    for(i in 1:ns){
-        w[i,1]<-0
-        delta[i,1]<-0
-        for(j in 2:na[i]){
-            delta[i,j]~dnorm((d[trt[i,j]]-d[trt[i,1]])+sw[i,j], tau2d[i,j])
-            tau2d[i,j]<-tau2*2*(j-1)/j
-            w[i,j]<-delta[i,j]-d[trt[i,j]] + d[trt[i,1]]
-            sw[i,j]<-sum(w[i,1:(j-1)])/(j-1)
-        }
-    }
-    Dbar <- sum(devstudy[])
-    d[1]<-0
-    for(k in 2:M){
-        d[k]~dnorm(0,1e-04)
-    }
-    sigma~dunif(0,8)
-    sigma2<-sigma*sigma
-    tau2<-1/sigma2
-}
-```
+| `--model` name | Baseline `phi[i]` | `delta[i,j]` | Use for |
+|---|---|---|---|
+| `model_random.txt` (A1, **DEFAULT**) | flat `dnorm(0, 1e-4)` | stochastic (random-effects) | placebo-adjusted forest — the standard deliverable; production default |
+| `model_fixed.txt` (A2) | flat `dnorm(0, 1e-4)` | deterministic (fixed-effect) | star networks where sigma can't be estimated, or as sensitivity check |
+| `model_simultaneous.txt` (A3) | pooled `dnorm(m, tau2_m)` + `mu_new` | stochastic (random-effects) | absolute-effect forest (`m + d[k]`) |
+| `model_simultaneous_fixed.txt` (A4) | pooled `dnorm(m, tau2_m)` + `mu_new` | deterministic (fixed-effect) | absolute-effect forest on a full-star network — the pooled baseline is still needed for the absolute effect, but a star network's CIs should track the arms' own reported SE, not an unreplicated, prior-driven `sigma` |
 
-### A2. Fixed-effect, flat baselines (`model_fixed.txt`)
+The only structural differences the toggles introduce: `pooled_baseline`
+swaps the flat `phi` prior for the hierarchical `phi[i] ~ dnorm(m, tau2_m)`
+block (with `m`, `sigma_m`) and appends `mu_new ~ dnorm(m, 1/sigma_m^2)`;
+`fixed_delta` swaps the stochastic `delta[i,j] ~ dnorm(...)` line for the
+deterministic `delta[i,j] <- ...` one. The fixed-delta variants keep the
+(dead-but-present) `sigma`/`tau2` declarations for structural symmetry,
+exactly as the original standalone `model_fixed.txt` did. A4 was never
+present as a standalone file before — every place that referenced it
+described the composition (A3's baseline + A2's delta) without spelling
+out the resulting text; with the template, that composition is now
+guaranteed by construction rather than hand-assembled.
 
-Use for: star networks where sigma can't be estimated, or as sensitivity check.
-Only difference from A1: `delta[i,j]` is deterministic (`<-`), not stochastic (`~dnorm`).
+**A5. Pooled-placebo meta-analysis (`model_placebo_random.txt`)** stands
+apart — a simple random-effects meta-analysis of the placebo arms alone
+(`y_pct[i] ~ dnorm(mu[study_idx[i]], ...)`, `mu[i] ~ dnorm(m, ...)`,
+`mu_new` for a new study's predicted placebo). Used for the absolute-effect
+plot's baseline. Its text is a standalone string in `MODEL_TEXTS`, not
+template-generated.
 
-```jags
-model{
-    for(i in 1:ns){
-        phi[i]~dnorm(0.0, 0.0001)
-    }
-    for(i in 1:ns){
-        for(j in 1:na[i]){
-            y[i,j]~dnorm(eta[i,j], 1/se[i,j]^2)
-            dev[i,j] <- (y[i,j]-eta[i,j])*(y[i,j]-eta[i,j])*(1/se[i,j]^2)
-        }
-        devstudy[i] <- sum(dev[i,1:na[i]])
-    }
-    for(i in 1:ns){
-        eta[i,1]<-phi[i]+delta[i,1]
-        for(j in 2:na[i]){
-            eta[i,j]<-phi[i] + delta[i,j]
-        }
-    }
-    for(i in 1:ns){
-        w[i,1]<-0
-        delta[i,1]<-0
-        for(j in 2:na[i]){
-            tau2d[i,j]<-tau2*2*(j-1)/j
-            delta[i, j] <- (d[trt[i, j]]-d[trt[i, 1]])+sw[i, j]
-            w[i,j]<-delta[i,j]-d[trt[i,j]] + d[trt[i,1]]
-            sw[i,j]<-sum(w[i,1:(j-1)])/(j-1)
-        }
-    }
-    Dbar <- sum(devstudy[])
-    d[1]<-0
-    for(k in 2:M){
-        d[k]~dnorm(0,1e-04)
-    }
-    sigma~dunif(0,8)
-    sigma2<-sigma*sigma
-    tau2<-1/sigma2
-}
-```
-
-### A3. Random-effects, exchangeable/pooled baselines (`model_simultaneous.txt`)
-
-Use for: absolute-effect forest (`m + d[k]`). Has `m`, `sigma_m`, `mu_new`.
-
-```jags
-model{
-    for(i in 1:ns){
-      phi[i] ~ dnorm(m, tau2_m)
-    }
-    m ~ dnorm(0, 1e-04)
-    tau2_m   <- 1 / sigma2_m
-    sigma2_m <- sigma_m * sigma_m
-    sigma_m  ~ dunif(0, 8)
-
-    for(i in 1:ns){
-      for(j in 1:na[i]){
-        y[i,j] ~ dnorm(eta[i,j], 1 / se[i,j]^2)
-        dev[i,j] <- (y[i,j] - eta[i,j])^2 * (1 / se[i,j]^2)
-      }
-      devstudy[i] <- sum(dev[i, 1:na[i]])
-    }
-    for(i in 1:ns){
-      eta[i,1] <- phi[i] + delta[i,1]
-      for(j in 2:na[i]){
-        eta[i,j] <- phi[i] + delta[i,j]
-      }
-    }
-    for(i in 1:ns){
-      w[i,1]     <- 0
-      delta[i,1] <- 0
-      for(j in 2:na[i]){
-        delta[i,j] ~ dnorm((d[trt[i,j]] - d[trt[i,1]]) + sw[i,j], tau2d[i,j])
-        tau2d[i,j] <- tau2 * 2 * (j-1) / j
-        w[i,j]     <- delta[i,j] - d[trt[i,j]] + d[trt[i,1]]
-        sw[i,j]    <- sum(w[i, 1:(j-1)]) / (j-1)
-      }
-    }
-    Dbar <- sum(devstudy[])
-    d[1] <- 0
-    for(k in 2:M){
-      d[k] ~ dnorm(0, 1e-04)
-    }
-    sigma  ~ dunif(0, 8)
-    sigma2 <- sigma * sigma
-    tau2   <- 1 / sigma2
-    mu_new ~ dnorm(m, 1 / sigma_m^2)
-}
-```
-
-### A4. Random-effects baseline, fixed-effect delta (`model_simultaneous_fixed.txt`)
-
-Use for: absolute-effect forest on a full-star network (see Step 7's
-model-file selection) —
-same hierarchical/pooled `phi`/`m` as A3 (still needed for the
-absolute-effect baseline), but with A2's **deterministic** `delta[i,j]`
-instead of A3's stochastic one, so a star network's CIs track the arms' own
-reported SE instead of an unreplicated, prior-driven `sigma`. Not present
-as a standalone file in this branch's history before 2026-08-27 — every
-place that referenced it described the composition (A3's baseline + A2's
-delta block) without ever spelling out the resulting text; reconstructed
-here from that description, now embedded directly in `run_bnma_pipeline.R`
-(Appendix B1).
-
-```jags
-model{
-    for(i in 1:ns){
-      phi[i] ~ dnorm(m, tau2_m)
-    }
-    m ~ dnorm(0, 1e-04)
-    tau2_m   <- 1 / sigma2_m
-    sigma2_m <- sigma_m * sigma_m
-    sigma_m  ~ dunif(0, 8)
-
-    for(i in 1:ns){
-      for(j in 1:na[i]){
-        y[i,j] ~ dnorm(eta[i,j], 1 / se[i,j]^2)
-        dev[i,j] <- (y[i,j] - eta[i,j])^2 * (1 / se[i,j]^2)
-      }
-      devstudy[i] <- sum(dev[i, 1:na[i]])
-    }
-    for(i in 1:ns){
-      eta[i,1] <- phi[i] + delta[i,1]
-      for(j in 2:na[i]){
-        eta[i,j] <- phi[i] + delta[i,j]
-      }
-    }
-    for(i in 1:ns){
-      w[i,1]     <- 0
-      delta[i,1] <- 0
-      for(j in 2:na[i]){
-        tau2d[i,j] <- tau2 * 2 * (j-1) / j
-        delta[i,j] <- (d[trt[i,j]] - d[trt[i,1]]) + sw[i,j]
-        w[i,j]     <- delta[i,j] - d[trt[i,j]] + d[trt[i,1]]
-        sw[i,j]    <- sum(w[i, 1:(j-1)]) / (j-1)
-      }
-    }
-    Dbar <- sum(devstudy[])
-    d[1] <- 0
-    for(k in 2:M){
-      d[k] ~ dnorm(0, 1e-04)
-    }
-    sigma  ~ dunif(0, 8)
-    sigma2 <- sigma * sigma
-    tau2   <- 1 / sigma2
-    mu_new ~ dnorm(m, 1 / sigma_m^2)
-}
-```
-
-### A5. Pooled-placebo meta-analysis (`model_placebo_random.txt`)
-
-Use for: estimating the overall placebo effect + predicting a new study's placebo.
-
-```jags
-model{
-    for(i in 1:n_obs){
-      y_pct[i] ~ dnorm(mu[study_idx[i]], 1/se_pct[i]^2)
-    }
-    for(i in 1:ns_bl){
-      mu[i] ~ dnorm(m, 1/sigma2_m)
-    }
-    m        ~ dnorm(0, 1e-04)
-    sigma_m  ~ dunif(0, 10)
-    sigma2_m <- sigma_m * sigma_m
-    mu_new   ~ dnorm(m, 1/sigma2_m)
-}
-```
+To read any model's exact assembled text, open B1's `run_bnma_pipeline.R`:
+`NETWORK_MODEL_BODY` + `make_network_model()` + `MODEL_TEXTS` sit together
+near the top, immediately after the shared helpers.
 
 ---
 
 
 ## Appendix B — R Scripts (embedded, no external files needed)
 
-These are the exact, tested scripts this skill's pipeline runs. During the
-session, materialize whichever ones a step needs to a real file (e.g.
-`/tmp/$(whoami)/cmh_ci_lib/<name>.R` before Step 5's folders exist,
-`programs/<slug>/lib/<name>.R` after) via `cat('...', file = <path>)`, then
-invoke it exactly as shown in the step that references it.
+These are the exact, tested scripts this skill's pipeline runs, embedded
+in this SKILL.md so the skill remains a single self-contained file.
+
+**Materializing them: extract, never retype.** This SKILL.md itself is on
+disk in the session — it *is* the reference copy — so the scripts are
+pulled out of it mechanically rather than regenerated line by line
+(retyping ~1,100 lines of R costs minutes of generation time per session
+and risks transcription errors; extraction is byte-exact and takes under
+a second). Run this once, at the first step that needs a script (Step 4's
+append, or Step 7's fit — whichever comes first):
+
+```bash
+module load R/4.4.2 2>/dev/null
+Rscript -e '
+skill_md <- "<path this SKILL.md was loaded from>"  # the skill file itself
+src   <- readLines(skill_md, warn = FALSE)
+fence <- strrep("\x60", 3)                          # three backticks
+starts <- grep(paste0("^", fence, "r$"), src)
+ends   <- grep(paste0("^", fence, "$"), src)
+lib <- file.path("/tmp", Sys.info()[["user"]], "cmh_ci_lib")
+dir.create(lib, recursive = TRUE, showWarnings = FALSE)
+for (s in starts) {
+  e <- ends[ends > s][1]
+  b <- src[(s + 1):(e - 1)]
+  name <- if (any(grepl("/cmh-ci pipeline:", head(b, 5)))) "run_bnma_pipeline.R"
+    else if (any(grepl("Step 4 of the /cmh-ci skill", head(b, 5)))) "append_to_qa.R"
+    else next
+  stopifnot(grepl("cmh-ci embedded script end", tail(b, 1)))  # complete block?
+  writeLines(b, file.path(lib, name))
+  cat("Extracted", name, "--", length(b), "lines\n")
+}
+'
+```
+
+Fill in `skill_md` with the actual path this SKILL.md was loaded from (the
+skill's own location on disk — shown when the skill is invoked; if in
+doubt, locate it, e.g. `find ~/.claude -path "*cmh-ci*" -name SKILL.md`).
+Each script's last line is a sentinel comment
+(`# [cmh-ci embedded script end: <name>]`), so the `stopifnot` catches a
+truncated or mispaired code fence at extraction time instead of at fit
+time. Both scripts land in `/tmp/$(whoami)/cmh_ci_lib/` in one pass.
+Only if the SKILL.md genuinely cannot be located on disk, fall back to
+writing the script text out via a heredoc — as a last resort, not the
+default.
 
 **One script covers the entire modeling/plotting pipeline** — B1
 `run_bnma_pipeline.R`: load+merge → build BATMAN → fit the JAGS model →
@@ -793,22 +694,25 @@ separate files (`lib_common.R`, `load_merge_data.R`,
 `check_naming_pooling.R`, `build_batman_data.R`, `fit_bnma_model.R`,
 `fit_pooled_placebo_model.R`, `make_forest_plot.R`,
 `make_placebo_forest_plot.R`, `named_contrast.R`), then an intermediate
-two-script/three-mode consolidation (2026-08-27) that still paid for a
-second R startup + package load between fitting and plotting. That
-intermediate step is gone too (2026-08-27): the separate "explore" and
-"build-preview" modes are removed outright — they were dead weight
-against the actual Steps 1-7 flow, which already does its own data
-exploration with inline R (Step 1) rather than by shelling out to this
-script — and plotting is folded into the same process as fitting via a
-`--plot` flag instead of a second script invocation. The placebo QC plot
-(`--qc-plot`, formerly `make_placebo_forest_plot.R`) is dropped entirely,
-per the same 2026-08-27 change — this skill now produces exactly one
-image, the forest plot itself. The five embedded JAGS model definitions
-(Appendix A) are R string constants inside `run_bnma_pipeline.R` itself,
-passed to `jags.model()` via `textConnection()` — there's no more
-separate "materialize `model_random.txt` to a file first" step; Appendix
-A is reference documentation only now, not something a step instructs you
-to write to disk.
+two-script/three-mode consolidation that still paid for a second R
+startup + package load between fitting and plotting. That intermediate
+step is gone too: the separate "explore" and "build-preview" modes are
+removed outright — they were dead weight against the actual Steps 1-7
+flow, which already does its own data exploration with inline R (Step 1)
+rather than by shelling out to this script — and plotting is folded into
+the same process as fitting via a `--plot` flag instead of a second
+script invocation. The placebo QC plot (`--qc-plot`, formerly
+`make_placebo_forest_plot.R`) is dropped entirely — this skill produces
+exactly the two forest plots (relative and absolute), rendered together
+in one invocation via `--effect both`, and nothing else. The five
+embedded JAGS model definitions (Appendix A) live inside
+`run_bnma_pipeline.R` itself — the four network models are generated from
+one shared body by `make_network_model()`'s two toggles rather than
+maintained as four near-identical strings, and the pooled-placebo model
+is a standalone string — all passed to `jags.model()` via
+`textConnection()`. There's no separate "materialize `model_random.txt`
+to a file first" step; Appendix A is reference documentation only, not
+something a step instructs you to write to disk.
 
 `append_to_qa.R` (B2) stays its own small file — it's Step 4's rare
 promote-to-QA path, not part of the modeling/plotting hot path, and mixing
@@ -821,8 +725,11 @@ One mode: `--manifest` and `--model` are both required. The script always
 does the same four things in the same process, in order — load+merge PRD/QA
 → build the BATMAN matrices (manifest fields, phantom-placebo handling)
 → fit the JAGS model (optionally the
-pooled-placebo sub-model too, via `--fit-placebo`) → render the forest plot
-(`--plot --plot-out <path>`, optional; `--contrast "a|||b"` prints a named
+pooled-placebo sub-model too, via `--fit-placebo`) → render the forest
+plot(s) (`--plot`; `--effect both` with `--plot-out` +
+`--plot-out-absolute` renders relative and absolute in this same pass —
+Step 7's default — while `--effect relative|absolute` with one
+`--plot-out` renders a single plot; `--contrast "a|||b"` prints a named
 posterior contrast instead and skips plotting). No `run_r.sh`/
 `run_with_jags.sh` wrappers — `module load R jags` runs inline before the
 one `Rscript` invocation (see Step 7).
@@ -831,18 +738,25 @@ one `Rscript` invocation (see Step 7).
 #!/usr/bin/env Rscript
 # /cmh-ci pipeline: load+merge -> build BATMAN -> fit JAGS model [-> fit
 # pooled-placebo model] -> render forest plot. One file, one mode -- no
-# explore/build-preview modes (removed 2026-08-27: dead weight against the
-# actual Steps 1-7 flow, which already explores via inline R at Step 1 --
-# see SKILL.md's Appendix B intro) and no separate plotting script (the
-# forest plot renders in this same process via --plot, removing a second
-# R-startup + package-load between fit and plot). The placebo QC plot is
-# gone entirely -- this script now produces exactly one image.
+# explore/build-preview modes (dead weight against the actual Steps 1-7
+# flow, which already explores via inline R at Step 1 -- see SKILL.md's
+# Appendix B intro) and no separate plotting script (the forest plot
+# renders in this same process via --plot, removing a second R-startup +
+# package-load between fit and plot). The placebo QC plot is gone
+# entirely -- this script produces exactly the two forest plots.
 #
-# Usage (single invocation, everything in one process):
+# Usage (single invocation, everything in one process -- Step 7's default,
+# which fits the JAGS model once and renders BOTH forest plots):
 #   Rscript run_bnma_pipeline.R --prd <p> [--qa <q>] --manifest <m> \
 #     --model model_random.txt --cache <samples.rds> \
-#     [--fit-placebo --placebo-cache <p.rds>] \
-#     --plot --plot-out <forest.png> [--effect relative|absolute] [--force]
+#     --fit-placebo --placebo-cache <p.rds> \
+#     --plot --effect both \
+#     --plot-out <forest_relative.png> \
+#     --plot-out-absolute <forest_absolute.png> [--force]
+#
+# Single-plot re-render (--effect relative|absolute, one --plot-out;
+# absolute still needs --fit-placebo):
+#   Rscript run_bnma_pipeline.R ... --plot --effect relative --plot-out <p.png>
 #
 # Ad hoc, against an already-cached fit (skips plotting):
 #   Rscript run_bnma_pipeline.R --prd <p> [--qa <q>] --manifest <m> \
@@ -851,8 +765,8 @@ one `Rscript` invocation (see Step 7).
 #
 # Needs rjags -- `module load jags` in the same shell before this runs
 # (see SKILL.md Step 7's inline `module load`; the old
-# run_r.sh/run_with_jags.sh wrapper scripts were dropped along with
-# Appendix D for the same reason as the modes above).
+# run_r.sh/run_with_jags.sh wrapper scripts were dropped for the same
+# reason as the modes above).
 
 suppressPackageStartupMessages({
   library(dplyr)
@@ -938,182 +852,87 @@ recast_numeric_cols <- function(df) {
 }
 
 # --------------------------------------------------------------------------
-# Embedded JAGS model text (formerly Appendix A's standalone .txt files).
-# Selected by manifest model_type -> --model name, passed to jags.model()
-# via textConnection() at fit time -- no file ever materialized for these.
-# model_simultaneous_fixed.txt is model_simultaneous.txt's hierarchical/
-# pooled phi/m paired with model_fixed.txt's deterministic delta[i,j] block
-# (no sigma actually drives delta here, same dead-but-present sigma/tau2
-# declaration model_fixed.txt itself keeps for structural symmetry) --
-# reconstructed from SKILL.md Step 7's own model-file-selection description,
-# since the source repo's Appendix A never actually spelled it out
-# (confirmed gap, fixed here 2026-08-27).
+# Embedded JAGS model text (formerly Appendix A's standalone .txt files),
+# passed to jags.model() via textConnection() at fit time -- no file ever
+# materialized for these. The four network models are compositions along
+# exactly two axes (see Appendix A's table), so they're built here from ONE
+# shared likelihood body plus two toggles instead of four near-identical
+# hand-maintained strings: `pooled_baseline` picks the phi prior (flat vs.
+# hierarchical dnorm(m, tau2_m), which also brings m/sigma_m/mu_new), and
+# `fixed_delta` picks the delta[i,j] line (stochastic ~dnorm vs.
+# deterministic <-). JAGS is declarative, so the tau2d-before-delta line
+# order is valid for both variants. The fixed-delta variants keep the
+# dead-but-present sigma/tau2 declarations for structural symmetry, exactly
+# as the original standalone model_fixed.txt did. This construction also
+# makes model_simultaneous_fixed.txt -- historically described only as
+# "A3's baseline + A2's delta block", never spelled out -- correct by
+# construction rather than hand-assembled (the gap Appendix A notes).
 # --------------------------------------------------------------------------
+NETWORK_MODEL_BODY <- '
+    for(i in 1:ns){
+      for(j in 1:na[i]){
+        y[i,j] ~ dnorm(eta[i,j], 1 / se[i,j]^2)
+        dev[i,j] <- (y[i,j] - eta[i,j])^2 * (1 / se[i,j]^2)
+      }
+      devstudy[i] <- sum(dev[i, 1:na[i]])
+    }
+    for(i in 1:ns){
+      eta[i,1] <- phi[i] + delta[i,1]
+      for(j in 2:na[i]){
+        eta[i,j] <- phi[i] + delta[i,j]
+      }
+    }
+    for(i in 1:ns){
+      w[i,1]     <- 0
+      delta[i,1] <- 0
+      for(j in 2:na[i]){
+        tau2d[i,j] <- tau2 * 2 * (j-1) / j
+        %s
+        w[i,j]     <- delta[i,j] - d[trt[i,j]] + d[trt[i,1]]
+        sw[i,j]    <- sum(w[i, 1:(j-1)]) / (j-1)
+      }
+    }
+    Dbar <- sum(devstudy[])
+    d[1] <- 0
+    for(k in 2:M){
+      d[k] ~ dnorm(0, 1e-04)
+    }
+    sigma  ~ dunif(0, 8)
+    sigma2 <- sigma * sigma
+    tau2   <- 1 / sigma2'
+
+make_network_model <- function(pooled_baseline, fixed_delta) {
+  phi_block <- if (pooled_baseline) '
+    for(i in 1:ns){
+      phi[i] ~ dnorm(m, tau2_m)
+    }
+    m ~ dnorm(0, 1e-04)
+    tau2_m   <- 1 / sigma2_m
+    sigma2_m <- sigma_m * sigma_m
+    sigma_m  ~ dunif(0, 8)' else '
+    for(i in 1:ns){
+      phi[i] ~ dnorm(0.0, 0.0001)
+    }'
+
+  delta_line <- if (fixed_delta) {
+    'delta[i,j] <- (d[trt[i,j]] - d[trt[i,1]]) + sw[i,j]'
+  } else {
+    'delta[i,j] ~ dnorm((d[trt[i,j]] - d[trt[i,1]]) + sw[i,j], tau2d[i,j])'
+  }
+
+  tail_block <- if (pooled_baseline) '
+    mu_new ~ dnorm(m, 1 / sigma_m^2)' else ''
+
+  paste0('\nmodel{', phi_block, '\n',
+         sprintf(NETWORK_MODEL_BODY, delta_line),
+         tail_block, '\n}')
+}
+
 MODEL_TEXTS <- list(
-
-  model_random.txt = '
-model{
-    for(i in 1:ns){
-        phi[i]~dnorm(0.0, 0.0001)
-    }
-    for(i in 1:ns){
-        for(j in 1:na[i]){
-            y[i,j]~dnorm(eta[i,j], 1/se[i,j]^2)
-            dev[i,j] <- (y[i,j]-eta[i,j])*(y[i,j]-eta[i,j])*(1/se[i,j]^2)
-        }
-        devstudy[i] <- sum(dev[i,1:na[i]])
-    }
-    for(i in 1:ns){
-        eta[i,1]<-phi[i]+delta[i,1]
-        for(j in 2:na[i]){
-            eta[i,j]<-phi[i] + delta[i,j]
-        }
-    }
-    for(i in 1:ns){
-        w[i,1]<-0
-        delta[i,1]<-0
-        for(j in 2:na[i]){
-            delta[i,j]~dnorm((d[trt[i,j]]-d[trt[i,1]])+sw[i,j], tau2d[i,j])
-            tau2d[i,j]<-tau2*2*(j-1)/j
-            w[i,j]<-delta[i,j]-d[trt[i,j]] + d[trt[i,1]]
-            sw[i,j]<-sum(w[i,1:(j-1)])/(j-1)
-        }
-    }
-    Dbar <- sum(devstudy[])
-    d[1]<-0
-    for(k in 2:M){
-        d[k]~dnorm(0,1e-04)
-    }
-    sigma~dunif(0,8)
-    sigma2<-sigma*sigma
-    tau2<-1/sigma2
-}',
-
-  model_fixed.txt = '
-model{
-    for(i in 1:ns){
-        phi[i]~dnorm(0.0, 0.0001)
-    }
-    for(i in 1:ns){
-        for(j in 1:na[i]){
-            y[i,j]~dnorm(eta[i,j], 1/se[i,j]^2)
-            dev[i,j] <- (y[i,j]-eta[i,j])*(y[i,j]-eta[i,j])*(1/se[i,j]^2)
-        }
-        devstudy[i] <- sum(dev[i,1:na[i]])
-    }
-    for(i in 1:ns){
-        eta[i,1]<-phi[i]+delta[i,1]
-        for(j in 2:na[i]){
-            eta[i,j]<-phi[i] + delta[i,j]
-        }
-    }
-    for(i in 1:ns){
-        w[i,1]<-0
-        delta[i,1]<-0
-        for(j in 2:na[i]){
-            tau2d[i,j]<-tau2*2*(j-1)/j
-            delta[i, j] <- (d[trt[i, j]]-d[trt[i, 1]])+sw[i, j]
-            w[i,j]<-delta[i,j]-d[trt[i,j]] + d[trt[i,1]]
-            sw[i,j]<-sum(w[i,1:(j-1)])/(j-1)
-        }
-    }
-    Dbar <- sum(devstudy[])
-    d[1]<-0
-    for(k in 2:M){
-        d[k]~dnorm(0,1e-04)
-    }
-    sigma~dunif(0,8)
-    sigma2<-sigma*sigma
-    tau2<-1/sigma2
-}',
-
-  model_simultaneous.txt = '
-model{
-    for(i in 1:ns){
-      phi[i] ~ dnorm(m, tau2_m)
-    }
-    m ~ dnorm(0, 1e-04)
-    tau2_m   <- 1 / sigma2_m
-    sigma2_m <- sigma_m * sigma_m
-    sigma_m  ~ dunif(0, 8)
-
-    for(i in 1:ns){
-      for(j in 1:na[i]){
-        y[i,j] ~ dnorm(eta[i,j], 1 / se[i,j]^2)
-        dev[i,j] <- (y[i,j] - eta[i,j])^2 * (1 / se[i,j]^2)
-      }
-      devstudy[i] <- sum(dev[i, 1:na[i]])
-    }
-    for(i in 1:ns){
-      eta[i,1] <- phi[i] + delta[i,1]
-      for(j in 2:na[i]){
-        eta[i,j] <- phi[i] + delta[i,j]
-      }
-    }
-    for(i in 1:ns){
-      w[i,1]     <- 0
-      delta[i,1] <- 0
-      for(j in 2:na[i]){
-        delta[i,j] ~ dnorm((d[trt[i,j]] - d[trt[i,1]]) + sw[i,j], tau2d[i,j])
-        tau2d[i,j] <- tau2 * 2 * (j-1) / j
-        w[i,j]     <- delta[i,j] - d[trt[i,j]] + d[trt[i,1]]
-        sw[i,j]    <- sum(w[i, 1:(j-1)]) / (j-1)
-      }
-    }
-    Dbar <- sum(devstudy[])
-    d[1] <- 0
-    for(k in 2:M){
-      d[k] ~ dnorm(0, 1e-04)
-    }
-    sigma  ~ dunif(0, 8)
-    sigma2 <- sigma * sigma
-    tau2   <- 1 / sigma2
-    mu_new ~ dnorm(m, 1 / sigma_m^2)
-}',
-
-  model_simultaneous_fixed.txt = '
-model{
-    for(i in 1:ns){
-      phi[i] ~ dnorm(m, tau2_m)
-    }
-    m ~ dnorm(0, 1e-04)
-    tau2_m   <- 1 / sigma2_m
-    sigma2_m <- sigma_m * sigma_m
-    sigma_m  ~ dunif(0, 8)
-
-    for(i in 1:ns){
-      for(j in 1:na[i]){
-        y[i,j] ~ dnorm(eta[i,j], 1 / se[i,j]^2)
-        dev[i,j] <- (y[i,j] - eta[i,j])^2 * (1 / se[i,j]^2)
-      }
-      devstudy[i] <- sum(dev[i, 1:na[i]])
-    }
-    for(i in 1:ns){
-      eta[i,1] <- phi[i] + delta[i,1]
-      for(j in 2:na[i]){
-        eta[i,j] <- phi[i] + delta[i,j]
-      }
-    }
-    for(i in 1:ns){
-      w[i,1]     <- 0
-      delta[i,1] <- 0
-      for(j in 2:na[i]){
-        tau2d[i,j] <- tau2 * 2 * (j-1) / j
-        delta[i,j] <- (d[trt[i,j]] - d[trt[i,1]]) + sw[i,j]
-        w[i,j]     <- delta[i,j] - d[trt[i,j]] + d[trt[i,1]]
-        sw[i,j]    <- sum(w[i, 1:(j-1)]) / (j-1)
-      }
-    }
-    Dbar <- sum(devstudy[])
-    d[1] <- 0
-    for(k in 2:M){
-      d[k] ~ dnorm(0, 1e-04)
-    }
-    sigma  ~ dunif(0, 8)
-    sigma2 <- sigma * sigma
-    tau2   <- 1 / sigma2
-    mu_new ~ dnorm(m, 1 / sigma_m^2)
-}',
+  model_random.txt             = make_network_model(pooled_baseline = FALSE, fixed_delta = FALSE),
+  model_fixed.txt              = make_network_model(pooled_baseline = FALSE, fixed_delta = TRUE),
+  model_simultaneous.txt       = make_network_model(pooled_baseline = TRUE,  fixed_delta = FALSE),
+  model_simultaneous_fixed.txt = make_network_model(pooled_baseline = TRUE,  fixed_delta = TRUE),
 
   model_placebo_random.txt = '
 model{
@@ -1147,6 +966,7 @@ args <- parse_args(list(
   seed          = list(default = "2026"),
   plot          = list(flag = TRUE, default = FALSE),
   plot_out      = list(default = NULL),
+  plot_out_absolute = list(default = NULL),
   effect        = list(default = "relative"),
   title         = list(default = NULL),
   xlab          = list(default = NULL),
@@ -1219,7 +1039,7 @@ if (is.null(prd_data)) {
 } else if (is.null(qa_data)) {
   merged <- prd_data
 } else {
-  key <- function(df) paste(df$study_name, df$treatment, sep = "")
+  key <- function(df) paste(df$study_name, df$treatment, sep = "|||")
   prd_keys <- key(prd_data)
 
   qa_keys  <- key(qa_data)
@@ -1681,19 +1501,27 @@ if (!isTRUE(args$plot)) {
 }
 
 # ==========================================================================
-# PLOT (--plot given) -- forest plot, rendered in this same process so
+# PLOT (--plot given) -- forest plot(s), rendered in this same process so
 # there's no second R startup / package-reload between fitting and
-# plotting (formerly a separate make_forest_plot.R invocation). The
-# placebo QC plot mode is gone entirely -- this is the only image this
-# script produces.
+# plotting. `--effect both` renders the relative AND absolute plots from
+# this one invocation (one MCMC fit, two ggsave calls) -- Step 7's default,
+# replacing the old two-invocation flow whose second run repaid a full R
+# startup, package load, Excel read, and BATMAN build just to re-plot from
+# cache. `--effect relative|absolute` still renders a single plot for ad
+# hoc re-renders.
 # ==========================================================================
-if (!args$effect %in% c("relative", "absolute")) stop("--effect must be 'relative' or 'absolute'")
-if (args$effect == "absolute" && !isTRUE(args$fit_placebo)) {
-  stop("--effect absolute needs --fit-placebo (with --placebo-cache) in this same invocation.")
+if (!args$effect %in% c("relative", "absolute", "both")) stop("--effect must be 'relative', 'absolute', or 'both'")
+if (args$effect %in% c("absolute", "both") && !isTRUE(args$fit_placebo)) {
+  stop("--effect ", args$effect, " needs --fit-placebo (with --placebo-cache) in this same invocation.")
+}
+if (args$effect == "both" && is.null(args$plot_out_absolute)) {
+  stop("--effect both needs both --plot-out (relative png) and --plot-out-absolute (absolute png).")
 }
 
+render_forest <- function(effect, out_path) {
+
 samples_mat <- as.matrix(samples)
-if (args$effect == "absolute") {
+if (effect == "absolute") {
   placebo_samples_mat <- as.matrix(placebo_samples)
   m_samples <- sample(placebo_samples_mat[, "m"], nrow(samples_mat), replace = TRUE)
   sigma_m_samples <- sample(placebo_samples_mat[, "sigma_m"], nrow(samples_mat), replace = TRUE)
@@ -1709,7 +1537,7 @@ arm_lookup <- arm_info %>% filter(treatment %in% c(plot_treatments, "placebo")) 
 
 rows <- lapply(seq_len(nrow(arm_lookup)), function(i) {
   arm_k <- arm_lookup$arm_ind[i]; trt_name <- arm_lookup$treatment[i]; cmpd <- arm_lookup$compound[i]
-  if (args$effect == "relative") {
+  if (effect == "relative") {
     post <- if (arm_k == 1) rep(0, nrow(samples_mat)) else samples_mat[, paste0("d[", arm_k, "]")]
   } else {
     post <- if (arm_k == 1) m_samples else m_samples + samples_mat[, paste0("d[", arm_k, "]")]
@@ -1720,7 +1548,7 @@ rows <- lapply(seq_len(nrow(arm_lookup)), function(i) {
 })
 
 data_plot <- bind_rows(rows) %>%
-  filter(treatment %in% plot_treatments | (args$effect == "absolute" & treatment == "placebo")) %>%
+  filter(treatment %in% plot_treatments | (effect == "absolute" & treatment == "placebo")) %>%
   arrange(match(treatment, c("placebo", plot_treatments))) %>%
   mutate(Label = paste0(round(mean, 1), " (", round(val2.5pc, 1), ", ", round(val97.5pc, 1), ")"))
 
@@ -1739,12 +1567,12 @@ trt_order <- unique(data_plot$treatment_label)
 
 endpoint_label <- manifest$effect_label %||% (if (effect_col == "pchg_wl_ee") "Body Weight" else effect_col)
 ylab_text <- args$xlab %||% sprintf("Mean (95%% CI) of %s Percent Change in %s (%%)",
-                                     if (args$effect == "relative") "Pbo-adj" else "Absolute", endpoint_label)
+                                     if (effect == "relative") "Pbo-adj" else "Absolute", endpoint_label)
 title_text <- args$title %||% sprintf("%s Percent %s Change",
-                                       if (args$effect == "relative") "Placebo-Adjusted" else "Absolute", endpoint_label)
+                                       if (effect == "relative") "Placebo-Adjusted" else "Absolute", endpoint_label)
 
 subtitle_text <- NULL
-if (args$effect == "absolute") {
+if (effect == "absolute") {
   mu_mean <- mean(m_samples); mu_ci <- quantile(m_samples, c(0.025, 0.975))
   sigma_mu_mean <- mean(sigma_m_samples)
   mu_part <- sprintf("Absolute = pooled placebo μ (%.1f%%; 95%% CrI: %.1f, %.1f; between-study σ=%.2f, standalone placebo-only model) + d[j]",
@@ -1829,9 +1657,20 @@ pforest <- ggplot(
 
 subtitle_lines <- if (is.null(subtitle_text)) 0 else lengths(regmatches(subtitle_text, gregexpr("\n", subtitle_text))) + 1
 plot_height <- max(4, 0.6 * length(trt_order)) + 0.18 * subtitle_lines
-ggsave(args$plot_out, plot = pforest, width = plot_width, height = plot_height, dpi = 150)
-cat("Forest plot saved to:", args$plot_out, "\n")
+ggsave(out_path, plot = pforest, width = plot_width, height = plot_height, dpi = 150)
+cat("Forest plot (", effect, ") saved to:", out_path, "\n")
 cat("Footnote (not rendered on the plot -- console record only):\n", footnote_text, "\n")
+
+}  # end render_forest()
+
+if (args$effect == "both") {
+  render_forest("relative", args$plot_out)
+  render_forest("absolute", args$plot_out_absolute)
+} else {
+  render_forest(args$effect, args$plot_out)
+}
+
+# [cmh-ci embedded script end: run_bnma_pipeline.R]
 ```
 ### B2. `append_to_qa.R`
 
@@ -1954,5 +1793,7 @@ cat(
   "Total rows in '", args$sheet, "' now:", nrow(combined), "\n",
   sep = ""
 )
+
+# [cmh-ci embedded script end: append_to_qa.R]
 ```
 
