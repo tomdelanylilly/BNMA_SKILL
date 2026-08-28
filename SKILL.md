@@ -360,7 +360,7 @@ file:
    | ★ `study_name` | study identifier |
    | ★ `treatment` | arm label, e.g. `tirzepatide 15mg` |
    | ★ `compound` | compound/molecule name |
-   | ★ `phase` | trial phase; for Prediction rows, the phase it's *from* |
+   | ★ `phase` | trial phase, formatted as `phase N` (e.g. `phase 3`, `phase 2b`, `phase 1b`) — matching the PRD/QA convention exactly; never write the bare number/letter alone. For Prediction rows, this is the phase it's *from*, not *for* |
    | ★ `n` | arm sample size |
    | ★ `pchg_wl_ee` | % weight change, efficacy estimand (non-pbo adj) |
    | ★ `se_wl_ee` | SE of `pchg_wl_ee` |
