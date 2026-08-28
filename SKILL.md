@@ -821,6 +821,14 @@ one `Rscript` invocation (see Step 7).
 # run_r.sh/run_with_jags.sh wrapper scripts were dropped for the same
 # reason as the modes above).
 
+# R truncates warning/error message text at options("warning.length")
+# (default 1000 chars, max 8170) -- the missing-decision study list below
+# can legitimately run past 1000 chars on this dataset's ~67 studies,
+# silently dropping the last name or two rather than erroring loudly.
+# Raise it to the max up front so no message from this script ever
+# truncates.
+options(warning.length = 8170)
+
 suppressPackageStartupMessages({
   library(dplyr)
   library(readxl)
@@ -1727,7 +1735,7 @@ if (args$effect == "both") {
 ```
 ### B2. `append_to_qa.R`
 
-Step 4's "promote to QA" path — appends new rows to an existing QA workbook in-place, creating it directly from the PRD schema if it doesn't exist yet (no separate user confirmation beyond Step 3's row-table confirmation). Called once per session when new data is being promoted to the shared QA file before fitting. No longer sources a separate `lib_common.R` (retired along with the other consolidated scripts) — its own tiny `parse_args()`/`%||%` copy is inlined instead. Also fixed (2026-08-27): appending to a QA sheet that currently has 0 rows used to crash `bind_rows()` with a type-mismatch error, because `read.xlsx` infers an all-logical-NA schema for an empty sheet, which conflicts with `new_rows`' real types — a genuinely common case, since a freshly created or not-yet-populated QA sheet is blank far more often than not.
+Step 4's "promote to QA" path — appends new rows to an existing QA workbook in-place, creating it directly from the PRD schema if it doesn't exist yet (no separate user confirmation beyond Step 3's row-table confirmation). Called once per session when new data is being promoted to the shared QA file before fitting. No longer sources a separate `lib_common.R` (retired along with the other consolidated scripts) — its own tiny `parse_args()`/`%||%` copy is inlined instead. Also fixed: appending to a QA sheet that currently has 0 rows used to crash `bind_rows()` with a type-mismatch error, because `read.xlsx` infers an all-logical-NA schema for an empty sheet, which conflicts with `new_rows`' real types — a genuinely common case, since a freshly created or not-yet-populated QA sheet is blank far more often than not. A related but distinct case is also fixed now: a *non-empty* sheet where a column already holds real values of one type (e.g. `time_entry` written as numeric by an earlier run) while this run's `new_rows` built that same column as character — `bind_rows()` can't guess a common type there the way it can for an all-NA column, so `new_rows` is now coerced to match whatever real type already exists in each column before binding.
 
 ```r
 #!/usr/bin/env Rscript
@@ -1820,6 +1828,31 @@ existing_cols <- names(existing)
 for (col in existing_cols) if (!col %in% names(new_rows)) new_rows[[col]] <- NA
 new_rows <- new_rows[, intersect(names(new_rows), existing_cols), drop = FALSE]
 new_rows <- new_rows[, existing_cols, drop = FALSE]
+
+# A non-empty existing sheet can have a column already holding real
+# (non-NA) values of one type -- e.g. time_entry written as numeric by an
+# earlier run -- while this run's new_rows built that same column as
+# character. bind_rows()/vctrs coerces an all-NA column to anything for
+# free, but refuses to guess a common type once both sides have actual
+# values of genuinely different types (numeric vs character is the one
+# that bites in practice). Match new_rows to whatever real type already
+# exists in that column before binding, column by column; skip columns
+# where existing is all-NA, since vctrs already handles those without help
+# and coercing new_rows there could silently mangle real new values (e.g.
+# as.logical() on a real string turns it into NA).
+for (col in existing_cols) {
+  existing_col <- existing[[col]]
+  if (all(is.na(existing_col))) next
+  target_class <- class(existing_col)[1]
+  if (identical(target_class, class(new_rows[[col]])[1])) next
+  new_rows[[col]] <- switch(target_class,
+    numeric   = suppressWarnings(as.numeric(new_rows[[col]])),
+    integer   = suppressWarnings(as.integer(new_rows[[col]])),
+    character = as.character(new_rows[[col]]),
+    logical   = as.logical(new_rows[[col]]),
+    new_rows[[col]]
+  )
+}
 
 # An existing sheet with 0 rows (a QA workbook that was just created, or a
 # sheet nobody has populated yet) has every column inferred as logical NA
