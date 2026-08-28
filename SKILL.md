@@ -240,10 +240,21 @@ real time saved over the course of a session.
 This is different from a genuine anomaly that a phase/route/compound line
 wouldn't surface on its own — e.g. two selected studies that are actually
 the same underlying trial at different follow-up points (a base study and
-its extension), or a literal spelling inconsistency where what should be
-one compound is written two different ways across rows. Those are actual
-data problems, not a modeling choice, and still deserve their own explicit
-call-out and confirmation before proceeding.
+its extension), a literal spelling inconsistency where what should be
+one compound is written two different ways across rows, or **the same
+`study_name` appearing in both the Observed and Prediction sheets** (a
+real, different-tier duplicate, not the same rows twice — e.g. "momentum"
+exists in both, with slightly different dosing strings per tier). That
+last one matters specifically because inclusion is keyed by `study_name`:
+if the user picks the Observed one, say so explicitly and confirm they
+don't also want the Prediction one — `run_bnma_pipeline.R` now
+disambiguates these by tier before the manifest gate either way (so
+approving one no longer silently pulls in the other), but catching it
+here means the tier choice gets made once, up front, instead of surfacing
+as a duplication only after a full fit.
+
+Those are actual data problems, not a modeling choice, and still deserve
+their own explicit call-out and confirmation before proceeding.
 
 ## Step 2 — Ask whether additional, non-PRD data should be incorporated
 
@@ -1158,6 +1169,27 @@ if ("time_entry" %in% names(merged)) {
     arrange(study_name, treatment, dplyr::desc(dplyr::coalesce(.time_entry_sort, -Inf))) %>%
     distinct(study_name, treatment, .keep_all = TRUE) %>%
     select(-.time_entry_sort)
+}
+
+# --------------------------------------------------------------------------
+# Disambiguate a study_name that exists in BOTH the Observed and Prediction
+# sheets -- e.g. "momentum" is a real different-tier duplicate (a completed
+# readout and a separately-derived projection that happen to share a name),
+# not the same rows twice. Left alone, the manifest and every downstream
+# filter key purely on study_name, so approving one tier's "momentum"
+# silently pulls the OTHER tier's "momentum" into the same fit too --
+# exactly the kind of duplication this skill exists to catch before it
+# reaches a model, not after a full MCMC run (see Step 1's naming/route
+# note on genuine anomalies). Do this before the manifest gate below, so
+# the missing-decision check and the include filter both see two distinct,
+# separately-decidable studies -- "I picked the Observed one" then actually
+# means only the Observed one.
+# --------------------------------------------------------------------------
+cross_tier <- merged %>% distinct(study_name, source_sheet) %>% count(study_name) %>% filter(n > 1) %>% pull(study_name)
+if (length(cross_tier) > 0) {
+  cat("Study name(s) present in more than one evidence tier -- disambiguating by tier so each gets its own include/exclude decision:\n  ", paste(cross_tier, collapse = ", "), "\n", sep = "")
+  merged <- merged %>%
+    mutate(study_name = if_else(study_name %in% cross_tier, paste0(study_name, " [", source_sheet, "]"), study_name))
 }
 
 cat(
