@@ -272,7 +272,7 @@ file:
 
    | Column | Meaning |
    |---|---|
-   | `time_entry` | date row entered/updated, `yyyymmdd` |
+   | `time_entry` | date this row is entered — **always today's run date (`yyyymmdd`), auto-filled, never asked.** It records when the row was curated, not a "data as of" date from the source — don't confuse the two, and don't prompt the user for it. |
    | `treatment` | arm label, e.g. `tirzepatide 15mg` |
    | `compound` | compound/molecule name |
    | `phase` | trial phase, e.g. `phase 3`; for Prediction rows, the phase it's *from*, not *for* |
@@ -300,16 +300,19 @@ file:
    above is the authoritative field set to populate.
 
 5. **Mandatory fields — never leave blank/skipped without flagging it:**
-   `time_entry`, SE (`se_wl_ee`/`se_wl_tre` as applicable — if not
-   directly reported and must be derived, record the method in
-   `derivation_spec`), `study_duration`, `sponsor`, `baseline_wgt`,
-   `population`, and `source` (the exact link provided). If any of these
-   can't be determined from the source, flag it to the user explicitly
-   and ask them to supply it — never guess or leave it silently blank.
-   The same goes for anything else inferred rather than directly stated
-   (e.g. dosing frequency, per-arm `n` derived from a randomization
-   ratio) — surface the assumption and ask, don't bury it in
+   SE (`se_wl_ee`/`se_wl_tre` as applicable — if not directly reported and
+   must be derived, record the method in `derivation_spec`),
+   `study_duration`, `sponsor`, `baseline_wgt`, `population`, and `source`
+   (the exact link provided). If any of these can't be determined from
+   the source, flag it to the user explicitly and ask them to supply
+   it — never guess or leave it silently blank. The same goes for
+   anything else inferred rather than directly stated (e.g. dosing
+   frequency, per-arm `n` derived from a randomization ratio) — surface
+   the assumption and ask, don't bury it in
    `derivation_spec`/`curator_note` as the only record of it.
+   `time_entry` is **not** part of this ask-if-ambiguous list — it's
+   always just today's date, filled in automatically (see the schema
+   table above).
 6. Show the mapped row(s) for confirmation — same table-confirmation
    pattern as any other source in this step — then follow Step 2's
    existing merge question. This pathway feeds the same merge decision;
@@ -349,6 +352,14 @@ step's default path anymore.
 a freshly created workbook, or a sheet nobody has populated yet. That's
 a normal case to append into, not a sign something's wrong; `append_to_qa.R`
 handles it (see Appendix B2's 2026-08-27 fix).
+
+**Don't check whether a study is already in QA before appending, and
+don't delete an old entry to replace it.** A study confirmed for this
+run gets appended as new rows regardless of whether an earlier run
+already added something for it — `run_bnma_pipeline.R`'s load+merge step
+resolves any resulting duplicate (same `study_name`+`treatment`) by
+keeping whichever row has the latest `time_entry`, so this run's own
+entry always wins without anyone needing to edit or delete QA history.
 
 Show the append (or create) summary. No separate reload is needed here —
 Step 7's `run_bnma_pipeline.R` always loads PRD + QA fresh, so the new
@@ -1228,6 +1239,30 @@ merged <- merged %>%
     study_name = tolower(squish_ws(study_name))
   ) %>%
   recast_numeric_cols()
+
+# --------------------------------------------------------------------------
+# De-duplicate repeat entries for the same (study_name, treatment) -- e.g.
+# a study appended to QA more than once across separate /cmh-ci runs (the
+# skill never deletes prior QA rows, so this is expected, not corruption).
+# Keep the most recently entered row by time_entry (yyyymmdd) and say so;
+# older duplicates are left untouched in the QA file itself, they just
+# don't feed this fit. A missing/unparseable time_entry sorts last, so a
+# dated row always wins over an undated one.
+# --------------------------------------------------------------------------
+if ("time_entry" %in% names(merged)) {
+  dup_keys <- merged %>% count(study_name, treatment) %>% filter(n > 1)
+  if (nrow(dup_keys) > 0) {
+    cat("Duplicate (study_name, treatment) entries found -- keeping the most recently entered row for each:\n")
+    for (i in seq_len(nrow(dup_keys))) {
+      cat("  ", dup_keys$study_name[i], " / ", dup_keys$treatment[i], " (", dup_keys$n[i], " entries)\n", sep = "")
+    }
+  }
+  merged <- merged %>%
+    mutate(.time_entry_sort = suppressWarnings(as.numeric(time_entry))) %>%
+    arrange(study_name, treatment, dplyr::desc(dplyr::coalesce(.time_entry_sort, -Inf))) %>%
+    distinct(study_name, treatment, .keep_all = TRUE) %>%
+    select(-.time_entry_sort)
+}
 
 cat(
   "Merged", nrow(merged), "rows (",
