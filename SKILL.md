@@ -371,13 +371,21 @@ file:
    SE (`se_wl_ee`/`se_wl_tre` as applicable — if not directly reported and
    must be derived, record the method in `derivation_spec`),
    `study_duration`, `sponsor`, `baseline_wgt`, `population`, and `source`
-   (the exact link provided). If any of these can't be determined from
-   the source, flag it to the user explicitly and ask them to supply
-   it — never guess or leave it silently blank. The same goes for
-   anything else inferred rather than directly stated (e.g. dosing
-   frequency, per-arm `n` derived from a randomization ratio) — surface
-   the assumption and ask, don't bury it in
-   `derivation_spec`/`curator_note` as the only record of it.
+   (the exact link provided). If any of these can't be confidently
+   determined from the source, flag it to the user explicitly and ask
+   them to supply it — never guess or leave it silently blank. **But
+   don't ask about a field that genuinely is determinable — fill it in
+   and move on.** `sponsor` is the common case: a press release published
+   on the sponsor's own investor-relations domain (e.g.
+   `investor.lilly.com`) identifies the sponsor as surely as if it were
+   printed in the text — that's not an assumption needing sign-off, it's
+   just reading the source. Asking anyway when the answer was never in
+   doubt is exactly the kind of extra round-trip this pathway should
+   avoid. The same goes for anything else genuinely inferred rather than
+   directly stated (e.g. dosing frequency, per-arm `n` derived from a
+   randomization ratio) — surface *that* assumption and ask, don't bury
+   it in `derivation_spec`/`curator_note` as the only record of it; the
+   distinction is confidence, not which field it happens to be.
    `time_entry` is **not** part of this ask-if-ambiguous list — it's
    always just today's date, filled in automatically (see the schema
    table above).
