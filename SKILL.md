@@ -142,9 +142,10 @@ Operator notes (not printed on the page above):
   `DESIGN.md` in this skill's repo (or the project's `GUIDE_README.md`),
   not here.
 - **One thing still interrupts downstream of this page: a hard gate
-  failure** — `run_bnma_pipeline.R` refusing to run because a study is
-  missing from the manifest. Continuing silently past it defeats the
-  skill's purpose, not just its UX.
+  failure** — `run_bnma_pipeline.R` refusing to run because a study
+  listed as included doesn't match anything in this run's actual data
+  (a typo, most likely). Continuing silently past it defeats the skill's
+  purpose, not just its UX.
 - **No automated post-fit diagnostics are run** (no Rhat/ESS,
   network-connectivity/consistency/DIC) — matches the production
   `EliLillyCo/CMH.BNMA` app's own behavior (confirmed 2026-08-24: it fits
@@ -466,44 +467,27 @@ If **yes** → create working folders and write the manifest:
 Derive `<slug>` from the endpoint/scope (e.g. `cwm_wl_nont2d`,
 `wl_oral_only`). Create both folders.
 
-**Getting the complete study list — reuse the pipeline's own gate, don't
-hand-roll a fresh merge script.** Every study in the merged PRD+QA data
-needs an explicit `include: true/false`, but there's no need to write a
-separate `bind_rows()`/dedup script to enumerate them — that re-implements
-load+merge logic the extracted `run_bnma_pipeline.R` already has (correct
-stringification, correct QA-vs-PRD and within-QA dedup), and a hand-rolled
-version risks re-hitting exactly the type-mismatch bugs already fixed
-there (e.g. binding a character column against a numeric one across
-sheets). Instead:
+Write `study_selection_manifest.yaml` to
+`/tmp/$(whoami)/cmh_ci_lib/study_selection_manifest.yaml` with just the
+studies already confirmed (Step 1/3), each as a `studies:` entry with
+`include: true`. **That's the whole manifest** — it's the set of studies
+wanted, not a decision ledger for every study in the merged data.
+Anything not listed is excluded automatically; there's no `include: false`
+to add and no separate enumeration pass. (Don't hand-roll a PRD/QA merge
+script to check anything here either — the pipeline's own load+merge
+already handles QA-vs-PRD and within-QA deduplication; there's nothing
+this step needs from re-implementing that.)
 
-1. Write `study_selection_manifest.yaml` to
-   `/tmp/$(whoami)/cmh_ci_lib/study_selection_manifest.yaml` with just the
-   studies already confirmed (Step 1/3) as `studies:` entries.
-2. Run the extracted `run_bnma_pipeline.R` once against that manifest,
-   with no `--plot`/`--cache`/`--fit-placebo` — it exits at the BUILD
-   stage, before any JAGS compile or MCMC, so this is fast:
-   ```bash
-   module load R/4.4.2 jags 2>/dev/null
-   Rscript /tmp/$(whoami)/cmh_ci_lib/run_bnma_pipeline.R \
-     --prd <prd_path.xlsx> --qa <qa_path.xlsx> \
-     --manifest /tmp/$(whoami)/cmh_ci_lib/study_selection_manifest.yaml \
-     --model model_random.txt
-   ```
-3. It fails with `Manifest is missing an explicit include/exclude decision
-   for N study/ies: <full list>` — that list is the authoritative,
-   already-deduped remainder. Add all of them to the manifest with
-   `include: false`, then proceed.
+`run_bnma_pipeline.R` still checks one thing: that every study it's told
+to include actually exists somewhere in this run's merged data — a hard
+stop if one doesn't, most likely a typo against Step 1's own listing. It
+does not require accounting for every study that exists, only for the
+ones asked for.
 
-No separate duplicate-checking pass between QA and PRD is needed either —
-the merge step inside the pipeline already handles that (QA overrides PRD
-on a matching `study_name`+`treatment` key).
-
-Every study in the data must appear with an explicit `include: true/false`;
-`run_bnma_pipeline.R`'s missing-decision gate is what enforces that (see
-above). What's different from earlier in this skill's history is
-persistence: the manifest itself is no longer a kept deliverable — Step
-7's RMD report is, and it names only the studies that were actually
-included rather than dumping the full true/false list (see Step 7).
+The manifest itself is scratch, not a kept deliverable — Step 7's RMD
+report is the audit trail, and it lists exactly the same studies (the
+ones with `include: true`), since that's now the entire manifest anyway
+(see Step 7).
 
 ## Step 6 — Collect modelling preferences
 
@@ -604,11 +588,10 @@ The programs folder holds **only the script and the RMD report** — no
 `study_selection_manifest.yaml`, and no `samples.rds`/`placebo_samples.rds`
 either. The manifest stays in `/tmp` scratch
 (`/tmp/$(whoami)/cmh_ci_lib/study_selection_manifest.yaml`, written in
-Step 5) — `run_bnma_pipeline.R` still needs it as an input, and its
-missing-decision gate still forces an explicit `true`/`false` for every
-study, but the manifest itself is no longer kept as a deliverable; its
-substance carries forward into the RMD report instead, which is what
-actually persists in the programs folder.
+Step 5) — `run_bnma_pipeline.R` still needs it as an input, but the
+manifest itself is no longer kept as a deliverable; its substance (the
+studies included) carries forward into the RMD report instead, which is
+what actually persists in the programs folder.
 
 ### RMD report
 
@@ -661,6 +644,10 @@ reproduction sections must be literal, not summarized:
   caches all stay in `/tmp` scratch; only the script + RMD report persist
   there, and the report summarizes just the included studies, not a full
   true/false dump
+- No requirement to enumerate every study in the merged data with an
+  explicit `include: true/false` — the manifest is just the set of
+  studies wanted (`include: true`); anything unlisted is excluded
+  automatically, no decision ledger to fill out
 - No automated post-fit diagnostics (matches EliLillyCo/CMH.BNMA)
 - No placebo QC plot (removed — only the two forest plots are produced)
 - No compound_registry.yaml persistence
@@ -856,11 +843,11 @@ one `Rscript` invocation (see Step 7).
 # reason as the modes above).
 
 # R truncates warning/error message text at options("warning.length")
-# (default 1000 chars, max 8170) -- the missing-decision study list below
-# can legitimately run past 1000 chars on this dataset's ~67 studies,
-# silently dropping the last name or two rather than erroring loudly.
-# Raise it to the max up front so no message from this script ever
-# truncates.
+# (default 1000 chars, max 8170) -- a long study-name list in an error
+# message (e.g. several unrecognized manifest entries) can run past 1000
+# chars on this dataset's ~67 studies, silently dropping the last name or
+# two rather than erroring loudly. Raise it to the max up front so no
+# message from this script ever truncates.
 options(warning.length = 8170)
 
 suppressPackageStartupMessages({
@@ -1188,10 +1175,9 @@ if ("time_entry" %in% names(merged)) {
 # silently pulls the OTHER tier's "momentum" into the same fit too --
 # exactly the kind of duplication this skill exists to catch before it
 # reaches a model, not after a full MCMC run (see Step 1's naming/route
-# note on genuine anomalies). Do this before the manifest gate below, so
-# the missing-decision check and the include filter both see two distinct,
-# separately-decidable studies -- "I picked the Observed one" then actually
-# means only the Observed one.
+# note on genuine anomalies). Do this before the manifest's include filter
+# below, so "I picked the Observed one" means only the Observed one --
+# the two tiers are separately nameable, separately includable.
 # --------------------------------------------------------------------------
 cross_tier <- merged %>% distinct(study_name, source_sheet) %>% count(study_name) %>% filter(n > 1) %>% pull(study_name)
 if (length(cross_tier) > 0) {
@@ -1215,7 +1201,7 @@ cat(
 # ==========================================================================
 manifest <- yaml::read_yaml(args$manifest)
 if (is.null(manifest$studies) || length(manifest$studies) == 0) {
-  stop("Manifest has no `studies` entries -- every study needs an explicit include/exclude decision before a model can be run.")
+  stop("Manifest has no `studies` entries -- list at least one study with include: true.")
 }
 
 effect_col <- manifest$effect_col %||% "pchg_wl_ee"
@@ -1356,19 +1342,26 @@ if (route_filter != "both" || !is.null(manifest$compound_filter)) {
   }
 }
 
-studies_in_data <- unique(usable$study_name)
-studies_in_manifest <- vapply(manifest$studies, function(s) s$study_name, character(1))
-missing_from_manifest <- setdiff(studies_in_data, studies_in_manifest)
-if (length(missing_from_manifest) > 0) {
-  stop("Manifest is missing an explicit include/exclude decision for ", length(missing_from_manifest),
-       " study/ies:\n  ", paste(missing_from_manifest, collapse = ", "))
+# --------------------------------------------------------------------------
+# The manifest only needs entries for studies actually wanted (include:
+# true) -- there is no requirement to enumerate every study in the merged
+# data. Anything not listed is excluded by default, with no explicit
+# false entry and no gate forcing one. The one thing still checked: a
+# listed study that doesn't match anything in this run's data at all
+# (a typo, or a name that changed upstream) is a hard stop, not a silent
+# no-op -- that's the one way an included study could otherwise vanish
+# without anyone noticing.
+# --------------------------------------------------------------------------
+included_studies <- vapply(Filter(function(s) isTRUE(s$include), manifest$studies), function(s) s$study_name, character(1))
+if (length(included_studies) == 0) {
+  stop("Manifest has `studies` entries but none with include: true -- nothing to fit.")
 }
-unknown_in_manifest <- setdiff(studies_in_manifest, studies_in_data)
+unknown_in_manifest <- setdiff(included_studies, unique(usable$study_name))
 if (length(unknown_in_manifest) > 0) {
-  cat("Note: manifest lists studies not present in this data run (ignored):\n  ", paste(unknown_in_manifest, collapse = ", "), "\n")
+  stop("Manifest includes study/ies not present in this data run (check spelling/casing against Step 1's listing): ",
+       paste(unknown_in_manifest, collapse = ", "))
 }
 
-included_studies <- vapply(Filter(function(s) isTRUE(s$include), manifest$studies), function(s) s$study_name, character(1))
 data_sel <- usable %>% filter(study_name %in% included_studies)
 if (nrow(data_sel) == 0) stop("No rows remain after applying the manifest's study selection.")
 data_sel <- data_sel %>% rename(study = study_name, treat = treatment)
