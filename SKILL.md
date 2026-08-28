@@ -126,10 +126,10 @@ assumed silently.
         selection; a genuine overlap or naming inconsistency still
         gets its own call-out.
     4 ─ You say whether outside data (press release, publication link,
-        digitized slide, another workbook) goes in.
+        digitized slide, another workbook) goes into the BNMA.
     5 ─ Any outside data is mapped to the QA schema and merged — you
         confirm the rows.
-    6 ─ You choose random- or fixed-effects.
+    6 ─ You choose random- or fixed-effects for the BNMA.
     7 ─ Fit, then output both forest plots, the report, and a
         standalone re-runnable script.
 
