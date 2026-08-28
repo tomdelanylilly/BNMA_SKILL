@@ -423,15 +423,44 @@ If **yes** → create working folders and write the manifest:
 Derive `<slug>` from the endpoint/scope (e.g. `cwm_wl_nont2d`,
 `wl_oral_only`). Create both folders.
 
-Write `study_selection_manifest.yaml` to
-`/tmp/$(whoami)/cmh_ci_lib/study_selection_manifest.yaml` — **scratch,
-not the programs folder.** Every study in the data must still appear with
-an explicit `include: true/false`; `run_bnma_pipeline.R`'s
-missing-decision gate is unchanged and needs exactly that. What's
-different is persistence: the manifest itself is no longer a kept
-deliverable — Step 7's RMD report is, and it names only the studies that
-were actually included rather than dumping the full true/false list (see
-Step 7).
+**Getting the complete study list — reuse the pipeline's own gate, don't
+hand-roll a fresh merge script.** Every study in the merged PRD+QA data
+needs an explicit `include: true/false`, but there's no need to write a
+separate `bind_rows()`/dedup script to enumerate them — that re-implements
+load+merge logic the extracted `run_bnma_pipeline.R` already has (correct
+stringification, correct QA-vs-PRD and within-QA dedup), and a hand-rolled
+version risks re-hitting exactly the type-mismatch bugs already fixed
+there (e.g. binding a character column against a numeric one across
+sheets). Instead:
+
+1. Write `study_selection_manifest.yaml` to
+   `/tmp/$(whoami)/cmh_ci_lib/study_selection_manifest.yaml` with just the
+   studies already confirmed (Step 1/3) as `studies:` entries.
+2. Run the extracted `run_bnma_pipeline.R` once against that manifest,
+   with no `--plot`/`--cache`/`--fit-placebo` — it exits at the BUILD
+   stage, before any JAGS compile or MCMC, so this is fast:
+   ```bash
+   module load R/4.4.2 jags 2>/dev/null
+   Rscript /tmp/$(whoami)/cmh_ci_lib/run_bnma_pipeline.R \
+     --prd <prd_path.xlsx> --qa <qa_path.xlsx> \
+     --manifest /tmp/$(whoami)/cmh_ci_lib/study_selection_manifest.yaml \
+     --model model_random.txt
+   ```
+3. It fails with `Manifest is missing an explicit include/exclude decision
+   for N study/ies: <full list>` — that list is the authoritative,
+   already-deduped remainder. Add all of them to the manifest with
+   `include: false`, then proceed.
+
+No separate duplicate-checking pass between QA and PRD is needed either —
+the merge step inside the pipeline already handles that (QA overrides PRD
+on a matching `study_name`+`treatment` key).
+
+Every study in the data must appear with an explicit `include: true/false`;
+`run_bnma_pipeline.R`'s missing-decision gate is what enforces that (see
+above). What's different from earlier in this skill's history is
+persistence: the manifest itself is no longer a kept deliverable — Step
+7's RMD report is, and it names only the studies that were actually
+included rather than dumping the full true/false list (see Step 7).
 
 ## Step 6 — Collect modelling preferences
 
