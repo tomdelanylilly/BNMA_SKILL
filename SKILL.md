@@ -113,8 +113,8 @@ unnoticed across runs.
 From the PRD/QA weight-loss dataset to a fitted BNMA. This skill reads
 the data, has you select studies and settle any conflicts, folds in any
 outside data you supply, fits the model, and returns both forest plots
-(placebo-adjusted and absolute) and a self-contained per-run report —
-the exact re-runnable script is embedded inside it, not a separate file.
+(placebo-adjusted and absolute), a re-runnable .Rmd, and an .html
+report.
 
 It runs in steps. Each step needs one decision from you — nothing is
 assumed silently.
@@ -122,16 +122,17 @@ assumed silently.
     1 ─ Read the PRD/QA data; list every study, compound, phase, and
         evidence tier.
     2 ─ You pick the studies and compounds to include.
-    3 ─ Phase, route, and compound are stated plainly with your
-        selection; a genuine overlap or naming inconsistency still
-        gets its own call-out.
+    3 ─ The selected subset is presented for review — studies,
+        compounds, treatments, phases — before anything runs.
+        Naming overlaps or inconsistencies get a call-out.
     4 ─ You say whether outside data (press release, publication link,
         digitized slide, another workbook) goes into the BNMA.
     5 ─ Any outside data is mapped to the QA schema and merged — you
         confirm the rows.
     6 ─ You choose random- or fixed-effects for the BNMA.
-    7 ─ Fit, then output both forest plots and the report — the
-        re-runnable script is embedded inside the report itself.
+    7 ─ Fit, then output: a placebo-adjusted forest plot, an
+        absolute forest plot, a re-runnable .Rmd, and an .html
+        report.
 
 Stopping after any step is a valid outcome — reviewing or updating the
 data without fitting is a complete session.
@@ -451,7 +452,8 @@ one pass — never retype them):
 module load R/4.4.2 2>/dev/null
 Rscript /tmp/$(whoami)/cmh_ci_lib/append_to_qa.R \
   --qa <located_qa_path.xlsx> --sheet <Observed|Prediction> \
-  --rows /tmp/new_rows.rds
+  --rows /tmp/new_rows.rds \
+  --rename-date $(date +%Y%m%d)
 ```
 
 Only pass `--create-from <prd_path.xlsx>` in the rare case above (no
@@ -475,6 +477,14 @@ entry always wins without anyone needing to edit or delete QA history.
 Show the append (or create) summary. No separate reload is needed here —
 Step 7's `run_bnma_pipeline.R` always loads PRD + QA fresh, so the new
 rows are picked up automatically the next time it runs.
+
+**QA file date-rename:** `append_to_qa.R` renames the QA file after
+appending so the date in the filename reflects when data was last added
+(e.g. `cwm_wl_nont2d_qa_20260827.xlsx` → `cwm_wl_nont2d_qa_20260831.xlsx`
+if run on 2026-08-31). This is an in-place `mv` — one QA file at a time,
+no old copies left behind. The script prints the new path; **update the
+QA path variable for all subsequent steps** (Step 7's `--qa` argument
+must use the renamed path).
 
 Loop back to Step 2 ("anything else to add?") until the user says the
 subset is sufficient.
@@ -597,23 +607,25 @@ and must not be copied into `programs/YYYYMMDD_<slug>/`.
 
 **Display both plots** (Read tool) immediately.
 
-**Then write the per-run RMD report** — see "RMD report" below.
+**Then write the per-run RMD report and render to HTML** — see "RMD
+report" below.
 
 Save outputs:
 - Both forest plots →
   `/lillyce/qa/diabetes/bnma/obesity/output/shared/YYYYMMDD_<slug>/forest_plot_relative.png`
   and `.../forest_plot_absolute.png`
-- **The per-run RMD report** →
+- **The per-run RMD report + HTML** →
   `/lillyce/qa/diabetes/bnma/obesity/programs/YYYYMMDD_<slug>/report.Rmd`
-  — this is the permanent audit trail, and it's the *only* thing this step
-  writes to the programs folder. The exact `run_bnma_pipeline.R` used for
-  the fit is embedded **inside** this report (see "Reproducing this run"
-  below) rather than copied there as its own file — one self-contained
-  document instead of a report-plus-script pair to keep in sync.
+  and `.../report.html`
+  — the `.Rmd` is the re-runnable script (chunks for RStudio), the
+  `.html` is the pre-rendered readable report. Together they are the
+  permanent audit trail, and the only things this step writes to the
+  programs folder.
 
-The programs folder holds **only the RMD report** — no
-`study_selection_manifest.yaml`, no separate copy of `run_bnma_pipeline.R`,
-and no `samples.rds`/`placebo_samples.rds` either. The manifest stays in
+The programs folder holds **only the RMD report and its HTML render** —
+no `study_selection_manifest.yaml`, no separate copy of
+`run_bnma_pipeline.R`, and no `samples.rds`/`placebo_samples.rds`
+either. The manifest stays in
 `/tmp` scratch (`/tmp/$(whoami)/cmh_ci_lib/study_selection_manifest.yaml`,
 written in Step 5) — `run_bnma_pipeline.R` still needs it as an input, but
 the manifest itself is no longer kept as a deliverable; its substance
@@ -628,7 +640,32 @@ manifest written in Step 5/6 rather than re-deriving anything. This is
 the thing a user opens cold, months later, to answer "how was this
 produced, and can I reproduce it" — so while study selection stays a
 summary (see below), the provenance and reproduction sections must be
-literal, not summarized:
+literal, not summarized.
+
+**The .Rmd is the re-runnable script** — not a wrapper around an
+embedded script. It has real R code chunks a user can step through in
+RStudio:
+
+- **Chunk 1: Setup** — `library()` calls (rjags, dplyr, readxl,
+  ggplot2, coda, openxlsx), path definitions (PRD, QA, output folder),
+  config variables (MCMC params, included studies, model type).
+- **Chunk 2: Data load** — read PRD/QA, merge, filter to included
+  studies. Hardcoded paths from this run.
+- **Chunk 3: Build BATMAN** — construct JAGS data matrices (`y`, `se`,
+  `trt`, `na`, `ns`, `M`).
+- **Chunk 4: Fit model** — JAGS model definition (inline), `jags.model()`,
+  `update()` burn-in, `coda.samples()`.
+- **Chunk 5: Results** — extract posteriors, build result table, fit
+  pooled-placebo model for absolute effects.
+- **Chunk 6: Forest plots** — render both relative and absolute forest
+  plots, save PNGs.
+
+Each chunk is self-contained enough that a user can re-run from any
+chunk if the earlier objects are in the workspace. Chunks default to
+`eval=FALSE` so the HTML render (below) is fast — the user runs them
+interactively in RStudio, not via `knit`.
+
+The report also contains these narrative sections (outside chunks):
 
 - **How the data was produced** — the exact PRD and QA file paths this
   run read (`source_data.prd`/`.qa` from the manifest); any supplemental
@@ -645,17 +682,20 @@ literal, not summarized:
   time; the report doesn't need to repeat it study by study.
 - **Design choices** — `model_type` (random vs. fixed effects),
   `route_filter`, `evidence_filter`.
-- **Reproducing this run** — the exact `run_bnma_pipeline.R` used for
-  this fit, embedded verbatim as an R code chunk (`{r, eval=FALSE}` —
-  documenting it, not re-running it as part of any render), followed by
-  an actual runnable code block with the exact `module load` + `Rscript`
-  invocation used (the same `--effect both` command from Step 7, with
-  this run's real paths filled in, not a placeholder). This report is
-  the entire reproducible artifact by itself — no sibling script file to
-  keep in sync with it, no separate copy that could drift from what
-  actually ran.
 - **Results** — links to the two output plots (relative-effect and
   absolute-effect) in this run's output folder.
+
+**Render to HTML immediately after writing the .Rmd** — in the same
+shell that ran the fit, not a separate R session:
+```bash
+module load R/4.4.2 2>/dev/null
+Rscript -e 'rmarkdown::render("<programs_folder>/report.Rmd", output_format = "html_document", quiet = TRUE)'
+```
+This is fast (seconds) because every chunk is `eval=FALSE` — it renders
+the narrative and code documentation, doesn't re-run JAGS. The user
+gets both files:
+- `.Rmd` — the re-runnable script (open in RStudio, run chunks)
+- `.html` — a pre-rendered readable report to share immediately
 
 ## What this skill does NOT do
 
@@ -670,9 +710,9 @@ literal, not summarized:
   is used as-is
 - No `study_selection_manifest.yaml`, `samples.rds`, or
   `placebo_samples.rds` in the programs folder — the manifest and MCMC
-  caches all stay in `/tmp` scratch; only the RMD report persists there
-  (with the script embedded inside it), and the report summarizes just
-  the included studies, not a full true/false dump
+  caches all stay in `/tmp` scratch; only the `.Rmd` and `.html` persist
+  there, and the report summarizes just the included studies, not a full
+  true/false dump
 - No requirement to enumerate every study in the merged data with an
   explicit `include: true/false` — the manifest is just the set of
   studies wanted (`include: true`); anything unlisted is excluded
@@ -1789,7 +1829,8 @@ Step 4's "promote to QA" path — appends new rows to an existing QA workbook in
 #
 # Usage:
 #   Rscript append_to_qa.R --qa <path.xlsx> --sheet <Observed|Prediction> \
-#     --rows <rows.rds> --create-from <prd_path.xlsx>
+#     --rows <rows.rds> --create-from <prd_path.xlsx> \
+#     --rename-date <YYYYMMDD>
 
 suppressPackageStartupMessages({
   library(openxlsx)
@@ -1818,7 +1859,8 @@ args <- parse_args(list(
   qa          = list(required = TRUE),
   sheet       = list(required = TRUE),
   rows        = list(required = TRUE),
-  create_from = list(default = NULL)
+  create_from = list(default = NULL),
+  rename_date = list(default = NULL)
 ))
 
 if (!args$sheet %in% c("Observed", "Prediction")) {
@@ -1918,6 +1960,19 @@ cat(
   "Total rows in '", args$sheet, "' now:", nrow(combined), "\n",
   sep = ""
 )
+
+# Rename the QA file so the date in the filename reflects when data was
+# last added (e.g. _qa_20260827.xlsx -> _qa_20260831.xlsx).
+if (!is.null(args$rename_date)) {
+  old_path <- args$qa
+  new_path <- sub("_\\d{8}\\.xlsx$", paste0("_", args$rename_date, ".xlsx"), old_path)
+  if (new_path != old_path) {
+    if (!file.rename(old_path, new_path)) stop("Failed to rename ", old_path, " -> ", new_path)
+    cat("Renamed: ", old_path, " -> ", new_path, "\n", sep = "")
+  } else {
+    cat("Date unchanged, no rename needed.\n")
+  }
+}
 
 # [cmh-ci embedded script end: append_to_qa.R]
 ```
