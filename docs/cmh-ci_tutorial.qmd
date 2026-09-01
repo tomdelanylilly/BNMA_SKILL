@@ -13,6 +13,7 @@ format:
     theme: cosmo
     anchor-sections: true
     fig-cap-location: bottom
+    embed-resources: true
 ---
 
 # Introduction
