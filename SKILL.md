@@ -188,6 +188,7 @@ Rscript -e '
 library(readxl); library(dplyr)
 f <- Sys.getenv("PRD_FILE")
 sheets <- excel_sheets(f)
+per_sheet <- list()
 for (s in sheets[!tolower(sheets) %in% c("summary","revision history")]) {
   d <- read_excel(f, sheet=s)
   if ("study_name" %in% names(d)) {
@@ -205,13 +206,61 @@ for (s in sheets[!tolower(sheets) %in% c("summary","revision history")]) {
           " -- ", studies$compounds[i], "\n", sep="")
       cat("       ", studies$treatments[i], "\n")
     }
+    per_sheet[[s]] <- studies %>% mutate(sheet = s)
+  }
+}
+
+# Deterministic naming/pooling anomaly pre-pass -- replaces having the
+# model itself eyeball all N studies for overlaps with two cheap,
+# reproducible checks: exact study_name collisions across tiers, and
+# same-compound near-duplicate names across tiers (edit distance <= 5,
+# via base R adist() -- no new package). Same-tier relationships (a
+# trial vs. its own extension, a subgroup split like "(bmi<35)" vs.
+# "(bmi>=35)") are deliberately excluded -- those still need a human look.
+combined <- bind_rows(per_sheet) %>%
+  mutate(compound_primary = tolower(trimws(sub(",.*$", "", compounds))))
+exact_dupes <- combined %>% count(study_name) %>% filter(n > 1) %>% pull(study_name)
+near_dupes <- list()
+if (nrow(combined) > 1) {
+  for (p in combn(nrow(combined), 2, simplify = FALSE)) {
+    i <- p[1]; j <- p[2]
+    if (combined$sheet[i] != combined$sheet[j] &&
+        combined$compound_primary[i] == combined$compound_primary[j] &&
+        combined$study_name[i] != combined$study_name[j] &&
+        !(combined$study_name[i] %in% exact_dupes)) {
+      if (adist(combined$study_name[i], combined$study_name[j])[1, 1] <= 5) {
+        near_dupes[[length(near_dupes) + 1]] <- c(i, j)
+      }
+    }
+  }
+}
+cat("\nNaming/pooling anomalies (same study_name, or same-compound near-duplicate name, across tiers):\n")
+if (length(exact_dupes) == 0 && length(near_dupes) == 0) {
+  cat("  None detected.\n")
+} else {
+  for (nm in exact_dupes) {
+    rows <- combined %>% filter(study_name == nm)
+    cat("  - \"", nm, "\" in both tiers: ",
+        paste(sprintf("%s (%s)", rows$sheet, rows$phase), collapse=" vs "),
+        "\n", sep = "")
+  }
+  for (p in near_dupes) {
+    i <- p[1]; j <- p[2]
+    cat("  - \"", combined$study_name[i], "\" (", combined$sheet[i], ") / \"",
+        combined$study_name[j], "\" (", combined$sheet[j],
+        ") -- same compound (", combined$compound_primary[i],
+        "), different name across tiers\n", sep = "")
   }
 }
 '
 ```
 
 Present the output to the user showing **all studies from both sheets**
-(Observed and Prediction), then ask:
+(Observed and Prediction) followed by the script's own **naming/pooling
+anomalies block** — relay that block as printed; don't re-derive it by
+eyeballing the study list yourself, the script already checked exact
+cross-tier `study_name` collisions and same-compound near-duplicate names
+for you. Then ask:
 
 ```
 Here's what's in the PRD (cwm_wl_nont2d):
@@ -223,6 +272,11 @@ Here's what's in the PRD (cwm_wl_nont2d):
   PREDICTION (M studies):
     1. <study_name> (<phase>, <route>) — <compound>: <treatments>
     2. ...
+
+  Naming/pooling anomalies (same study_name, or same-compound
+  near-duplicate name, across tiers):
+    - <anomaly line 1>
+    - ...
 
   Which studies do you want to include?
 ```
@@ -249,24 +303,24 @@ spelled consistently, this line already shows that — there's no separate
 naming/route round-trip needed for the routine case, and skipping it is
 real time saved over the course of a session.
 
-This is different from a genuine anomaly that a phase/route/compound line
-wouldn't surface on its own — e.g. two selected studies that are actually
-the same underlying trial at different follow-up points (a base study and
-its extension), a literal spelling inconsistency where what should be
-one compound is written two different ways across rows, or **the same
-`study_name` appearing in both the Observed and Prediction sheets** (a
-real, different-tier duplicate, not the same rows twice — e.g. "momentum"
-exists in both, with slightly different dosing strings per tier). That
-last one matters specifically because inclusion is keyed by `study_name`:
-if the user picks the Observed one, say so explicitly and confirm they
-don't also want the Prediction one — `run_bnma_pipeline.R` now
-disambiguates these by tier before the manifest gate either way (so
-approving one no longer silently pulls in the other), but catching it
-here means the tier choice gets made once, up front, instead of surfacing
-as a duplication only after a full fit.
+The naming/pooling anomalies block above already covers the two
+automatable cases — an exact `study_name` collision across tiers (e.g.
+"momentum" exists in both, with slightly different dosing strings per
+tier) and a same-compound near-duplicate name across tiers (e.g.
+"maritide" vs. "maritide_ph2"). Relay that block; don't re-derive it. For
+the exact-collision case specifically, if the user picks the Observed
+one, say so explicitly and confirm they don't also want the Prediction
+one — `run_bnma_pipeline.R` now disambiguates these by tier before the
+manifest gate either way (so approving one no longer silently pulls in
+the other), but catching it here means the tier choice gets made once,
+up front, instead of surfacing as a duplication only after a full fit.
 
-Those are actual data problems, not a modeling choice, and still deserve
-their own explicit call-out and confirmation before proceeding.
+Still worth your own look, because the pre-pass deliberately doesn't
+catch it: a genuine anomaly confined to one tier — e.g. two selected
+studies that are actually the same underlying trial at different
+follow-up points (a base study and its extension). That's an actual data
+problem, not a modeling choice, and still deserves its own explicit
+call-out and confirmation before proceeding.
 
 ## Step 2 — Ask whether additional, non-PRD data should be incorporated
 
