@@ -151,7 +151,7 @@ flowchart LR
 
 Every `/cmh-ci` invocation starts with a landing page explaining the seven steps. Nothing is read, written, or assumed until you confirm.
 
-![The landing page's own step-by-step summary](images/pngs/landing.png){#fig-landing}
+![The landing page's own step-by-step summary](images/pngs/landing.png){#fig-landing fig-align="center" width="80%"}
 
 ## Step 1: Introducing the data and selecting studies
 
@@ -180,7 +180,7 @@ Sheet: Observed | Rows: 42
 
 You then pick which studies to include — by name, by compound, or confirm the full list.
 
-![Confirmed study selection, echoed back with phase/route/treatment before anything runs](images/pngs/Subset.png){#fig-subset}
+![Confirmed study selection, echoed back with phase/route/treatment before anything runs](images/pngs/Subset.png){#fig-subset fig-align="center" width="80%"}
 
 ## Step 2: Deciding whether to add outside data
 
@@ -189,7 +189,7 @@ press release, a new readout, hand-digitized data, another workbook, or
 a link to a publication — should be folded in before fitting. Answering
 no is a valid outcome: the skill skips straight to model configuration.
 
-![The Step 2 prompt](images/pngs/additional.png){#fig-additional}
+![The Step 2 prompt](images/pngs/additional.png){#fig-additional fig-align="center" width="80%"}
 
 The example below continues with a real "yes" — adding a press release
 about a new study (`triumph-3`) to three studies already selected in
@@ -202,12 +202,12 @@ study data directly from the source, flags any population/scope mismatch
 explicitly (e.g. a T2D study against a non-T2D dataset), and asks whether
 each extracted study is Observed or Predicted rather than inferring it.
 
-![Fetching study data directly from an attached press release link](images/pngs/web_fetch.png){#fig-webfetch}
+![Fetching study data directly from an attached press release link](images/pngs/web_fetch.png){#fig-webfetch fig-align="center" width="80%"}
 
 The mapped rows are shown back in the QA schema for confirmation — here,
 the real rows extracted from that press release for `triumph-3`:
 
-![Mapped rows shown for confirmation before anything is merged](images/pngs/preview_rows.png){#fig-previewrows}
+![Mapped rows shown for confirmation before anything is merged](images/pngs/preview_rows.png){#fig-previewrows fig-align="center" width="80%"}
 
 Once confirmed, rows are appended to the QA workbook, and the QA file is
 renamed so the date reflects when data was last added:
@@ -232,7 +232,7 @@ folders and write a manifest recording exactly which studies are included.
 A study in the manifest that doesn't match the data (a typo, or a study
 renamed upstream) is a hard stop, not a silent omission.
 
-![Manifest confirmed with all four studies -- the three from Step 1 plus the press-release addition](images/pngs/manifest.png){#fig-manifest}
+![Manifest confirmed with all four studies -- the three from Step 1 plus the press-release addition](images/pngs/manifest.png){#fig-manifest fig-align="center" width="80%"}
 
 ## Step 6: Choosing a modelling approach
 
@@ -276,7 +276,7 @@ Both forest plots are displayed immediately in the terminal, alongside a
 plain-language chat summary. Continuing the worked example above (the
 three Step 1 studies plus the `triumph-3` press-release addition):
 
-![The skill's own chat summary immediately after fitting](images/pngs/summary.png){#fig-summary}
+![The skill's own chat summary immediately after fitting](images/pngs/summary.png){#fig-summary fig-align="center" width="80%"}
 
 
 # Data
