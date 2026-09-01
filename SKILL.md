@@ -469,16 +469,21 @@ file:
    to fit time.** When the source has no CI/SE and the user opts to
    approximate one (`fallback_sd / sqrt(n)`, default `fallback_sd = 10`
    unless the user gives a better estimate), work out the actual number
-   right then and put it in `se_wl_ee`/`se_wl_tre` itself — in the
-   preview table and in what gets written to the QA workbook — instead
-   of leaving the cell blank for `run_bnma_pipeline.R`'s manifest-level
-   `se_fallback` mechanism to fill in silently at fit time. Record the
-   derivation in `derivation_spec` (e.g. `"se_wl_ee derived as
-   fallback_sd=10 / sqrt(n) -- source reported no CI/SE for this
-   endpoint"`). The manifest's own `se_fallback` option still exists for
-   rows genuinely handled some other way, but a row built through this
-   pathway shouldn't need it — its SE is already a real number by the
-   time it's written, not a placeholder.
+   right then, **rounded to 2 decimal places** (matching the precision
+   this pathway's other manually-entered values are given in — a raw
+   `fallback_sd / sqrt(n)` division otherwise runs to many more decimal
+   places than anything else in the row, a false-precision tell that
+   this cell was computed rather than reported), and put it in
+   `se_wl_ee`/`se_wl_tre` itself — in the preview table and in what gets
+   written to the QA workbook — instead of leaving the cell blank for
+   `run_bnma_pipeline.R`'s manifest-level `se_fallback` mechanism to fill
+   in silently at fit time. Record the derivation in `derivation_spec`
+   (e.g. `"se_wl_ee derived as fallback_sd=10 / sqrt(n), rounded to 2dp
+   -- source reported no CI/SE for this endpoint"`). The manifest's own
+   `se_fallback` option still exists for rows genuinely handled some
+   other way, but a row built through this pathway shouldn't need it —
+   its SE is already a real number by the time it's written, not a
+   placeholder.
 7. Show the mapped row(s) for confirmation — same table-confirmation
    pattern as any other source in this step — then follow Step 2's
    existing merge question. This pathway feeds the same merge decision;
