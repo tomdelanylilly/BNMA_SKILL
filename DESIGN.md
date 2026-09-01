@@ -445,3 +445,38 @@ exposed:
    uses to find the corresponding QA file, else ask rather than guess (e.g.
    a personal project directory with no PRD/QA tier structure at all).
 
+## Eighth design iteration: the report becomes a genuinely runnable
+`.Rmd` + `.html` pair, and appended QA files get a date-rename (2026-08-31)
+
+1. **The per-run report is no longer a single self-contained document
+   with the pipeline script embedded as reference text.** It's now a
+   real `.Rmd` with six runnable code chunks — Setup (`library()` calls,
+   paths, MCMC config), Data load, Build BATMAN, Fit model, Results, and
+   Forest plots — each self-contained enough to re-run from that point if
+   earlier objects are already in the workspace. Chunks default to
+   `eval=FALSE`, so immediately after writing the `.Rmd`, the same shell
+   renders it to `.html` (`rmarkdown::render(..., output_format =
+   "html_document")`) in seconds — it typesets the narrative and code
+   without re-running JAGS. The programs folder now holds both files: the
+   `.Rmd` for a statistician to open in RStudio and step through, and the
+   `.html` for something shareable immediately, without RStudio. This
+   replaces the prior "one file, script embedded inside it" design (see
+   the "no sibling script file to keep in sync" reasoning above) with two
+   files that serve genuinely different purposes rather than one file
+   trying to serve both.
+2. **`append_to_qa.R` renames the QA file after appending.** Its
+   filename carries a date (e.g. `cwm_wl_nont2d_qa_20260827.xlsx`), and
+   until now that date only ever reflected when the file was first
+   created, not when it was last updated — a new `--rename-date`
+   argument does an in-place `mv` to the append date (e.g. `_qa_20260827`
+   → `_qa_20260831` for an append run on 2026-08-31), one QA file at a
+   time, no stale copies left behind. Whichever step calls this must
+   carry the renamed path forward — Step 7's `--qa` argument needs the
+   new filename, not the one it started with.
+3. **Landing-page and Step-4 wording clarity** — the workflow-at-a-glance
+   list's Step 3 and Step 7 lines were reworded for clarity (explicit
+   "studies, compounds, treatments, phases" review list; explicit
+   enumeration of what Step 7 now produces). No behavior change, just
+   text that more accurately previews what the corresponding step
+   actually does.
+
