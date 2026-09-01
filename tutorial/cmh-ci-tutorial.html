@@ -1,0 +1,2066 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.38">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="CMH Competitive Intelligence Team">
+<meta name="dcterms.date" content="2026-09-01">
+
+<title>/cmh-ci — BNMA Skill Tutorial</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="cmh-ci-tutorial_files/libs/clipboard/clipboard.min.js"></script>
+<script src="cmh-ci-tutorial_files/libs/quarto-html/quarto.js" type="module"></script>
+<script src="cmh-ci-tutorial_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="cmh-ci-tutorial_files/libs/quarto-html/popper.min.js"></script>
+<script src="cmh-ci-tutorial_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="cmh-ci-tutorial_files/libs/quarto-html/anchor.min.js"></script>
+<link href="cmh-ci-tutorial_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="cmh-ci-tutorial_files/libs/quarto-html/quarto-syntax-highlighting-15634bcf2e68342d4ad2dfa704d543f6.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="cmh-ci-tutorial_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="cmh-ci-tutorial_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="cmh-ci-tutorial_files/libs/bootstrap/bootstrap-67270d1595a62d14f123c043d4fb2f18.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script src="cmh-ci-tutorial_files/libs/quarto-diagram/mermaid.min.js"></script>
+<script src="cmh-ci-tutorial_files/libs/quarto-diagram/mermaid-init.js"></script>
+<link href="cmh-ci-tutorial_files/libs/quarto-diagram/mermaid.css" rel="stylesheet">
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="quarto-light">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+<div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+  <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#overview" id="toc-overview" class="nav-link active" data-scroll-target="#overview"><span class="header-section-number">1</span> Overview</a>
+  <ul class="collapse">
+  <li><a href="#what-is-a-bnma" id="toc-what-is-a-bnma" class="nav-link" data-scroll-target="#what-is-a-bnma"><span class="header-section-number">1.1</span> What is a BNMA?</a></li>
+  <li><a href="#what-cmh-ci-does" id="toc-what-cmh-ci-does" class="nav-link" data-scroll-target="#what-cmh-ci-does"><span class="header-section-number">1.2</span> What <code>/cmh-ci</code> does</a></li>
+  </ul></li>
+  <li><a href="#prerequisites" id="toc-prerequisites" class="nav-link" data-scroll-target="#prerequisites"><span class="header-section-number">2</span> Prerequisites</a></li>
+  <li><a href="#data-schema" id="toc-data-schema" class="nav-link" data-scroll-target="#data-schema"><span class="header-section-number">3</span> Data Schema</a>
+  <ul class="collapse">
+  <li><a href="#prdqa-workbook-structure" id="toc-prdqa-workbook-structure" class="nav-link" data-scroll-target="#prdqa-workbook-structure"><span class="header-section-number">3.1</span> PRD/QA workbook structure</a></li>
+  <li><a href="#how-prd-and-qa-relate" id="toc-how-prd-and-qa-relate" class="nav-link" data-scroll-target="#how-prd-and-qa-relate"><span class="header-section-number">3.2</span> How PRD and QA relate</a></li>
+  </ul></li>
+  <li><a href="#getting-started" id="toc-getting-started" class="nav-link" data-scroll-target="#getting-started"><span class="header-section-number">4</span> Getting Started</a>
+  <ul class="collapse">
+  <li><a href="#option-a-global-install-works-from-any-folder" id="toc-option-a-global-install-works-from-any-folder" class="nav-link" data-scroll-target="#option-a-global-install-works-from-any-folder"><span class="header-section-number">4.1</span> Option A: Global install (works from any folder)</a></li>
+  <li><a href="#option-b-project-level-install-works-for-everyone-in-that-folder" id="toc-option-b-project-level-install-works-for-everyone-in-that-folder" class="nav-link" data-scroll-target="#option-b-project-level-install-works-for-everyone-in-that-folder"><span class="header-section-number">4.2</span> Option B: Project-level install (works for everyone in that folder)</a></li>
+  <li><a href="#the-claude.md-pointer" id="toc-the-claude.md-pointer" class="nav-link" data-scroll-target="#the-claude.md-pointer"><span class="header-section-number">4.3</span> The CLAUDE.md pointer</a></li>
+  <li><a href="#starting-a-session" id="toc-starting-a-session" class="nav-link" data-scroll-target="#starting-a-session"><span class="header-section-number">4.4</span> Starting a session</a></li>
+  </ul></li>
+  <li><a href="#the-workflow-step-by-step" id="toc-the-workflow-step-by-step" class="nav-link" data-scroll-target="#the-workflow-step-by-step"><span class="header-section-number">5</span> The Workflow — Step by Step</a>
+  <ul class="collapse">
+  <li><a href="#landing-page" id="toc-landing-page" class="nav-link" data-scroll-target="#landing-page"><span class="header-section-number">5.1</span> Landing page</a></li>
+  <li><a href="#step-1-dataset-review" id="toc-step-1-dataset-review" class="nav-link" data-scroll-target="#step-1-dataset-review"><span class="header-section-number">5.2</span> Step 1: Dataset review</a></li>
+  <li><a href="#steps-24-adding-new-data-the-qa-flow" id="toc-steps-24-adding-new-data-the-qa-flow" class="nav-link" data-scroll-target="#steps-24-adding-new-data-the-qa-flow"><span class="header-section-number">5.3</span> Steps 2–4: Adding new data (the QA flow)</a></li>
+  <li><a href="#steps-56-model-configuration" id="toc-steps-56-model-configuration" class="nav-link" data-scroll-target="#steps-56-model-configuration"><span class="header-section-number">5.4</span> Steps 5–6: Model configuration</a></li>
+  <li><a href="#step-7-fit-and-output" id="toc-step-7-fit-and-output" class="nav-link" data-scroll-target="#step-7-fit-and-output"><span class="header-section-number">5.5</span> Step 7: Fit and output</a></li>
+  </ul></li>
+  <li><a href="#understanding-the-outputs" id="toc-understanding-the-outputs" class="nav-link" data-scroll-target="#understanding-the-outputs"><span class="header-section-number">6</span> Understanding the Outputs</a>
+  <ul class="collapse">
+  <li><a href="#forest-plots" id="toc-forest-plots" class="nav-link" data-scroll-target="#forest-plots"><span class="header-section-number">6.1</span> Forest plots</a></li>
+  <li><a href="#the-.rmd-report" id="toc-the-.rmd-report" class="nav-link" data-scroll-target="#the-.rmd-report"><span class="header-section-number">6.2</span> The .Rmd report</a></li>
+  <li><a href="#the-.html-report" id="toc-the-.html-report" class="nav-link" data-scroll-target="#the-.html-report"><span class="header-section-number">6.3</span> The .html report</a></li>
+  </ul></li>
+  <li><a href="#common-scenarios" id="toc-common-scenarios" class="nav-link" data-scroll-target="#common-scenarios"><span class="header-section-number">7</span> Common Scenarios</a>
+  <ul class="collapse">
+  <li><a href="#i-just-want-to-see-whats-in-the-data" id="toc-i-just-want-to-see-whats-in-the-data" class="nav-link" data-scroll-target="#i-just-want-to-see-whats-in-the-data"><span class="header-section-number">7.1</span> “I just want to see what’s in the data”</a></li>
+  <li><a href="#i-have-a-new-press-release-to-add" id="toc-i-have-a-new-press-release-to-add" class="nav-link" data-scroll-target="#i-have-a-new-press-release-to-add"><span class="header-section-number">7.2</span> “I have a new press release to add”</a></li>
+  <li><a href="#re-run-last-months-analysis-with-updated-data" id="toc-re-run-last-months-analysis-with-updated-data" class="nav-link" data-scroll-target="#re-run-last-months-analysis-with-updated-data"><span class="header-section-number">7.3</span> “Re-run last month’s analysis with updated data”</a></li>
+  <li><a href="#switch-from-random-effects-to-fixed-effects" id="toc-switch-from-random-effects-to-fixed-effects" class="nav-link" data-scroll-target="#switch-from-random-effects-to-fixed-effects"><span class="header-section-number">7.4</span> “Switch from random-effects to fixed-effects”</a></li>
+  </ul></li>
+  <li><a href="#file-locations-reference" id="toc-file-locations-reference" class="nav-link" data-scroll-target="#file-locations-reference"><span class="header-section-number">8</span> File Locations Reference</a></li>
+  <li><a href="#statistical-models" id="toc-statistical-models" class="nav-link" data-scroll-target="#statistical-models"><span class="header-section-number">9</span> Statistical Models</a>
+  <ul class="collapse">
+  <li><a href="#the-batman-data-structure" id="toc-the-batman-data-structure" class="nav-link" data-scroll-target="#the-batman-data-structure"><span class="header-section-number">9.1</span> The BATMAN data structure</a></li>
+  <li><a href="#random-effects-model-default" id="toc-random-effects-model-default" class="nav-link" data-scroll-target="#random-effects-model-default"><span class="header-section-number">9.2</span> Random-effects model (default)</a></li>
+  <li><a href="#fixed-effect-model" id="toc-fixed-effect-model" class="nav-link" data-scroll-target="#fixed-effect-model"><span class="header-section-number">9.3</span> Fixed-effect model</a></li>
+  <li><a href="#simultaneous-models-for-absolute-effects" id="toc-simultaneous-models-for-absolute-effects" class="nav-link" data-scroll-target="#simultaneous-models-for-absolute-effects"><span class="header-section-number">9.4</span> Simultaneous models (for absolute effects)</a></li>
+  <li><a href="#pooled-placebo-meta-analysis" id="toc-pooled-placebo-meta-analysis" class="nav-link" data-scroll-target="#pooled-placebo-meta-analysis"><span class="header-section-number">9.5</span> Pooled-placebo meta-analysis</a></li>
+  <li><a href="#model-selection-summary" id="toc-model-selection-summary" class="nav-link" data-scroll-target="#model-selection-summary"><span class="header-section-number">9.6</span> Model selection summary</a></li>
+  <li><a href="#mcmc-settings" id="toc-mcmc-settings" class="nav-link" data-scroll-target="#mcmc-settings"><span class="header-section-number">9.7</span> MCMC settings</a></li>
+  </ul></li>
+  <li><a href="#faq-troubleshooting" id="toc-faq-troubleshooting" class="nav-link" data-scroll-target="#faq-troubleshooting"><span class="header-section-number">10</span> FAQ / Troubleshooting</a>
+  <ul class="collapse">
+  <li><a href="#r-or-jags-not-found" id="toc-r-or-jags-not-found" class="nav-link" data-scroll-target="#r-or-jags-not-found"><span class="header-section-number">10.1</span> “R or JAGS not found”</a></li>
+  <li><a href="#star-network-detected-what-does-this-mean" id="toc-star-network-detected-what-does-this-mean" class="nav-link" data-scroll-target="#star-network-detected-what-does-this-mean"><span class="header-section-number">10.2</span> “Star network detected — what does this mean?”</a></li>
+  <li><a href="#the-skill-takes-too-long" id="toc-the-skill-takes-too-long" class="nav-link" data-scroll-target="#the-skill-takes-too-long"><span class="header-section-number">10.3</span> “The skill takes too long”</a></li>
+  <li><a href="#can-i-edit-the-.rmd-and-re-render" id="toc-can-i-edit-the-.rmd-and-re-render" class="nav-link" data-scroll-target="#can-i-edit-the-.rmd-and-re-render"><span class="header-section-number">10.4</span> “Can I edit the .Rmd and re-render?”</a></li>
+  <li><a href="#where-did-my-qa-file-go" id="toc-where-did-my-qa-file-go" class="nav-link" data-scroll-target="#where-did-my-qa-file-go"><span class="header-section-number">10.5</span> “Where did my QA file go?”</a></li>
+  </ul></li>
+  </ul>
+</nav>
+</div>
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<div class="quarto-title-block"><div><h1 class="title">/cmh-ci — BNMA Skill Tutorial</h1><button type="button" class="btn code-tools-button" id="quarto-code-tools-source"><i class="bi"></i> Code</button></div></div>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>CMH Competitive Intelligence Team </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">September 1, 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="overview" class="level2" data-number="1">
+<h2 data-number="1" class="anchored" data-anchor-id="overview"><span class="header-section-number">1</span> Overview</h2>
+<section id="what-is-a-bnma" class="level3" data-number="1.1">
+<h3 data-number="1.1" class="anchored" data-anchor-id="what-is-a-bnma"><span class="header-section-number">1.1</span> What is a BNMA?</h3>
+<p>A <strong>Bayesian Network Meta-Analysis</strong> (BNMA) combines evidence from multiple clinical trials to estimate how different treatments compare — even when those treatments were never tested head-to-head. It works by linking trials through shared comparators (typically placebo), forming a “network” of indirect comparisons.</p>
+<p>At Lilly, the Cardiometabolic Health (CMH) team uses BNMAs to build the <strong>competitive landscape</strong> — understanding where our compounds stand relative to competitors across the obesity and diabetes portfolio. The primary deliverable is a <strong>forest plot</strong> showing placebo-adjusted weight loss (or other endpoints like HbA1c) for every treatment in the network, with Bayesian credible intervals. These plots inform competitive intelligence decks, regulatory strategy, and clinical development decisions.</p>
+<p>The underlying statistical engine is <strong>JAGS</strong> (Just Another Gibbs Sampler), which fits hierarchical Bayesian models via Markov Chain Monte Carlo (MCMC) sampling. The production reference implementation is the <code>EliLillyCo/CMH.BNMA</code> Shiny app — this skill matches its model specifications and MCMC settings exactly.</p>
+</section>
+<section id="what-cmh-ci-does" class="level3" data-number="1.2">
+<h3 data-number="1.2" class="anchored" data-anchor-id="what-cmh-ci-does"><span class="header-section-number">1.2</span> What <code>/cmh-ci</code> does</h3>
+<p><code>/cmh-ci</code> is a Claude Code skill that automates the end-to-end BNMA pipeline. It replaces the manual process of assembling study data, writing JAGS scripts, and generating forest plots — a workflow that previously required editing hardcoded study lists and running multiple scripts by hand.</p>
+<p>The skill walks you through the full pipeline interactively:</p>
+<ol type="1">
+<li><strong>Read</strong> the PRD/QA dataset and show you what’s in it</li>
+<li><strong>Select</strong> which studies and compounds to include</li>
+<li><strong>Add</strong> new data from press releases or publications (optional)</li>
+<li><strong>Fit</strong> a BNMA model using JAGS</li>
+<li><strong>Output</strong> four deliverables:
+<ul>
+<li>Placebo-adjusted (relative) forest plot</li>
+<li>Absolute forest plot</li>
+<li>Re-runnable <code>.Rmd</code> (open in RStudio, run chunk-by-chunk)</li>
+<li>Pre-rendered <code>.html</code> report (share immediately)</li>
+</ul></li>
+</ol>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Tip
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>You don’t have to run the full analysis. Stopping after Step 1 (reviewing the data) or after adding new data to QA are both valid, complete sessions.</p>
+</div>
+</div>
+</section>
+</section>
+<section id="prerequisites" class="level2" data-number="2">
+<h2 data-number="2" class="anchored" data-anchor-id="prerequisites"><span class="header-section-number">2</span> Prerequisites</h2>
+<p>You’re working on the Lilly HPC cluster, so the heavy dependencies (R, JAGS, and all required R packages) are already installed — nothing to set up. The skill loads them automatically via <code>module load</code> when it runs.</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>What you need</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Claude Code</strong></td>
+<td>The CLI — <code>claude --version</code> to confirm</td>
+</tr>
+<tr class="even">
+<td><strong>HPC cluster session</strong></td>
+<td>SSH’d in or on a compute node</td>
+</tr>
+<tr class="odd">
+<td><strong>Data access</strong></td>
+<td>Read access to <code>/lillyce/prd/</code> and <code>/lillyce/qa/</code></td>
+</tr>
+</tbody>
+</table>
+<p>That’s it. R (4.4.2), JAGS (4.3.2), and all R packages (<code>rjags</code>, <code>coda</code>, <code>dplyr</code>, <code>readxl</code>, <code>ggplot2</code>, <code>openxlsx</code>, <code>rmarkdown</code>) are available cluster-wide via modules and the shared R library — the skill handles the <code>module load</code> calls for you.</p>
+</section>
+<section id="data-schema" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="data-schema"><span class="header-section-number">3</span> Data Schema</h2>
+<section id="prdqa-workbook-structure" class="level3" data-number="3.1">
+<h3 data-number="3.1" class="anchored" data-anchor-id="prdqa-workbook-structure"><span class="header-section-number">3.1</span> PRD/QA workbook structure</h3>
+<p>The PRD and QA workbooks share the same schema. Each file has two data sheets — <strong>Observed</strong> (from completed trials) and <strong>Prediction</strong> (model-projected from earlier-phase data) — plus a Summary sheet.</p>
+<p><strong>Key columns</strong> (grouped by role):</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Group</th>
+<th>Columns</th>
+<th>What they hold</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>BNMA inputs</strong></td>
+<td><code>pchg_wl_ee</code>, <code>se_wl_ee</code></td>
+<td>% weight change (efficacy estimand) and its SE — <strong>the two columns the model fits on</strong></td>
+</tr>
+<tr class="even">
+<td><strong>Study identity</strong></td>
+<td><code>study_name</code>, <code>treatment</code>, <code>compound</code>, <code>phase</code></td>
+<td>Which study, arm, molecule, and trial phase</td>
+</tr>
+<tr class="odd">
+<td><strong>Design</strong></td>
+<td><code>n</code>, <code>baseline_wgt</code>, <code>study_duration</code>, <code>aom</code>, <code>population</code></td>
+<td>Sample size, baseline weight, duration, route (Oral/Injectable), population scope</td>
+</tr>
+<tr class="even">
+<td><strong>Alternate estimand</strong></td>
+<td><code>pchg_wl_tre</code>, <code>se_wl_tre</code></td>
+<td>Treatment-regimen estimand (secondary)</td>
+</tr>
+<tr class="odd">
+<td><strong>Provenance</strong></td>
+<td><code>time_entry</code>, <code>source</code>, <code>data_type</code>, <code>sponsor</code></td>
+<td>When curated, citation/URL, source type, sponsor</td>
+</tr>
+<tr class="even">
+<td><strong>Curation</strong></td>
+<td><code>curator_name</code>, <code>curator_note</code>, <code>qc_name</code>, <code>qc_note</code>, <code>derivation_spec</code>, <code>analysis_method</code></td>
+<td>Audit trail — who curated, QC’d, and how values were derived</td>
+</tr>
+</tbody>
+</table>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Important
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Every treatment arm must have both <strong><code>pchg_wl_ee</code></strong> and <strong><code>se_wl_ee</code></strong>. If SE is not reported, it can be approximated as <code>fallback_sd / sqrt(n)</code> — the skill helps compute this during data entry.</p>
+</div>
+</div>
+</section>
+<section id="how-prd-and-qa-relate" class="level3" data-number="3.2">
+<h3 data-number="3.2" class="anchored" data-anchor-id="how-prd-and-qa-relate"><span class="header-section-number">3.2</span> How PRD and QA relate</h3>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">flowchart LR
+    A["PRD\n(read-only)"] --&gt; C["Merge"] --&gt; D["BNMA → plots"]
+    B["QA\n(new data here)"] --&gt; C
+    style A fill:#3498DB,color:#fff
+    style B fill:#E67E22,color:#fff
+</pre>
+</div>
+<p></p><figcaption> PRD vs QA data flow</figcaption> </figure><p></p>
+</div>
+</div>
+</div>
+<ul>
+<li><strong>PRD</strong> (<code>/lillyce/prd/...</code>) — the validated, production-tier dataset. Read-only. Updated periodically by the team through the normal curation process.</li>
+<li><strong>QA</strong> (<code>/lillyce/qa/...</code>) — the living working copy. New data from press releases, publications, or other sources lands here first via the skill’s append flow, then eventually gets promoted to PRD through team review.</li>
+</ul>
+<p>When fitting, the pipeline merges both: QA rows override PRD rows for the same <code>study_name</code> + <code>treatment</code> (by keeping the row with the latest <code>time_entry</code>).</p>
+</section>
+</section>
+<section id="getting-started" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="getting-started"><span class="header-section-number">4</span> Getting Started</h2>
+<section id="option-a-global-install-works-from-any-folder" class="level3" data-number="4.1">
+<h3 data-number="4.1" class="anchored" data-anchor-id="option-a-global-install-works-from-any-folder"><span class="header-section-number">4.1</span> Option A: Global install (works from any folder)</h3>
+<p>Place the skill file at:</p>
+<pre><code>~/.claude/skills/cmh-ci/SKILL.md</code></pre>
+<p>Then <code>/cmh-ci</code> is available in every Claude Code session, regardless of which directory you’re in.</p>
+</section>
+<section id="option-b-project-level-install-works-for-everyone-in-that-folder" class="level3" data-number="4.2">
+<h3 data-number="4.2" class="anchored" data-anchor-id="option-b-project-level-install-works-for-everyone-in-that-folder"><span class="header-section-number">4.2</span> Option B: Project-level install (works for everyone in that folder)</h3>
+<p>Place the skill inside your project directory:</p>
+<pre><code>/lillyce/qa/diabetes/bnma/obesity/
+├── .claude/
+│   └── skills/
+│       └── cmh-ci/
+│           └── SKILL.md
+└── CLAUDE.md            ← optional pointer (see below)</code></pre>
+<p>Anyone who opens Claude Code from this folder (or any subfolder) gets <code>/cmh-ci</code> automatically — no global install needed.</p>
+</section>
+<section id="the-claude.md-pointer" class="level3" data-number="4.3">
+<h3 data-number="4.3" class="anchored" data-anchor-id="the-claude.md-pointer"><span class="header-section-number">4.3</span> The CLAUDE.md pointer</h3>
+<p>Drop a small <code>CLAUDE.md</code> in the project root so users know the skill exists:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu"># CMH Competitive Intelligence — BNMA</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>Type <span class="in">`/cmh-ci`</span> to run a Bayesian network meta-analysis on the PRD/QA</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>weight-loss dataset. It walks you through study selection, optional new</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>data, model fitting, and outputs both forest plots (placebo-adjusted +</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>absolute), a re-runnable .Rmd, and an .html report.</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="starting-a-session" class="level3" data-number="4.4">
+<h3 data-number="4.4" class="anchored" data-anchor-id="starting-a-session"><span class="header-section-number">4.4</span> Starting a session</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> /lillyce/qa/diabetes/bnma/obesity   <span class="co"># or your working directory</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ex">claude</span>                                  <span class="co"># launch Claude Code</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Then type:</p>
+<pre><code>/cmh-ci</code></pre>
+</section>
+</section>
+<section id="the-workflow-step-by-step" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="the-workflow-step-by-step"><span class="header-section-number">5</span> The Workflow — Step by Step</h2>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">flowchart LR
+    A["/cmh-ci"] --&gt; B["Review data\n&amp; pick studies"]
+    B --&gt; C{"New data?"}
+    C --&gt;|yes| D["Append to QA"]
+    C --&gt;|no| E["Configure\n&amp; fit model"]
+    D --&gt; E
+    E --&gt; F["Forest plots\n+ .Rmd + .html"]
+
+    style A fill:#4A90D9,color:#fff
+    style F fill:#2ECC71,color:#fff
+</pre>
+</div>
+<p></p><figcaption> The /cmh-ci workflow</figcaption> </figure><p></p>
+</div>
+</div>
+</div>
+<section id="landing-page" class="level3" data-number="5.1">
+<h3 data-number="5.1" class="anchored" data-anchor-id="landing-page"><span class="header-section-number">5.1</span> Landing page</h3>
+<p>Every <code>/cmh-ci</code> invocation starts with a banner explaining the 7-step workflow. Nothing is read, written, or assumed until you confirm:</p>
+<pre><code>════════════════════════════════════════════════════════════════════
+
+                          /cmh-ci
+        Bayesian Network Meta-Analysis · CMH Competitive Intelligence
+
+════════════════════════════════════════════════════════════════════
+
+From the PRD/QA weight-loss dataset to a fitted BNMA. This skill reads
+the data, has you select studies and settle any conflicts, folds in any
+outside data you supply, fits the model, and returns both forest plots
+(placebo-adjusted and absolute), a re-runnable .Rmd, and an .html
+report.
+
+    1 ─ Read the PRD/QA data; list every study, compound, phase, ...
+    2 ─ You pick the studies and compounds to include.
+    3 ─ The selected subset is presented for review ...
+    ...
+    7 ─ Fit, then output: a placebo-adjusted forest plot, an
+        absolute forest plot, a re-runnable .Rmd, and an .html report.
+
+────────────────────────────────────────────────────────────────────
+  Shall I read the PRD dataset and list the studies?   ( yes / no )
+────────────────────────────────────────────────────────────────────</code></pre>
+<p>Type <strong>yes</strong> to proceed.</p>
+</section>
+<section id="step-1-dataset-review" class="level3" data-number="5.2">
+<h3 data-number="5.2" class="anchored" data-anchor-id="step-1-dataset-review"><span class="header-section-number">5.2</span> Step 1: Dataset review</h3>
+<p>The skill finds the most recent PRD file and reads both sheets (Observed and Prediction):</p>
+<pre><code>PRD: /lillyce/prd/diabetes/bnma/obesity/data/shared/weight/
+     cwm_wl_nont2d_prd_20260805.xlsx</code></pre>
+<p>It lists every study with its compound, phase, route, and evidence tier:</p>
+<pre><code>Sheet: Observed | Rows: 42
+
+  1. scale maintenance (phase 3, injectable, observed)
+     -- semaglutide
+       semaglutide 2.4 mg; placebo
+
+  2. believe (phase 3, injectable, observed)
+     -- tirzepatide
+       tirzepatide 10 mg; tirzepatide 15 mg; tirzepatide 5 mg; placebo
+
+  ...
+
+Sheet: Prediction | Rows: 18
+
+  1. triumph-3 (phase 3, injectable, prediction)
+     -- retatrutide
+       retatrutide 12 mg; placebo
+  ...</code></pre>
+<p>You then pick which studies to include. You can name them explicitly (“include all except harbor-1”) or confirm the full list.</p>
+</section>
+<section id="steps-24-adding-new-data-the-qa-flow" class="level3" data-number="5.3">
+<h3 data-number="5.3" class="anchored" data-anchor-id="steps-24-adding-new-data-the-qa-flow"><span class="header-section-number">5.3</span> Steps 2–4: Adding new data (the QA flow)</h3>
+<p>After study selection, the skill asks:</p>
+<blockquote class="blockquote">
+<p><em>Do you have any additional data to add before fitting?</em> <em>(e.g.&nbsp;a press release, new readout, hand-digitized data, another workbook)</em></p>
+</blockquote>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Tip
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>If you don’t have new data, just say <strong>no</strong> — the skill skips straight to model configuration (Step 5).</p>
+</div>
+</div>
+<p>If you <strong>do</strong> have new data, the skill accepts it in any form:</p>
+<ul>
+<li><strong>Pasted rows</strong> directly in the chat</li>
+<li><strong>A file path</strong> (xlsx, csv) on the cluster</li>
+<li><strong>A link</strong> to a press release or publication (the skill extracts the relevant numbers)</li>
+<li><strong>“Take X from file Y”</strong> — reads and filters another workbook</li>
+</ul>
+<p>The skill maps your data into the QA schema columns (<code>study_name</code>, <code>treatment</code>, <code>compound</code>, <code>phase</code>, <code>pchg_wl_ee</code>, <code>se_wl_ee</code>, etc.) and shows you the mapped rows for confirmation:</p>
+<pre><code>study_name  | treatment          | compound    | phase   | pchg_wl_ee | se_wl_ee
+------------|--------------------+-------------+---------+------------+---------
+new-trial-1 | drug-x 10 mg       | drug-x      | phase 2 | -8.3       | 1.2
+new-trial-1 | placebo            | placebo     | phase 2 | -1.7       | 0.9</code></pre>
+<p>Once confirmed, the data is appended to the QA file:</p>
+<pre><code>/lillyce/qa/diabetes/bnma/obesity/data/shared/weight/
+  cwm_wl_nont2d_qa_20260827.xlsx  →  cwm_wl_nont2d_qa_20260901.xlsx</code></pre>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Important
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>The QA file is <strong>renamed</strong> so the date in the filename reflects when data was last added. This is an in-place rename (not a copy) — there’s always exactly one QA file, with the latest date.</p>
+</div>
+</div>
+</section>
+<section id="steps-56-model-configuration" class="level3" data-number="5.4">
+<h3 data-number="5.4" class="anchored" data-anchor-id="steps-56-model-configuration"><span class="header-section-number">5.4</span> Steps 5–6: Model configuration</h3>
+<p>The skill creates the run’s working folders:</p>
+<pre><code>programs/  → /lillyce/qa/diabetes/bnma/obesity/programs/20260901_cwm_wl_nont2d/
+output/    → /lillyce/qa/diabetes/bnma/obesity/output/shared/20260901_cwm_wl_nont2d/</code></pre>
+<p>Then asks for the one design decision that matters:</p>
+<blockquote class="blockquote">
+<p><strong>Heterogeneity: random-effects or fixed-effect?</strong></p>
+</blockquote>
+<div class="callout callout-style-default callout-warning callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Warning</span>Star network detection
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>If every non-placebo treatment in your network comes from exactly one study (a “star” network), the skill will warn you:</p>
+<blockquote class="blockquote">
+<p><em>“Full star network detected — σ cannot be estimated, CIs will be prior-inflated with random-effects. Recommend fixed-effect.”</em></p>
+</blockquote>
+<p>This is a recommendation, not an override — you choose. If you’re unsure, fixed-effect is the safer choice for star networks.</p>
+</div>
+</div>
+<p>All other settings use defaults that match the production <code>EliLillyCo/CMH.BNMA</code> app:</p>
+<ul>
+<li>Route: both (oral + injectable)</li>
+<li>Evidence: both (observed + prediction)</li>
+<li>Effect: both plots always produced (relative + absolute)</li>
+<li>MCMC: 10,000 adapt, 10,000 burn-in, 20,000 iterations, thin by 10, 3 chains</li>
+</ul>
+</section>
+<section id="step-7-fit-and-output" class="level3" data-number="5.5">
+<h3 data-number="5.5" class="anchored" data-anchor-id="step-7-fit-and-output"><span class="header-section-number">5.5</span> Step 7: Fit and output</h3>
+<p>The skill runs the full pipeline in <strong>one R process</strong> — no separate scripts, no intermediate steps:</p>
+<ol type="1">
+<li>Load and merge PRD + QA data</li>
+<li>Build BATMAN matrices (the JAGS input format)</li>
+<li>Fit the BNMA model via JAGS (~3–5 minutes)</li>
+<li>Fit the pooled-placebo model (for absolute effects)</li>
+<li>Render both forest plots</li>
+<li>Write the <code>.Rmd</code> report</li>
+<li>Render the <code>.html</code> report</li>
+</ol>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># What's happening under the hood:</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="ex">module</span> load R/4.4.2 jags <span class="dv">2</span><span class="op">&gt;</span>/dev/null</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="ex">Rscript</span> /tmp/<span class="va">$USER</span>/cmh_ci_lib/run_bnma_pipeline.R <span class="dt">\</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">--prd</span> <span class="op">&lt;</span>prd_path<span class="op">&gt;</span> --qa <span class="op">&lt;</span>qa_path<span class="op">&gt;</span> <span class="dt">\</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">--manifest</span> <span class="op">&lt;</span>manifest.yaml<span class="op">&gt;</span> --model model_random.txt <span class="dt">\</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">--cache</span> /tmp/<span class="va">$USER</span>/cmh_ci_lib/samples.rds <span class="dt">\</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">--fit-placebo</span> <span class="at">--placebo-cache</span> /tmp/<span class="va">$USER</span>/cmh_ci_lib/placebo_samples.rds <span class="dt">\</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">--plot</span> <span class="at">--effect</span> both <span class="dt">\</span></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">--plot-out</span> <span class="op">&lt;</span>output_folder<span class="op">&gt;</span>/forest_plot_relative.png <span class="dt">\</span></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">--plot-out-absolute</span> <span class="op">&lt;</span>output_folder<span class="op">&gt;</span>/forest_plot_absolute.png</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Both forest plots are displayed immediately in the terminal.</p>
+</section>
+</section>
+<section id="understanding-the-outputs" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="understanding-the-outputs"><span class="header-section-number">6</span> Understanding the Outputs</h2>
+<section id="forest-plots" class="level3" data-number="6.1">
+<h3 data-number="6.1" class="anchored" data-anchor-id="forest-plots"><span class="header-section-number">6.1</span> Forest plots</h3>
+<p>The skill produces two forest plots:</p>
+<p><strong>Placebo-adjusted (relative)</strong> — shows the mean percent change in body weight relative to placebo, with 95% credible intervals. This is the standard competitive landscape view.</p>
+<p><strong>Absolute</strong> — shows the estimated absolute percent change in body weight (placebo response + treatment effect), useful for comparing raw efficacy.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="images/example_forest_plot.png" class="img-fluid figure-img" style="width:90.0%"></p>
+<figcaption>Example forest plot from a previous run (oral compounds, ADA 2026).</figcaption>
+</figure>
+</div>
+<p>Both plots are saved as PNGs in the run’s output folder:</p>
+<pre><code>/lillyce/qa/diabetes/bnma/obesity/output/shared/YYYYMMDD_&lt;slug&gt;/
+  ├── forest_plot_relative.png
+  └── forest_plot_absolute.png</code></pre>
+</section>
+<section id="the-.rmd-report" class="level3" data-number="6.2">
+<h3 data-number="6.2" class="anchored" data-anchor-id="the-.rmd-report"><span class="header-section-number">6.2</span> The .Rmd report</h3>
+<p>The <code>.Rmd</code> is not just documentation — <strong>it is the re-runnable analysis script</strong>. It contains six R code chunks you can step through in RStudio:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Chunk</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>1. Setup</strong></td>
+<td>Load libraries (<code>rjags</code>, <code>dplyr</code>, <code>readxl</code>, <code>ggplot2</code>), define paths and config</td>
+</tr>
+<tr class="even">
+<td><strong>2. Data load</strong></td>
+<td>Read PRD/QA, merge, filter to included studies</td>
+</tr>
+<tr class="odd">
+<td><strong>3. Build BATMAN</strong></td>
+<td>Construct JAGS matrices (<code>y</code>, <code>se</code>, <code>trt</code>, <code>na</code>, <code>ns</code>, <code>M</code>)</td>
+</tr>
+<tr class="even">
+<td><strong>4. Fit model</strong></td>
+<td>JAGS model definition, <code>jags.model()</code>, burn-in, <code>coda.samples()</code></td>
+</tr>
+<tr class="odd">
+<td><strong>5. Results</strong></td>
+<td>Extract posteriors, build result table, fit pooled-placebo model</td>
+</tr>
+<tr class="even">
+<td><strong>6. Forest plots</strong></td>
+<td>Render both relative and absolute forest plots</td>
+</tr>
+</tbody>
+</table>
+<p>To re-run an analysis:</p>
+<ol type="1">
+<li>Open <code>report.Rmd</code> in RStudio</li>
+<li>Make sure <code>module load R/4.4.2 jags</code> is active in your terminal</li>
+<li>Run chunks sequentially (Ctrl+Shift+Enter per chunk)</li>
+<li>Edit paths or study lists as needed, then re-run</li>
+</ol>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Tip
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Each chunk is self-contained enough that you can re-run from any chunk if the earlier objects are already in your R workspace. Want to just re-render the plots with different styling? Jump straight to Chunk 6.</p>
+</div>
+</div>
+</section>
+<section id="the-.html-report" class="level3" data-number="6.3">
+<h3 data-number="6.3" class="anchored" data-anchor-id="the-.html-report"><span class="header-section-number">6.3</span> The .html report</h3>
+<p>The <code>.html</code> is a pre-rendered version of the <code>.Rmd</code> — readable in any browser, shareable by email or on SharePoint. It contains:</p>
+<ul>
+<li><strong>Data provenance</strong> — exact PRD/QA file paths, any supplemental data sources, data adjustments applied</li>
+<li><strong>Studies included</strong> — the confirmed study list</li>
+<li><strong>Design choices</strong> — model type, route/evidence filters</li>
+<li><strong>Code</strong> — all six chunks displayed (but not executed in the render)</li>
+<li><strong>Results</strong> — links to the output plots</li>
+</ul>
+<p>Both files live in the programs folder:</p>
+<pre><code>/lillyce/qa/diabetes/bnma/obesity/programs/YYYYMMDD_&lt;slug&gt;/
+  ├── report.Rmd
+  └── report.html</code></pre>
+</section>
+</section>
+<section id="common-scenarios" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="common-scenarios"><span class="header-section-number">7</span> Common Scenarios</h2>
+<section id="i-just-want-to-see-whats-in-the-data" class="level3" data-number="7.1">
+<h3 data-number="7.1" class="anchored" data-anchor-id="i-just-want-to-see-whats-in-the-data"><span class="header-section-number">7.1</span> “I just want to see what’s in the data”</h3>
+<p>Type <code>/cmh-ci</code>, confirm the landing page, and review the study listing in Step 1. When asked about new data or running the BNMA, say <strong>no</strong>. The session ends cleanly — nothing was written, no folders created.</p>
+</section>
+<section id="i-have-a-new-press-release-to-add" class="level3" data-number="7.2">
+<h3 data-number="7.2" class="anchored" data-anchor-id="i-have-a-new-press-release-to-add"><span class="header-section-number">7.2</span> “I have a new press release to add”</h3>
+<p>Run <code>/cmh-ci</code> through the full flow. At Step 2, say <strong>yes</strong> and paste the link or data. The skill maps the numbers to QA schema columns, shows you the rows, and appends them to the QA file (renaming it to today’s date). You can then either fit the BNMA or stop there.</p>
+</section>
+<section id="re-run-last-months-analysis-with-updated-data" class="level3" data-number="7.3">
+<h3 data-number="7.3" class="anchored" data-anchor-id="re-run-last-months-analysis-with-updated-data"><span class="header-section-number">7.3</span> “Re-run last month’s analysis with updated data”</h3>
+<p>Open the previous run’s <code>report.Rmd</code> in RStudio. Update the PRD/QA file paths in Chunk 1 if they’ve changed, then run all chunks. Or run <code>/cmh-ci</code> fresh — it will pick up the latest PRD and QA files automatically.</p>
+</section>
+<section id="switch-from-random-effects-to-fixed-effects" class="level3" data-number="7.4">
+<h3 data-number="7.4" class="anchored" data-anchor-id="switch-from-random-effects-to-fixed-effects"><span class="header-section-number">7.4</span> “Switch from random-effects to fixed-effects”</h3>
+<p>At Step 6, choose <strong>fixed-effect</strong> instead of the default random-effects. This is most useful when you have a star network (the skill will recommend it if it detects one). You can also edit the <code>model_type</code> in an existing <code>report.Rmd</code> and re-run from Chunk 4.</p>
+</section>
+</section>
+<section id="file-locations-reference" class="level2" data-number="8">
+<h2 data-number="8" class="anchored" data-anchor-id="file-locations-reference"><span class="header-section-number">8</span> File Locations Reference</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>What</th>
+<th>Path</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>PRD data</strong></td>
+<td><code>/lillyce/prd/diabetes/bnma/obesity/data/shared/weight/cwm_wl_nont2d_prd_YYYYMMDD.xlsx</code></td>
+</tr>
+<tr class="even">
+<td><strong>QA data</strong></td>
+<td><code>/lillyce/qa/diabetes/bnma/obesity/data/shared/weight/cwm_wl_nont2d_qa_YYYYMMDD.xlsx</code></td>
+</tr>
+<tr class="odd">
+<td><strong>Programs</strong> (per run)</td>
+<td><code>/lillyce/qa/diabetes/bnma/obesity/programs/YYYYMMDD_&lt;slug&gt;/</code></td>
+</tr>
+<tr class="even">
+<td><strong>Output</strong> (per run)</td>
+<td><code>/lillyce/qa/diabetes/bnma/obesity/output/shared/YYYYMMDD_&lt;slug&gt;/</code></td>
+</tr>
+<tr class="odd">
+<td><strong>Skill file</strong> (global)</td>
+<td><code>~/.claude/skills/cmh-ci/SKILL.md</code></td>
+</tr>
+<tr class="even">
+<td><strong>Skill file</strong> (project)</td>
+<td><code>&lt;project&gt;/.claude/skills/cmh-ci/SKILL.md</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="statistical-models" class="level2" data-number="9">
+<h2 data-number="9" class="anchored" data-anchor-id="statistical-models"><span class="header-section-number">9</span> Statistical Models</h2>
+<p>The BNMA uses JAGS (Just Another Gibbs Sampler) to fit Bayesian hierarchical models. Understanding what’s being fitted helps interpret the forest plots and decide between random- and fixed-effects.</p>
+<section id="the-batman-data-structure" class="level3" data-number="9.1">
+<h3 data-number="9.1" class="anchored" data-anchor-id="the-batman-data-structure"><span class="header-section-number">9.1</span> The BATMAN data structure</h3>
+<p>Before fitting, the skill converts the tabular PRD/QA data into <strong>BATMAN matrices</strong> — the input format JAGS expects:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Symbol</th>
+<th>Dimension</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">\(y_{ij}\)</span></td>
+<td><span class="math inline">\(ns \times \max(n_a)\)</span></td>
+<td>Observed effect (% weight change) for study <span class="math inline">\(i\)</span>, arm <span class="math inline">\(j\)</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\(se_{ij}\)</span></td>
+<td><span class="math inline">\(ns \times \max(n_a)\)</span></td>
+<td>Standard error of <span class="math inline">\(y_{ij}\)</span></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\(trt_{ij}\)</span></td>
+<td><span class="math inline">\(ns \times \max(n_a)\)</span></td>
+<td>Treatment index for study <span class="math inline">\(i\)</span>, arm <span class="math inline">\(j\)</span> (1 = placebo)</td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\(n_a[i]\)</span></td>
+<td><span class="math inline">\(ns\)</span></td>
+<td>Number of arms in study <span class="math inline">\(i\)</span></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\(ns\)</span></td>
+<td>scalar</td>
+<td>Total number of studies</td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\(M\)</span></td>
+<td>scalar</td>
+<td>Total number of treatments (including placebo)</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="random-effects-model-default" class="level3" data-number="9.2">
+<h3 data-number="9.2" class="anchored" data-anchor-id="random-effects-model-default"><span class="header-section-number">9.2</span> Random-effects model (default)</h3>
+<p>The default model (<code>model_random.txt</code>) is a contrast-based random-effects NMA. In statistical notation:</p>
+<p><strong>Likelihood:</strong> <span class="math display">\[
+y_{ij} \sim \mathcal{N}(\eta_{ij}, \; se_{ij}^2)
+\]</span></p>
+<p>where <span class="math inline">\(\eta_{ij}\)</span> is the true underlying effect for study <span class="math inline">\(i\)</span>, arm <span class="math inline">\(j\)</span>.</p>
+<p><strong>Study-level baseline:</strong> <span class="math display">\[
+\phi_i \sim \mathcal{N}(0, \; 10^4) \qquad \text{(vague prior)}
+\]</span></p>
+<p><strong>Treatment effects (random):</strong> <span class="math display">\[
+\eta_{ij} = \phi_i + \delta_{ij}
+\]</span> <span class="math display">\[
+\delta_{i1} = 0 \qquad \text{(reference arm)}
+\]</span> <span class="math display">\[
+\delta_{ij} \sim \mathcal{N}\!\Big(\big(d_{t_{ij}} - d_{t_{i1}}\big) + sw_{ij}, \;\; \tau^2 \cdot \tfrac{2(j-1)}{j}\Big) \quad \text{for } j \geq 2
+\]</span></p>
+<p>where:</p>
+<ul>
+<li><span class="math inline">\(d_k\)</span> is the overall treatment effect for treatment <span class="math inline">\(k\)</span> relative to placebo (<span class="math inline">\(d_1 = 0\)</span>)</li>
+<li><span class="math inline">\(sw_{ij}\)</span> is the multi-arm correction term (Higgins &amp; Whitehead, 1996)</li>
+<li><span class="math inline">\(\tau^2 = 1/\sigma^2\)</span> is the between-study precision</li>
+</ul>
+<p><strong>Priors on treatment effects and heterogeneity:</strong> <span class="math display">\[
+d_k \sim \mathcal{N}(0, \; 10^4) \quad \text{for } k = 2, \ldots, M
+\]</span> <span class="math display">\[
+\sigma \sim \text{Uniform}(0, \; 8)
+\]</span></p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>The <span class="math inline">\(\sigma\)</span> parameter captures <strong>between-study heterogeneity</strong> — how much the treatment effect varies across studies beyond what’s explained by sampling error. A larger <span class="math inline">\(\sigma\)</span> means wider credible intervals on the forest plot.</p>
+</div>
+</div>
+</section>
+<section id="fixed-effect-model" class="level3" data-number="9.3">
+<h3 data-number="9.3" class="anchored" data-anchor-id="fixed-effect-model"><span class="header-section-number">9.3</span> Fixed-effect model</h3>
+<p>The fixed-effect model (<code>model_fixed.txt</code>) is identical except that the treatment contrasts are <strong>deterministic</strong> rather than stochastic:</p>
+<p><span class="math display">\[
+\delta_{ij} = \big(d_{t_{ij}} - d_{t_{i1}}\big) + sw_{ij} \quad \text{(no random component)}
+\]</span></p>
+<p>This removes the between-study heterogeneity parameter <span class="math inline">\(\sigma\)</span> from the estimation. In practice:</p>
+<ul>
+<li><strong>Tighter credible intervals</strong> (no heterogeneity inflation)</li>
+<li><strong>Appropriate for star networks</strong> where <span class="math inline">\(\sigma\)</span> cannot be estimated (every non-placebo treatment appears in only one study)</li>
+<li>The <span class="math inline">\(\sigma\)</span> and <span class="math inline">\(\tau^2\)</span> declarations remain in the JAGS code for structural symmetry but are not used in the likelihood</li>
+</ul>
+</section>
+<section id="simultaneous-models-for-absolute-effects" class="level3" data-number="9.4">
+<h3 data-number="9.4" class="anchored" data-anchor-id="simultaneous-models-for-absolute-effects"><span class="header-section-number">9.4</span> Simultaneous models (for absolute effects)</h3>
+<p>The absolute-effect forest plot requires estimating the <strong>placebo response</strong> in addition to the treatment contrasts. This uses a pooled-baseline variant:</p>
+<p><strong>Pooled baseline (replaces the flat prior on <span class="math inline">\(\phi_i\)</span>):</strong> <span class="math display">\[
+\phi_i \sim \mathcal{N}(m, \; \tau^2_m)
+\]</span> <span class="math display">\[
+m \sim \mathcal{N}(0, \; 10^4), \quad \sigma_m \sim \text{Uniform}(0, \; 8)
+\]</span> <span class="math display">\[
+\mu_{\text{new}} \sim \mathcal{N}(m, \; \sigma_m^2) \qquad \text{(predicted placebo for a new study)}
+\]</span></p>
+<p>The absolute effect for treatment <span class="math inline">\(k\)</span> is then:</p>
+<p><span class="math display">\[
+\text{Absolute}_k = \mu_{\text{new}} + d_k
+\]</span></p>
+<p>This is what the absolute forest plot displays — the estimated total weight change (not just relative to placebo).</p>
+</section>
+<section id="pooled-placebo-meta-analysis" class="level3" data-number="9.5">
+<h3 data-number="9.5" class="anchored" data-anchor-id="pooled-placebo-meta-analysis"><span class="header-section-number">9.5</span> Pooled-placebo meta-analysis</h3>
+<p>A separate, simpler model estimates the pooled placebo response from placebo arms only:</p>
+<p><span class="math display">\[
+y^{\text{pbo}}_i \sim \mathcal{N}\!\big(\mu_{s_i}, \; se^{\text{pbo}}_i{}^2\big)
+\]</span> <span class="math display">\[
+\mu_i \sim \mathcal{N}(m, \; 1/\sigma_m^2)
+\]</span> <span class="math display">\[
+\mu_{\text{new}} \sim \mathcal{N}(m, \; 1/\sigma_m^2)
+\]</span></p>
+<p>This produces the baseline <span class="math inline">\(\mu_{\text{new}}\)</span> that gets added to each <span class="math inline">\(d_k\)</span> for the absolute forest plot.</p>
+</section>
+<section id="model-selection-summary" class="level3" data-number="9.6">
+<h3 data-number="9.6" class="anchored" data-anchor-id="model-selection-summary"><span class="header-section-number">9.6</span> Model selection summary</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Model</th>
+<th>When to use</th>
+<th>Forest plot</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>model_random.txt</code></td>
+<td>Default — multiple studies per treatment, heterogeneity estimable</td>
+<td>Relative (placebo-adjusted)</td>
+</tr>
+<tr class="even">
+<td><code>model_fixed.txt</code></td>
+<td>Star networks, or sensitivity analysis</td>
+<td>Relative (tighter CIs)</td>
+</tr>
+<tr class="odd">
+<td><code>model_simultaneous.txt</code></td>
+<td>Need absolute effects with heterogeneity</td>
+<td>Absolute</td>
+</tr>
+<tr class="even">
+<td><code>model_simultaneous_fixed.txt</code></td>
+<td>Absolute effects on a star network</td>
+<td>Absolute (tighter CIs)</td>
+</tr>
+<tr class="odd">
+<td><code>model_placebo_random.txt</code></td>
+<td>Always runs alongside — estimates pooled placebo</td>
+<td>Absolute baseline</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="mcmc-settings" class="level3" data-number="9.7">
+<h3 data-number="9.7" class="anchored" data-anchor-id="mcmc-settings"><span class="header-section-number">9.7</span> MCMC settings</h3>
+<p>The default MCMC configuration matches the production <code>EliLillyCo/CMH.BNMA</code> app:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Value</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>n.adapt</code></td>
+<td>10,000</td>
+<td>Adaptation phase (tuning samplers)</td>
+</tr>
+<tr class="even">
+<td>Burn-in</td>
+<td>10,000</td>
+<td>Discarded initial samples</td>
+</tr>
+<tr class="odd">
+<td>Iterations</td>
+<td>20,000</td>
+<td>Posterior samples retained</td>
+</tr>
+<tr class="even">
+<td>Thinning</td>
+<td>10</td>
+<td>Keep every 10th sample (reduces autocorrelation)</td>
+</tr>
+<tr class="odd">
+<td>Chains</td>
+<td>3</td>
+<td>Independent MCMC chains</td>
+</tr>
+<tr class="even">
+<td><strong>Effective samples</strong></td>
+<td><strong>6,000</strong></td>
+<td>20,000 / 10 thinning × 3 chains</td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="faq-troubleshooting" class="level2" data-number="10">
+<h2 data-number="10" class="anchored" data-anchor-id="faq-troubleshooting"><span class="header-section-number">10</span> FAQ / Troubleshooting</h2>
+<section id="r-or-jags-not-found" class="level3" data-number="10.1">
+<h3 data-number="10.1" class="anchored" data-anchor-id="r-or-jags-not-found"><span class="header-section-number">10.1</span> “R or JAGS not found”</h3>
+<p>The skill loads modules automatically (<code>module load R/4.4.2 jags</code>). If this fails, check that the modules are available on your cluster node:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="ex">module</span> avail R</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="ex">module</span> avail jags</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>If you’re on a login node where modules aren’t available, submit via <code>srun</code> or connect to a compute node first.</p>
+</section>
+<section id="star-network-detected-what-does-this-mean" class="level3" data-number="10.2">
+<h3 data-number="10.2" class="anchored" data-anchor-id="star-network-detected-what-does-this-mean"><span class="header-section-number">10.2</span> “Star network detected — what does this mean?”</h3>
+<p>A star network means every non-placebo treatment comes from exactly one study. In this topology, the between-study heterogeneity parameter (σ) cannot be estimated — the model relies entirely on its prior, which inflates the credible intervals. Switching to <strong>fixed-effect</strong> removes σ from the model and gives tighter, more interpretable intervals.</p>
+</section>
+<section id="the-skill-takes-too-long" class="level3" data-number="10.3">
+<h3 data-number="10.3" class="anchored" data-anchor-id="the-skill-takes-too-long"><span class="header-section-number">10.3</span> “The skill takes too long”</h3>
+<p>The JAGS MCMC fit is the bottleneck (~3–5 minutes for a typical 7-study, 15-treatment network). This is inherent to Bayesian estimation and matches the production <code>CMH.BNMA</code> app’s runtime. Everything else (data loading, plotting, HTML render) takes seconds.</p>
+</section>
+<section id="can-i-edit-the-.rmd-and-re-render" class="level3" data-number="10.4">
+<h3 data-number="10.4" class="anchored" data-anchor-id="can-i-edit-the-.rmd-and-re-render"><span class="header-section-number">10.4</span> “Can I edit the .Rmd and re-render?”</h3>
+<p>Yes — that’s the point. The <code>.Rmd</code> is a fully self-contained R script with hardcoded paths from the original run. Open it in RStudio, modify what you need (different studies, different model, different plot styling), and re-run the chunks. To regenerate the HTML:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="ex">module</span> load R/4.4.2 <span class="dv">2</span><span class="op">&gt;</span>/dev/null</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">'rmarkdown::render("report.Rmd", output_format = "html_document")'</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="where-did-my-qa-file-go" class="level3" data-number="10.5">
+<h3 data-number="10.5" class="anchored" data-anchor-id="where-did-my-qa-file-go"><span class="header-section-number">10.5</span> “Where did my QA file go?”</h3>
+<p>When you append new data, the QA file is <strong>renamed</strong> to reflect today’s date (e.g.&nbsp;<code>_qa_20260827.xlsx</code> → <code>_qa_20260901.xlsx</code>). There’s always exactly one file — look for the most recent date in the directory:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ls</span> <span class="at">-lt</span> /lillyce/qa/diabetes/bnma/obesity/data/shared/weight/cwm_wl_nont2d_qa_<span class="pp">*</span>.xlsx</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<!-- -->
+
+</section>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+    const viewSource = window.document.getElementById('quarto-view-source') ||
+                       window.document.getElementById('quarto-code-tools-source');
+    if (viewSource) {
+      const sourceUrl = viewSource.getAttribute("data-quarto-source-url");
+      viewSource.addEventListener("click", function(e) {
+        if (sourceUrl) {
+          // rstudio viewer pane
+          if (/\bcapabilities=\b/.test(window.location)) {
+            window.open(sourceUrl);
+          } else {
+            window.location.href = sourceUrl;
+          }
+        } else {
+          const modal = new bootstrap.Modal(document.getElementById('quarto-embedded-source-code-modal'));
+          modal.show();
+        }
+        return false;
+      });
+    }
+    function toggleCodeHandler(show) {
+      return function(e) {
+        const detailsSrc = window.document.querySelectorAll(".cell > details > .sourceCode");
+        for (let i=0; i<detailsSrc.length; i++) {
+          const details = detailsSrc[i].parentElement;
+          if (show) {
+            details.open = true;
+          } else {
+            details.removeAttribute("open");
+          }
+        }
+        const cellCodeDivs = window.document.querySelectorAll(".cell > .sourceCode");
+        const fromCls = show ? "hidden" : "unhidden";
+        const toCls = show ? "unhidden" : "hidden";
+        for (let i=0; i<cellCodeDivs.length; i++) {
+          const codeDiv = cellCodeDivs[i];
+          if (codeDiv.classList.contains(fromCls)) {
+            codeDiv.classList.remove(fromCls);
+            codeDiv.classList.add(toCls);
+          } 
+        }
+        return false;
+      }
+    }
+    const hideAllCode = window.document.getElementById("quarto-hide-all-code");
+    if (hideAllCode) {
+      hideAllCode.addEventListener("click", toggleCodeHandler(false));
+    }
+    const showAllCode = window.document.getElementById("quarto-show-all-code");
+    if (showAllCode) {
+      showAllCode.addEventListener("click", toggleCodeHandler(true));
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "/cmh-ci — BNMA Skill Tutorial"</span></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a><span class="an">author:</span><span class="co"> "CMH Competitive Intelligence Team"</span></span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a><span class="an">date:</span><span class="co"> "2026-09-01"</span></span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a><span class="an">format:</span></span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a><span class="co">  html:</span></span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a><span class="co">    toc: true</span></span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a><span class="co">    toc-depth: 3</span></span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a><span class="co">    theme: cosmo</span></span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a><span class="co">    code-fold: true</span></span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a><span class="co">    code-tools: true</span></span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a><span class="co">    number-sections: true</span></span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a><span class="fu">## Overview</span></span>
+<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a><span class="fu">### What is a BNMA?</span></span>
+<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-19"><a href="#cb18-19" aria-hidden="true" tabindex="-1"></a>A **Bayesian Network Meta-Analysis** (BNMA) combines evidence from multiple clinical trials to estimate how different treatments compare — even when those treatments were never tested head-to-head. It works by linking trials through shared comparators (typically placebo), forming a "network" of indirect comparisons.</span>
+<span id="cb18-20"><a href="#cb18-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-21"><a href="#cb18-21" aria-hidden="true" tabindex="-1"></a>At Lilly, the Cardiometabolic Health (CMH) team uses BNMAs to build the **competitive landscape** — understanding where our compounds stand relative to competitors across the obesity and diabetes portfolio. The primary deliverable is a **forest plot** showing placebo-adjusted weight loss (or other endpoints like HbA1c) for every treatment in the network, with Bayesian credible intervals. These plots inform competitive intelligence decks, regulatory strategy, and clinical development decisions.</span>
+<span id="cb18-22"><a href="#cb18-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-23"><a href="#cb18-23" aria-hidden="true" tabindex="-1"></a>The underlying statistical engine is **JAGS** (Just Another Gibbs Sampler), which fits hierarchical Bayesian models via Markov Chain Monte Carlo (MCMC) sampling. The production reference implementation is the <span class="in">`EliLillyCo/CMH.BNMA`</span> Shiny app — this skill matches its model specifications and MCMC settings exactly.</span>
+<span id="cb18-24"><a href="#cb18-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-25"><a href="#cb18-25" aria-hidden="true" tabindex="-1"></a><span class="fu">### What `/cmh-ci` does</span></span>
+<span id="cb18-26"><a href="#cb18-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-27"><a href="#cb18-27" aria-hidden="true" tabindex="-1"></a><span class="in">`/cmh-ci`</span> is a Claude Code skill that automates the end-to-end BNMA pipeline. It replaces the manual process of assembling study data, writing JAGS scripts, and generating forest plots — a workflow that previously required editing hardcoded study lists and running multiple scripts by hand.</span>
+<span id="cb18-28"><a href="#cb18-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-29"><a href="#cb18-29" aria-hidden="true" tabindex="-1"></a>The skill walks you through the full pipeline interactively:</span>
+<span id="cb18-30"><a href="#cb18-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-31"><a href="#cb18-31" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**Read** the PRD/QA dataset and show you what's in it</span>
+<span id="cb18-32"><a href="#cb18-32" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**Select** which studies and compounds to include</span>
+<span id="cb18-33"><a href="#cb18-33" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**Add** new data from press releases or publications (optional)</span>
+<span id="cb18-34"><a href="#cb18-34" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span>**Fit** a BNMA model using JAGS</span>
+<span id="cb18-35"><a href="#cb18-35" aria-hidden="true" tabindex="-1"></a><span class="ss">5. </span>**Output** four deliverables:</span>
+<span id="cb18-36"><a href="#cb18-36" aria-hidden="true" tabindex="-1"></a><span class="ss">   - </span>Placebo-adjusted (relative) forest plot</span>
+<span id="cb18-37"><a href="#cb18-37" aria-hidden="true" tabindex="-1"></a><span class="ss">   - </span>Absolute forest plot</span>
+<span id="cb18-38"><a href="#cb18-38" aria-hidden="true" tabindex="-1"></a><span class="ss">   - </span>Re-runnable <span class="in">`.Rmd`</span> (open in RStudio, run chunk-by-chunk)</span>
+<span id="cb18-39"><a href="#cb18-39" aria-hidden="true" tabindex="-1"></a><span class="ss">   - </span>Pre-rendered <span class="in">`.html`</span> report (share immediately)</span>
+<span id="cb18-40"><a href="#cb18-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-41"><a href="#cb18-41" aria-hidden="true" tabindex="-1"></a>:::{.callout-tip}</span>
+<span id="cb18-42"><a href="#cb18-42" aria-hidden="true" tabindex="-1"></a>You don't have to run the full analysis. Stopping after Step 1 (reviewing the data) or after adding new data to QA are both valid, complete sessions.</span>
+<span id="cb18-43"><a href="#cb18-43" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb18-44"><a href="#cb18-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-45"><a href="#cb18-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-46"><a href="#cb18-46" aria-hidden="true" tabindex="-1"></a><span class="fu">## Prerequisites</span></span>
+<span id="cb18-47"><a href="#cb18-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-48"><a href="#cb18-48" aria-hidden="true" tabindex="-1"></a>You're working on the Lilly HPC cluster, so the heavy dependencies (R, JAGS, and all required R packages) are already installed — nothing to set up. The skill loads them automatically via <span class="in">`module load`</span> when it runs.</span>
+<span id="cb18-49"><a href="#cb18-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-50"><a href="#cb18-50" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> What you need <span class="pp">|</span> Notes <span class="pp">|</span></span>
+<span id="cb18-51"><a href="#cb18-51" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|</span></span>
+<span id="cb18-52"><a href="#cb18-52" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Claude Code** <span class="pp">|</span> The CLI — <span class="in">`claude --version`</span> to confirm <span class="pp">|</span></span>
+<span id="cb18-53"><a href="#cb18-53" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **HPC cluster session** <span class="pp">|</span> SSH'd in or on a compute node <span class="pp">|</span></span>
+<span id="cb18-54"><a href="#cb18-54" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Data access** <span class="pp">|</span> Read access to <span class="in">`/lillyce/prd/`</span> and <span class="in">`/lillyce/qa/`</span> <span class="pp">|</span></span>
+<span id="cb18-55"><a href="#cb18-55" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-56"><a href="#cb18-56" aria-hidden="true" tabindex="-1"></a>That's it. R (4.4.2), JAGS (4.3.2), and all R packages (<span class="in">`rjags`</span>, <span class="in">`coda`</span>, <span class="in">`dplyr`</span>, <span class="in">`readxl`</span>, <span class="in">`ggplot2`</span>, <span class="in">`openxlsx`</span>, <span class="in">`rmarkdown`</span>) are available cluster-wide via modules and the shared R library — the skill handles the <span class="in">`module load`</span> calls for you.</span>
+<span id="cb18-57"><a href="#cb18-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-58"><a href="#cb18-58" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-59"><a href="#cb18-59" aria-hidden="true" tabindex="-1"></a><span class="fu">## Data Schema</span></span>
+<span id="cb18-60"><a href="#cb18-60" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-61"><a href="#cb18-61" aria-hidden="true" tabindex="-1"></a><span class="fu">### PRD/QA workbook structure</span></span>
+<span id="cb18-62"><a href="#cb18-62" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-63"><a href="#cb18-63" aria-hidden="true" tabindex="-1"></a>The PRD and QA workbooks share the same schema. Each file has two data sheets — **Observed** (from completed trials) and **Prediction** (model-projected from earlier-phase data) — plus a Summary sheet.</span>
+<span id="cb18-64"><a href="#cb18-64" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-65"><a href="#cb18-65" aria-hidden="true" tabindex="-1"></a>**Key columns** (grouped by role):</span>
+<span id="cb18-66"><a href="#cb18-66" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-67"><a href="#cb18-67" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Group <span class="pp">|</span> Columns <span class="pp">|</span> What they hold <span class="pp">|</span></span>
+<span id="cb18-68"><a href="#cb18-68" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|</span></span>
+<span id="cb18-69"><a href="#cb18-69" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **BNMA inputs** | `pchg_wl_ee`, `se_wl_ee` | % weight change (efficacy estimand) and its SE — **the two columns the model fits on** <span class="pp">|</span></span>
+<span id="cb18-70"><a href="#cb18-70" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Study identity** <span class="pp">|</span> <span class="in">`study_name`</span>, <span class="in">`treatment`</span>, <span class="in">`compound`</span>, <span class="in">`phase`</span> <span class="pp">|</span> Which study, arm, molecule, and trial phase <span class="pp">|</span></span>
+<span id="cb18-71"><a href="#cb18-71" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Design** <span class="pp">|</span> <span class="in">`n`</span>, <span class="in">`baseline_wgt`</span>, <span class="in">`study_duration`</span>, <span class="in">`aom`</span>, <span class="in">`population`</span> <span class="pp">|</span> Sample size, baseline weight, duration, route (Oral/Injectable), population scope <span class="pp">|</span></span>
+<span id="cb18-72"><a href="#cb18-72" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Alternate estimand** <span class="pp">|</span> <span class="in">`pchg_wl_tre`</span>, <span class="in">`se_wl_tre`</span> <span class="pp">|</span> Treatment-regimen estimand (secondary) <span class="pp">|</span></span>
+<span id="cb18-73"><a href="#cb18-73" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Provenance** <span class="pp">|</span> <span class="in">`time_entry`</span>, <span class="in">`source`</span>, <span class="in">`data_type`</span>, <span class="in">`sponsor`</span> <span class="pp">|</span> When curated, citation/URL, source type, sponsor <span class="pp">|</span></span>
+<span id="cb18-74"><a href="#cb18-74" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Curation** <span class="pp">|</span> <span class="in">`curator_name`</span>, <span class="in">`curator_note`</span>, <span class="in">`qc_name`</span>, <span class="in">`qc_note`</span>, <span class="in">`derivation_spec`</span>, <span class="in">`analysis_method`</span> <span class="pp">|</span> Audit trail — who curated, QC'd, and how values were derived <span class="pp">|</span></span>
+<span id="cb18-75"><a href="#cb18-75" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-76"><a href="#cb18-76" aria-hidden="true" tabindex="-1"></a>:::{.callout-important}</span>
+<span id="cb18-77"><a href="#cb18-77" aria-hidden="true" tabindex="-1"></a>Every treatment arm must have both **`pchg_wl_ee`** and **`se_wl_ee`**. If SE is not reported, it can be approximated as <span class="in">`fallback_sd / sqrt(n)`</span> — the skill helps compute this during data entry.</span>
+<span id="cb18-78"><a href="#cb18-78" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb18-79"><a href="#cb18-79" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-80"><a href="#cb18-80" aria-hidden="true" tabindex="-1"></a><span class="fu">### How PRD and QA relate</span></span>
+<span id="cb18-81"><a href="#cb18-81" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-84"><a href="#cb18-84" aria-hidden="true" tabindex="-1"></a><span class="in">```{mermaid}</span></span>
+<span id="cb18-85"><a href="#cb18-85" aria-hidden="true" tabindex="-1"></a>%%| fig-cap: <span class="ot">"</span><span class="st">PRD vs QA data flow</span><span class="ot">"</span></span>
+<span id="cb18-86"><a href="#cb18-86" aria-hidden="true" tabindex="-1"></a>flowchart LR</span>
+<span id="cb18-87"><a href="#cb18-87" aria-hidden="true" tabindex="-1"></a>    A[<span class="ot">"</span><span class="st">PRD</span><span class="ch">\n</span><span class="st">(read-only)</span><span class="ot">"</span>] --&gt; C[<span class="ot">"</span><span class="st">Merge</span><span class="ot">"</span>] --&gt; D[<span class="ot">"</span><span class="st">BNMA → plots</span><span class="ot">"</span>]</span>
+<span id="cb18-88"><a href="#cb18-88" aria-hidden="true" tabindex="-1"></a>    B[<span class="ot">"</span><span class="st">QA</span><span class="ch">\n</span><span class="st">(new data here)</span><span class="ot">"</span>] --&gt; C</span>
+<span id="cb18-89"><a href="#cb18-89" aria-hidden="true" tabindex="-1"></a>    style A fill:<span class="co">#3498DB,color:#fff</span></span>
+<span id="cb18-90"><a href="#cb18-90" aria-hidden="true" tabindex="-1"></a>    style B fill:<span class="co">#E67E22,color:#fff</span></span>
+<span id="cb18-91"><a href="#cb18-91" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb18-92"><a href="#cb18-92" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-93"><a href="#cb18-93" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**PRD** (<span class="in">`/lillyce/prd/...`</span>) — the validated, production-tier dataset. Read-only. Updated periodically by the team through the normal curation process.</span>
+<span id="cb18-94"><a href="#cb18-94" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**QA** (<span class="in">`/lillyce/qa/...`</span>) — the living working copy. New data from press releases, publications, or other sources lands here first via the skill's append flow, then eventually gets promoted to PRD through team review.</span>
+<span id="cb18-95"><a href="#cb18-95" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-96"><a href="#cb18-96" aria-hidden="true" tabindex="-1"></a>When fitting, the pipeline merges both: QA rows override PRD rows for the same <span class="in">`study_name`</span> + <span class="in">`treatment`</span> (by keeping the row with the latest <span class="in">`time_entry`</span>).</span>
+<span id="cb18-97"><a href="#cb18-97" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-98"><a href="#cb18-98" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-99"><a href="#cb18-99" aria-hidden="true" tabindex="-1"></a><span class="fu">## Getting Started</span></span>
+<span id="cb18-100"><a href="#cb18-100" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-101"><a href="#cb18-101" aria-hidden="true" tabindex="-1"></a><span class="fu">### Option A: Global install (works from any folder)</span></span>
+<span id="cb18-102"><a href="#cb18-102" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-103"><a href="#cb18-103" aria-hidden="true" tabindex="-1"></a>Place the skill file at:</span>
+<span id="cb18-104"><a href="#cb18-104" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-105"><a href="#cb18-105" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb18-106"><a href="#cb18-106" aria-hidden="true" tabindex="-1"></a><span class="in">~/.claude/skills/cmh-ci/SKILL.md</span></span>
+<span id="cb18-107"><a href="#cb18-107" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb18-108"><a href="#cb18-108" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-109"><a href="#cb18-109" aria-hidden="true" tabindex="-1"></a>Then <span class="in">`/cmh-ci`</span> is available in every Claude Code session, regardless of which directory you're in.</span>
+<span id="cb18-110"><a href="#cb18-110" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-111"><a href="#cb18-111" aria-hidden="true" tabindex="-1"></a><span class="fu">### Option B: Project-level install (works for everyone in that folder)</span></span>
+<span id="cb18-112"><a href="#cb18-112" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-113"><a href="#cb18-113" aria-hidden="true" tabindex="-1"></a>Place the skill inside your project directory:</span>
+<span id="cb18-114"><a href="#cb18-114" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-115"><a href="#cb18-115" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb18-116"><a href="#cb18-116" aria-hidden="true" tabindex="-1"></a><span class="in">/lillyce/qa/diabetes/bnma/obesity/</span></span>
+<span id="cb18-117"><a href="#cb18-117" aria-hidden="true" tabindex="-1"></a><span class="in">├── .claude/</span></span>
+<span id="cb18-118"><a href="#cb18-118" aria-hidden="true" tabindex="-1"></a><span class="in">│   └── skills/</span></span>
+<span id="cb18-119"><a href="#cb18-119" aria-hidden="true" tabindex="-1"></a><span class="in">│       └── cmh-ci/</span></span>
+<span id="cb18-120"><a href="#cb18-120" aria-hidden="true" tabindex="-1"></a><span class="in">│           └── SKILL.md</span></span>
+<span id="cb18-121"><a href="#cb18-121" aria-hidden="true" tabindex="-1"></a><span class="in">└── CLAUDE.md            ← optional pointer (see below)</span></span>
+<span id="cb18-122"><a href="#cb18-122" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb18-123"><a href="#cb18-123" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-124"><a href="#cb18-124" aria-hidden="true" tabindex="-1"></a>Anyone who opens Claude Code from this folder (or any subfolder) gets <span class="in">`/cmh-ci`</span> automatically — no global install needed.</span>
+<span id="cb18-125"><a href="#cb18-125" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-126"><a href="#cb18-126" aria-hidden="true" tabindex="-1"></a><span class="fu">### The CLAUDE.md pointer</span></span>
+<span id="cb18-127"><a href="#cb18-127" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-128"><a href="#cb18-128" aria-hidden="true" tabindex="-1"></a>Drop a small <span class="in">`CLAUDE.md`</span> in the project root so users know the skill exists:</span>
+<span id="cb18-129"><a href="#cb18-129" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-130"><a href="#cb18-130" aria-hidden="true" tabindex="-1"></a><span class="in">```markdown</span></span>
+<span id="cb18-131"><a href="#cb18-131" aria-hidden="true" tabindex="-1"></a><span class="fu"># CMH Competitive Intelligence — BNMA</span></span>
+<span id="cb18-132"><a href="#cb18-132" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-133"><a href="#cb18-133" aria-hidden="true" tabindex="-1"></a>Type <span class="in">`/cmh-ci`</span> to run a Bayesian network meta-analysis on the PRD/QA</span>
+<span id="cb18-134"><a href="#cb18-134" aria-hidden="true" tabindex="-1"></a>weight-loss dataset. It walks you through study selection, optional new</span>
+<span id="cb18-135"><a href="#cb18-135" aria-hidden="true" tabindex="-1"></a>data, model fitting, and outputs both forest plots (placebo-adjusted +</span>
+<span id="cb18-136"><a href="#cb18-136" aria-hidden="true" tabindex="-1"></a>absolute), a re-runnable .Rmd, and an .html report.</span>
+<span id="cb18-137"><a href="#cb18-137" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb18-138"><a href="#cb18-138" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-139"><a href="#cb18-139" aria-hidden="true" tabindex="-1"></a><span class="fu">### Starting a session</span></span>
+<span id="cb18-140"><a href="#cb18-140" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-141"><a href="#cb18-141" aria-hidden="true" tabindex="-1"></a><span class="in">```bash</span></span>
+<span id="cb18-142"><a href="#cb18-142" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> /lillyce/qa/diabetes/bnma/obesity   <span class="co"># or your working directory</span></span>
+<span id="cb18-143"><a href="#cb18-143" aria-hidden="true" tabindex="-1"></a><span class="ex">claude</span>                                  <span class="co"># launch Claude Code</span></span>
+<span id="cb18-144"><a href="#cb18-144" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb18-145"><a href="#cb18-145" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-146"><a href="#cb18-146" aria-hidden="true" tabindex="-1"></a>Then type:</span>
+<span id="cb18-147"><a href="#cb18-147" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-148"><a href="#cb18-148" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb18-149"><a href="#cb18-149" aria-hidden="true" tabindex="-1"></a><span class="in">/cmh-ci</span></span>
+<span id="cb18-150"><a href="#cb18-150" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb18-151"><a href="#cb18-151" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-152"><a href="#cb18-152" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-153"><a href="#cb18-153" aria-hidden="true" tabindex="-1"></a><span class="fu">## The Workflow — Step by Step</span></span>
+<span id="cb18-154"><a href="#cb18-154" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-157"><a href="#cb18-157" aria-hidden="true" tabindex="-1"></a><span class="in">```{mermaid}</span></span>
+<span id="cb18-158"><a href="#cb18-158" aria-hidden="true" tabindex="-1"></a>%%| fig-cap: <span class="ot">"</span><span class="st">The /cmh-ci workflow</span><span class="ot">"</span></span>
+<span id="cb18-159"><a href="#cb18-159" aria-hidden="true" tabindex="-1"></a>flowchart LR</span>
+<span id="cb18-160"><a href="#cb18-160" aria-hidden="true" tabindex="-1"></a>    A[<span class="ot">"</span><span class="st">/cmh-ci</span><span class="ot">"</span>] --&gt; B[<span class="ot">"</span><span class="st">Review data</span><span class="ch">\n</span><span class="st">&amp; pick studies</span><span class="ot">"</span>]</span>
+<span id="cb18-161"><a href="#cb18-161" aria-hidden="true" tabindex="-1"></a>    B --&gt; C{<span class="ot">"</span><span class="st">New data?</span><span class="ot">"</span>}</span>
+<span id="cb18-162"><a href="#cb18-162" aria-hidden="true" tabindex="-1"></a>    C --&gt;|yes| D[<span class="ot">"</span><span class="st">Append to QA</span><span class="ot">"</span>]</span>
+<span id="cb18-163"><a href="#cb18-163" aria-hidden="true" tabindex="-1"></a>    C --&gt;|<span class="fu">no</span>| E[<span class="ot">"</span><span class="st">Configure</span><span class="ch">\n</span><span class="st">&amp; fit model</span><span class="ot">"</span>]</span>
+<span id="cb18-164"><a href="#cb18-164" aria-hidden="true" tabindex="-1"></a>    D --&gt; E</span>
+<span id="cb18-165"><a href="#cb18-165" aria-hidden="true" tabindex="-1"></a>    E --&gt; F[<span class="ot">"</span><span class="st">Forest plots</span><span class="ch">\n</span><span class="st">+ .Rmd + .html</span><span class="ot">"</span>]</span>
+<span id="cb18-166"><a href="#cb18-166" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-167"><a href="#cb18-167" aria-hidden="true" tabindex="-1"></a>    style A fill:<span class="co">#4A90D9,color:#fff</span></span>
+<span id="cb18-168"><a href="#cb18-168" aria-hidden="true" tabindex="-1"></a>    style F fill:<span class="co">#2ECC71,color:#fff</span></span>
+<span id="cb18-169"><a href="#cb18-169" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb18-170"><a href="#cb18-170" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-171"><a href="#cb18-171" aria-hidden="true" tabindex="-1"></a><span class="fu">### Landing page</span></span>
+<span id="cb18-172"><a href="#cb18-172" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-173"><a href="#cb18-173" aria-hidden="true" tabindex="-1"></a>Every <span class="in">`/cmh-ci`</span> invocation starts with a banner explaining the 7-step workflow. Nothing is read, written, or assumed until you confirm:</span>
+<span id="cb18-174"><a href="#cb18-174" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-175"><a href="#cb18-175" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb18-176"><a href="#cb18-176" aria-hidden="true" tabindex="-1"></a><span class="in">════════════════════════════════════════════════════════════════════</span></span>
+<span id="cb18-177"><a href="#cb18-177" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-178"><a href="#cb18-178" aria-hidden="true" tabindex="-1"></a><span class="in">                          /cmh-ci</span></span>
+<span id="cb18-179"><a href="#cb18-179" aria-hidden="true" tabindex="-1"></a><span class="in">        Bayesian Network Meta-Analysis · CMH Competitive Intelligence</span></span>
+<span id="cb18-180"><a href="#cb18-180" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-181"><a href="#cb18-181" aria-hidden="true" tabindex="-1"></a><span class="in">════════════════════════════════════════════════════════════════════</span></span>
+<span id="cb18-182"><a href="#cb18-182" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-183"><a href="#cb18-183" aria-hidden="true" tabindex="-1"></a><span class="in">From the PRD/QA weight-loss dataset to a fitted BNMA. This skill reads</span></span>
+<span id="cb18-184"><a href="#cb18-184" aria-hidden="true" tabindex="-1"></a><span class="in">the data, has you select studies and settle any conflicts, folds in any</span></span>
+<span id="cb18-185"><a href="#cb18-185" aria-hidden="true" tabindex="-1"></a><span class="in">outside data you supply, fits the model, and returns both forest plots</span></span>
+<span id="cb18-186"><a href="#cb18-186" aria-hidden="true" tabindex="-1"></a><span class="in">(placebo-adjusted and absolute), a re-runnable .Rmd, and an .html</span></span>
+<span id="cb18-187"><a href="#cb18-187" aria-hidden="true" tabindex="-1"></a><span class="in">report.</span></span>
+<span id="cb18-188"><a href="#cb18-188" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-189"><a href="#cb18-189" aria-hidden="true" tabindex="-1"></a><span class="in">    1 ─ Read the PRD/QA data; list every study, compound, phase, ...</span></span>
+<span id="cb18-190"><a href="#cb18-190" aria-hidden="true" tabindex="-1"></a><span class="in">    2 ─ You pick the studies and compounds to include.</span></span>
+<span id="cb18-191"><a href="#cb18-191" aria-hidden="true" tabindex="-1"></a><span class="in">    3 ─ The selected subset is presented for review ...</span></span>
+<span id="cb18-192"><a href="#cb18-192" aria-hidden="true" tabindex="-1"></a><span class="in">    ...</span></span>
+<span id="cb18-193"><a href="#cb18-193" aria-hidden="true" tabindex="-1"></a><span class="in">    7 ─ Fit, then output: a placebo-adjusted forest plot, an</span></span>
+<span id="cb18-194"><a href="#cb18-194" aria-hidden="true" tabindex="-1"></a><span class="in">        absolute forest plot, a re-runnable .Rmd, and an .html report.</span></span>
+<span id="cb18-195"><a href="#cb18-195" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-196"><a href="#cb18-196" aria-hidden="true" tabindex="-1"></a><span class="in">────────────────────────────────────────────────────────────────────</span></span>
+<span id="cb18-197"><a href="#cb18-197" aria-hidden="true" tabindex="-1"></a><span class="in">  Shall I read the PRD dataset and list the studies?   ( yes / no )</span></span>
+<span id="cb18-198"><a href="#cb18-198" aria-hidden="true" tabindex="-1"></a><span class="in">────────────────────────────────────────────────────────────────────</span></span>
+<span id="cb18-199"><a href="#cb18-199" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb18-200"><a href="#cb18-200" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-201"><a href="#cb18-201" aria-hidden="true" tabindex="-1"></a>Type **yes** to proceed.</span>
+<span id="cb18-202"><a href="#cb18-202" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-203"><a href="#cb18-203" aria-hidden="true" tabindex="-1"></a><span class="fu">### Step 1: Dataset review</span></span>
+<span id="cb18-204"><a href="#cb18-204" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-205"><a href="#cb18-205" aria-hidden="true" tabindex="-1"></a>The skill finds the most recent PRD file and reads both sheets (Observed and Prediction):</span>
+<span id="cb18-206"><a href="#cb18-206" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-207"><a href="#cb18-207" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb18-208"><a href="#cb18-208" aria-hidden="true" tabindex="-1"></a><span class="in">PRD: /lillyce/prd/diabetes/bnma/obesity/data/shared/weight/</span></span>
+<span id="cb18-209"><a href="#cb18-209" aria-hidden="true" tabindex="-1"></a><span class="in">     cwm_wl_nont2d_prd_20260805.xlsx</span></span>
+<span id="cb18-210"><a href="#cb18-210" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb18-211"><a href="#cb18-211" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-212"><a href="#cb18-212" aria-hidden="true" tabindex="-1"></a>It lists every study with its compound, phase, route, and evidence tier:</span>
+<span id="cb18-213"><a href="#cb18-213" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-214"><a href="#cb18-214" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb18-215"><a href="#cb18-215" aria-hidden="true" tabindex="-1"></a><span class="in">Sheet: Observed | Rows: 42</span></span>
+<span id="cb18-216"><a href="#cb18-216" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-217"><a href="#cb18-217" aria-hidden="true" tabindex="-1"></a><span class="in">  1. scale maintenance (phase 3, injectable, observed)</span></span>
+<span id="cb18-218"><a href="#cb18-218" aria-hidden="true" tabindex="-1"></a><span class="in">     -- semaglutide</span></span>
+<span id="cb18-219"><a href="#cb18-219" aria-hidden="true" tabindex="-1"></a><span class="in">       semaglutide 2.4 mg; placebo</span></span>
+<span id="cb18-220"><a href="#cb18-220" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-221"><a href="#cb18-221" aria-hidden="true" tabindex="-1"></a><span class="in">  2. believe (phase 3, injectable, observed)</span></span>
+<span id="cb18-222"><a href="#cb18-222" aria-hidden="true" tabindex="-1"></a><span class="in">     -- tirzepatide</span></span>
+<span id="cb18-223"><a href="#cb18-223" aria-hidden="true" tabindex="-1"></a><span class="in">       tirzepatide 10 mg; tirzepatide 15 mg; tirzepatide 5 mg; placebo</span></span>
+<span id="cb18-224"><a href="#cb18-224" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-225"><a href="#cb18-225" aria-hidden="true" tabindex="-1"></a><span class="in">  ...</span></span>
+<span id="cb18-226"><a href="#cb18-226" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-227"><a href="#cb18-227" aria-hidden="true" tabindex="-1"></a><span class="in">Sheet: Prediction | Rows: 18</span></span>
+<span id="cb18-228"><a href="#cb18-228" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-229"><a href="#cb18-229" aria-hidden="true" tabindex="-1"></a><span class="in">  1. triumph-3 (phase 3, injectable, prediction)</span></span>
+<span id="cb18-230"><a href="#cb18-230" aria-hidden="true" tabindex="-1"></a><span class="in">     -- retatrutide</span></span>
+<span id="cb18-231"><a href="#cb18-231" aria-hidden="true" tabindex="-1"></a><span class="in">       retatrutide 12 mg; placebo</span></span>
+<span id="cb18-232"><a href="#cb18-232" aria-hidden="true" tabindex="-1"></a><span class="in">  ...</span></span>
+<span id="cb18-233"><a href="#cb18-233" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb18-234"><a href="#cb18-234" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-235"><a href="#cb18-235" aria-hidden="true" tabindex="-1"></a>You then pick which studies to include. You can name them explicitly ("include all except harbor-1") or confirm the full list.</span>
+<span id="cb18-236"><a href="#cb18-236" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-237"><a href="#cb18-237" aria-hidden="true" tabindex="-1"></a><span class="fu">### Steps 2–4: Adding new data (the QA flow)</span></span>
+<span id="cb18-238"><a href="#cb18-238" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-239"><a href="#cb18-239" aria-hidden="true" tabindex="-1"></a>After study selection, the skill asks:</span>
+<span id="cb18-240"><a href="#cb18-240" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-241"><a href="#cb18-241" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; *Do you have any additional data to add before fitting?*</span></span>
+<span id="cb18-242"><a href="#cb18-242" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; *(e.g. a press release, new readout, hand-digitized data, another workbook)*</span></span>
+<span id="cb18-243"><a href="#cb18-243" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-244"><a href="#cb18-244" aria-hidden="true" tabindex="-1"></a>:::{.callout-tip}</span>
+<span id="cb18-245"><a href="#cb18-245" aria-hidden="true" tabindex="-1"></a>If you don't have new data, just say **no** — the skill skips straight to model configuration (Step 5).</span>
+<span id="cb18-246"><a href="#cb18-246" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb18-247"><a href="#cb18-247" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-248"><a href="#cb18-248" aria-hidden="true" tabindex="-1"></a>If you **do** have new data, the skill accepts it in any form:</span>
+<span id="cb18-249"><a href="#cb18-249" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-250"><a href="#cb18-250" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Pasted rows** directly in the chat</span>
+<span id="cb18-251"><a href="#cb18-251" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**A file path** (xlsx, csv) on the cluster</span>
+<span id="cb18-252"><a href="#cb18-252" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**A link** to a press release or publication (the skill extracts the relevant numbers)</span>
+<span id="cb18-253"><a href="#cb18-253" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**"Take X from file Y"** — reads and filters another workbook</span>
+<span id="cb18-254"><a href="#cb18-254" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-255"><a href="#cb18-255" aria-hidden="true" tabindex="-1"></a>The skill maps your data into the QA schema columns (<span class="in">`study_name`</span>, <span class="in">`treatment`</span>, <span class="in">`compound`</span>, <span class="in">`phase`</span>, <span class="in">`pchg_wl_ee`</span>, <span class="in">`se_wl_ee`</span>, etc.) and shows you the mapped rows for confirmation:</span>
+<span id="cb18-256"><a href="#cb18-256" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-257"><a href="#cb18-257" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb18-258"><a href="#cb18-258" aria-hidden="true" tabindex="-1"></a><span class="in">study_name  | treatment          | compound    | phase   | pchg_wl_ee | se_wl_ee</span></span>
+<span id="cb18-259"><a href="#cb18-259" aria-hidden="true" tabindex="-1"></a><span class="in">------------|--------------------+-------------+---------+------------+---------</span></span>
+<span id="cb18-260"><a href="#cb18-260" aria-hidden="true" tabindex="-1"></a><span class="in">new-trial-1 | drug-x 10 mg       | drug-x      | phase 2 | -8.3       | 1.2</span></span>
+<span id="cb18-261"><a href="#cb18-261" aria-hidden="true" tabindex="-1"></a><span class="in">new-trial-1 | placebo            | placebo     | phase 2 | -1.7       | 0.9</span></span>
+<span id="cb18-262"><a href="#cb18-262" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb18-263"><a href="#cb18-263" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-264"><a href="#cb18-264" aria-hidden="true" tabindex="-1"></a>Once confirmed, the data is appended to the QA file:</span>
+<span id="cb18-265"><a href="#cb18-265" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-266"><a href="#cb18-266" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb18-267"><a href="#cb18-267" aria-hidden="true" tabindex="-1"></a><span class="in">/lillyce/qa/diabetes/bnma/obesity/data/shared/weight/</span></span>
+<span id="cb18-268"><a href="#cb18-268" aria-hidden="true" tabindex="-1"></a><span class="in">  cwm_wl_nont2d_qa_20260827.xlsx  →  cwm_wl_nont2d_qa_20260901.xlsx</span></span>
+<span id="cb18-269"><a href="#cb18-269" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb18-270"><a href="#cb18-270" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-271"><a href="#cb18-271" aria-hidden="true" tabindex="-1"></a>:::{.callout-important}</span>
+<span id="cb18-272"><a href="#cb18-272" aria-hidden="true" tabindex="-1"></a>The QA file is **renamed** so the date in the filename reflects when data was last added. This is an in-place rename (not a copy) — there's always exactly one QA file, with the latest date.</span>
+<span id="cb18-273"><a href="#cb18-273" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb18-274"><a href="#cb18-274" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-275"><a href="#cb18-275" aria-hidden="true" tabindex="-1"></a><span class="fu">### Steps 5–6: Model configuration</span></span>
+<span id="cb18-276"><a href="#cb18-276" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-277"><a href="#cb18-277" aria-hidden="true" tabindex="-1"></a>The skill creates the run's working folders:</span>
+<span id="cb18-278"><a href="#cb18-278" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-279"><a href="#cb18-279" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb18-280"><a href="#cb18-280" aria-hidden="true" tabindex="-1"></a><span class="in">programs/  → /lillyce/qa/diabetes/bnma/obesity/programs/20260901_cwm_wl_nont2d/</span></span>
+<span id="cb18-281"><a href="#cb18-281" aria-hidden="true" tabindex="-1"></a><span class="in">output/    → /lillyce/qa/diabetes/bnma/obesity/output/shared/20260901_cwm_wl_nont2d/</span></span>
+<span id="cb18-282"><a href="#cb18-282" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb18-283"><a href="#cb18-283" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-284"><a href="#cb18-284" aria-hidden="true" tabindex="-1"></a>Then asks for the one design decision that matters:</span>
+<span id="cb18-285"><a href="#cb18-285" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-286"><a href="#cb18-286" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; **Heterogeneity: random-effects or fixed-effect?**</span></span>
+<span id="cb18-287"><a href="#cb18-287" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-288"><a href="#cb18-288" aria-hidden="true" tabindex="-1"></a>:::{.callout-warning}</span>
+<span id="cb18-289"><a href="#cb18-289" aria-hidden="true" tabindex="-1"></a><span class="fu">## Star network detection</span></span>
+<span id="cb18-290"><a href="#cb18-290" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-291"><a href="#cb18-291" aria-hidden="true" tabindex="-1"></a>If every non-placebo treatment in your network comes from exactly one study (a "star" network), the skill will warn you:</span>
+<span id="cb18-292"><a href="#cb18-292" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-293"><a href="#cb18-293" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; *"Full star network detected — σ cannot be estimated, CIs will be prior-inflated with random-effects. Recommend fixed-effect."*</span></span>
+<span id="cb18-294"><a href="#cb18-294" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-295"><a href="#cb18-295" aria-hidden="true" tabindex="-1"></a>This is a recommendation, not an override — you choose. If you're unsure, fixed-effect is the safer choice for star networks.</span>
+<span id="cb18-296"><a href="#cb18-296" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb18-297"><a href="#cb18-297" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-298"><a href="#cb18-298" aria-hidden="true" tabindex="-1"></a>All other settings use defaults that match the production <span class="in">`EliLillyCo/CMH.BNMA`</span> app:</span>
+<span id="cb18-299"><a href="#cb18-299" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-300"><a href="#cb18-300" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Route: both (oral + injectable)</span>
+<span id="cb18-301"><a href="#cb18-301" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Evidence: both (observed + prediction)</span>
+<span id="cb18-302"><a href="#cb18-302" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Effect: both plots always produced (relative + absolute)</span>
+<span id="cb18-303"><a href="#cb18-303" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>MCMC: 10,000 adapt, 10,000 burn-in, 20,000 iterations, thin by 10, 3 chains</span>
+<span id="cb18-304"><a href="#cb18-304" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-305"><a href="#cb18-305" aria-hidden="true" tabindex="-1"></a><span class="fu">### Step 7: Fit and output</span></span>
+<span id="cb18-306"><a href="#cb18-306" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-307"><a href="#cb18-307" aria-hidden="true" tabindex="-1"></a>The skill runs the full pipeline in **one R process** — no separate scripts, no intermediate steps:</span>
+<span id="cb18-308"><a href="#cb18-308" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-309"><a href="#cb18-309" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>Load and merge PRD + QA data</span>
+<span id="cb18-310"><a href="#cb18-310" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>Build BATMAN matrices (the JAGS input format)</span>
+<span id="cb18-311"><a href="#cb18-311" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>Fit the BNMA model via JAGS (~3–5 minutes)</span>
+<span id="cb18-312"><a href="#cb18-312" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span>Fit the pooled-placebo model (for absolute effects)</span>
+<span id="cb18-313"><a href="#cb18-313" aria-hidden="true" tabindex="-1"></a><span class="ss">5. </span>Render both forest plots</span>
+<span id="cb18-314"><a href="#cb18-314" aria-hidden="true" tabindex="-1"></a><span class="ss">6. </span>Write the <span class="in">`.Rmd`</span> report</span>
+<span id="cb18-315"><a href="#cb18-315" aria-hidden="true" tabindex="-1"></a><span class="ss">7. </span>Render the <span class="in">`.html`</span> report</span>
+<span id="cb18-316"><a href="#cb18-316" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-317"><a href="#cb18-317" aria-hidden="true" tabindex="-1"></a><span class="in">```bash</span></span>
+<span id="cb18-318"><a href="#cb18-318" aria-hidden="true" tabindex="-1"></a><span class="co"># What's happening under the hood:</span></span>
+<span id="cb18-319"><a href="#cb18-319" aria-hidden="true" tabindex="-1"></a><span class="ex">module</span> load R/4.4.2 jags <span class="dv">2</span><span class="op">&gt;</span>/dev/null</span>
+<span id="cb18-320"><a href="#cb18-320" aria-hidden="true" tabindex="-1"></a><span class="ex">Rscript</span> /tmp/<span class="va">$USER</span>/cmh_ci_lib/run_bnma_pipeline.R <span class="dt">\</span></span>
+<span id="cb18-321"><a href="#cb18-321" aria-hidden="true" tabindex="-1"></a>  <span class="at">--prd</span> <span class="op">&lt;</span>prd_path<span class="op">&gt;</span> --qa <span class="op">&lt;</span>qa_path<span class="op">&gt;</span> <span class="dt">\</span></span>
+<span id="cb18-322"><a href="#cb18-322" aria-hidden="true" tabindex="-1"></a>  <span class="at">--manifest</span> <span class="op">&lt;</span>manifest.yaml<span class="op">&gt;</span> --model model_random.txt <span class="dt">\</span></span>
+<span id="cb18-323"><a href="#cb18-323" aria-hidden="true" tabindex="-1"></a>  <span class="at">--cache</span> /tmp/<span class="va">$USER</span>/cmh_ci_lib/samples.rds <span class="dt">\</span></span>
+<span id="cb18-324"><a href="#cb18-324" aria-hidden="true" tabindex="-1"></a>  <span class="at">--fit-placebo</span> <span class="at">--placebo-cache</span> /tmp/<span class="va">$USER</span>/cmh_ci_lib/placebo_samples.rds <span class="dt">\</span></span>
+<span id="cb18-325"><a href="#cb18-325" aria-hidden="true" tabindex="-1"></a>  <span class="at">--plot</span> <span class="at">--effect</span> both <span class="dt">\</span></span>
+<span id="cb18-326"><a href="#cb18-326" aria-hidden="true" tabindex="-1"></a>  <span class="at">--plot-out</span> <span class="op">&lt;</span>output_folder<span class="op">&gt;</span>/forest_plot_relative.png <span class="dt">\</span></span>
+<span id="cb18-327"><a href="#cb18-327" aria-hidden="true" tabindex="-1"></a>  <span class="at">--plot-out-absolute</span> <span class="op">&lt;</span>output_folder<span class="op">&gt;</span>/forest_plot_absolute.png</span>
+<span id="cb18-328"><a href="#cb18-328" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb18-329"><a href="#cb18-329" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-330"><a href="#cb18-330" aria-hidden="true" tabindex="-1"></a>Both forest plots are displayed immediately in the terminal.</span>
+<span id="cb18-331"><a href="#cb18-331" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-332"><a href="#cb18-332" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-333"><a href="#cb18-333" aria-hidden="true" tabindex="-1"></a><span class="fu">## Understanding the Outputs</span></span>
+<span id="cb18-334"><a href="#cb18-334" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-335"><a href="#cb18-335" aria-hidden="true" tabindex="-1"></a><span class="fu">### Forest plots</span></span>
+<span id="cb18-336"><a href="#cb18-336" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-337"><a href="#cb18-337" aria-hidden="true" tabindex="-1"></a>The skill produces two forest plots:</span>
+<span id="cb18-338"><a href="#cb18-338" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-339"><a href="#cb18-339" aria-hidden="true" tabindex="-1"></a>**Placebo-adjusted (relative)** — shows the mean percent change in body weight relative to placebo, with 95% credible intervals. This is the standard competitive landscape view.</span>
+<span id="cb18-340"><a href="#cb18-340" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-341"><a href="#cb18-341" aria-hidden="true" tabindex="-1"></a>**Absolute** — shows the estimated absolute percent change in body weight (placebo response + treatment effect), useful for comparing raw efficacy.</span>
+<span id="cb18-342"><a href="#cb18-342" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-343"><a href="#cb18-343" aria-hidden="true" tabindex="-1"></a><span class="al">![Example forest plot from a previous run (oral compounds, ADA 2026).](images/example_forest_plot.png)</span>{fig-align="center" width="90%"}</span>
+<span id="cb18-344"><a href="#cb18-344" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-345"><a href="#cb18-345" aria-hidden="true" tabindex="-1"></a>Both plots are saved as PNGs in the run's output folder:</span>
+<span id="cb18-346"><a href="#cb18-346" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-347"><a href="#cb18-347" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb18-348"><a href="#cb18-348" aria-hidden="true" tabindex="-1"></a><span class="in">/lillyce/qa/diabetes/bnma/obesity/output/shared/YYYYMMDD_&lt;slug&gt;/</span></span>
+<span id="cb18-349"><a href="#cb18-349" aria-hidden="true" tabindex="-1"></a><span class="in">  ├── forest_plot_relative.png</span></span>
+<span id="cb18-350"><a href="#cb18-350" aria-hidden="true" tabindex="-1"></a><span class="in">  └── forest_plot_absolute.png</span></span>
+<span id="cb18-351"><a href="#cb18-351" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb18-352"><a href="#cb18-352" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-353"><a href="#cb18-353" aria-hidden="true" tabindex="-1"></a><span class="fu">### The .Rmd report</span></span>
+<span id="cb18-354"><a href="#cb18-354" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-355"><a href="#cb18-355" aria-hidden="true" tabindex="-1"></a>The <span class="in">`.Rmd`</span> is not just documentation — **it is the re-runnable analysis script**. It contains six R code chunks you can step through in RStudio:</span>
+<span id="cb18-356"><a href="#cb18-356" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-357"><a href="#cb18-357" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Chunk <span class="pp">|</span> What it does <span class="pp">|</span></span>
+<span id="cb18-358"><a href="#cb18-358" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|</span></span>
+<span id="cb18-359"><a href="#cb18-359" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **1. Setup** <span class="pp">|</span> Load libraries (<span class="in">`rjags`</span>, <span class="in">`dplyr`</span>, <span class="in">`readxl`</span>, <span class="in">`ggplot2`</span>), define paths and config <span class="pp">|</span></span>
+<span id="cb18-360"><a href="#cb18-360" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **2. Data load** <span class="pp">|</span> Read PRD/QA, merge, filter to included studies <span class="pp">|</span></span>
+<span id="cb18-361"><a href="#cb18-361" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **3. Build BATMAN** <span class="pp">|</span> Construct JAGS matrices (<span class="in">`y`</span>, <span class="in">`se`</span>, <span class="in">`trt`</span>, <span class="in">`na`</span>, <span class="in">`ns`</span>, <span class="in">`M`</span>) <span class="pp">|</span></span>
+<span id="cb18-362"><a href="#cb18-362" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **4. Fit model** <span class="pp">|</span> JAGS model definition, <span class="in">`jags.model()`</span>, burn-in, <span class="in">`coda.samples()`</span> <span class="pp">|</span></span>
+<span id="cb18-363"><a href="#cb18-363" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **5. Results** <span class="pp">|</span> Extract posteriors, build result table, fit pooled-placebo model <span class="pp">|</span></span>
+<span id="cb18-364"><a href="#cb18-364" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **6. Forest plots** <span class="pp">|</span> Render both relative and absolute forest plots <span class="pp">|</span></span>
+<span id="cb18-365"><a href="#cb18-365" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-366"><a href="#cb18-366" aria-hidden="true" tabindex="-1"></a>To re-run an analysis:</span>
+<span id="cb18-367"><a href="#cb18-367" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-368"><a href="#cb18-368" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>Open <span class="in">`report.Rmd`</span> in RStudio</span>
+<span id="cb18-369"><a href="#cb18-369" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>Make sure <span class="in">`module load R/4.4.2 jags`</span> is active in your terminal</span>
+<span id="cb18-370"><a href="#cb18-370" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>Run chunks sequentially (Ctrl+Shift+Enter per chunk)</span>
+<span id="cb18-371"><a href="#cb18-371" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span>Edit paths or study lists as needed, then re-run</span>
+<span id="cb18-372"><a href="#cb18-372" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-373"><a href="#cb18-373" aria-hidden="true" tabindex="-1"></a>:::{.callout-tip}</span>
+<span id="cb18-374"><a href="#cb18-374" aria-hidden="true" tabindex="-1"></a>Each chunk is self-contained enough that you can re-run from any chunk if the earlier objects are already in your R workspace. Want to just re-render the plots with different styling? Jump straight to Chunk 6.</span>
+<span id="cb18-375"><a href="#cb18-375" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb18-376"><a href="#cb18-376" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-377"><a href="#cb18-377" aria-hidden="true" tabindex="-1"></a><span class="fu">### The .html report</span></span>
+<span id="cb18-378"><a href="#cb18-378" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-379"><a href="#cb18-379" aria-hidden="true" tabindex="-1"></a>The <span class="in">`.html`</span> is a pre-rendered version of the <span class="in">`.Rmd`</span> — readable in any browser, shareable by email or on SharePoint. It contains:</span>
+<span id="cb18-380"><a href="#cb18-380" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-381"><a href="#cb18-381" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Data provenance** — exact PRD/QA file paths, any supplemental data sources, data adjustments applied</span>
+<span id="cb18-382"><a href="#cb18-382" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Studies included** — the confirmed study list</span>
+<span id="cb18-383"><a href="#cb18-383" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Design choices** — model type, route/evidence filters</span>
+<span id="cb18-384"><a href="#cb18-384" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Code** — all six chunks displayed (but not executed in the render)</span>
+<span id="cb18-385"><a href="#cb18-385" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Results** — links to the output plots</span>
+<span id="cb18-386"><a href="#cb18-386" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-387"><a href="#cb18-387" aria-hidden="true" tabindex="-1"></a>Both files live in the programs folder:</span>
+<span id="cb18-388"><a href="#cb18-388" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-389"><a href="#cb18-389" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb18-390"><a href="#cb18-390" aria-hidden="true" tabindex="-1"></a><span class="in">/lillyce/qa/diabetes/bnma/obesity/programs/YYYYMMDD_&lt;slug&gt;/</span></span>
+<span id="cb18-391"><a href="#cb18-391" aria-hidden="true" tabindex="-1"></a><span class="in">  ├── report.Rmd</span></span>
+<span id="cb18-392"><a href="#cb18-392" aria-hidden="true" tabindex="-1"></a><span class="in">  └── report.html</span></span>
+<span id="cb18-393"><a href="#cb18-393" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb18-394"><a href="#cb18-394" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-395"><a href="#cb18-395" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-396"><a href="#cb18-396" aria-hidden="true" tabindex="-1"></a><span class="fu">## Common Scenarios</span></span>
+<span id="cb18-397"><a href="#cb18-397" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-398"><a href="#cb18-398" aria-hidden="true" tabindex="-1"></a><span class="fu">### "I just want to see what's in the data"</span></span>
+<span id="cb18-399"><a href="#cb18-399" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-400"><a href="#cb18-400" aria-hidden="true" tabindex="-1"></a>Type <span class="in">`/cmh-ci`</span>, confirm the landing page, and review the study listing in Step 1. When asked about new data or running the BNMA, say **no**. The session ends cleanly — nothing was written, no folders created.</span>
+<span id="cb18-401"><a href="#cb18-401" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-402"><a href="#cb18-402" aria-hidden="true" tabindex="-1"></a><span class="fu">### "I have a new press release to add"</span></span>
+<span id="cb18-403"><a href="#cb18-403" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-404"><a href="#cb18-404" aria-hidden="true" tabindex="-1"></a>Run <span class="in">`/cmh-ci`</span> through the full flow. At Step 2, say **yes** and paste the link or data. The skill maps the numbers to QA schema columns, shows you the rows, and appends them to the QA file (renaming it to today's date). You can then either fit the BNMA or stop there.</span>
+<span id="cb18-405"><a href="#cb18-405" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-406"><a href="#cb18-406" aria-hidden="true" tabindex="-1"></a><span class="fu">### "Re-run last month's analysis with updated data"</span></span>
+<span id="cb18-407"><a href="#cb18-407" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-408"><a href="#cb18-408" aria-hidden="true" tabindex="-1"></a>Open the previous run's <span class="in">`report.Rmd`</span> in RStudio. Update the PRD/QA file paths in Chunk 1 if they've changed, then run all chunks. Or run <span class="in">`/cmh-ci`</span> fresh — it will pick up the latest PRD and QA files automatically.</span>
+<span id="cb18-409"><a href="#cb18-409" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-410"><a href="#cb18-410" aria-hidden="true" tabindex="-1"></a><span class="fu">### "Switch from random-effects to fixed-effects"</span></span>
+<span id="cb18-411"><a href="#cb18-411" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-412"><a href="#cb18-412" aria-hidden="true" tabindex="-1"></a>At Step 6, choose **fixed-effect** instead of the default random-effects. This is most useful when you have a star network (the skill will recommend it if it detects one). You can also edit the <span class="in">`model_type`</span> in an existing <span class="in">`report.Rmd`</span> and re-run from Chunk 4.</span>
+<span id="cb18-413"><a href="#cb18-413" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-414"><a href="#cb18-414" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-415"><a href="#cb18-415" aria-hidden="true" tabindex="-1"></a><span class="fu">## File Locations Reference</span></span>
+<span id="cb18-416"><a href="#cb18-416" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-417"><a href="#cb18-417" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> What <span class="pp">|</span> Path <span class="pp">|</span></span>
+<span id="cb18-418"><a href="#cb18-418" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|</span></span>
+<span id="cb18-419"><a href="#cb18-419" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **PRD data** <span class="pp">|</span> <span class="in">`/lillyce/prd/diabetes/bnma/obesity/data/shared/weight/cwm_wl_nont2d_prd_YYYYMMDD.xlsx`</span> <span class="pp">|</span></span>
+<span id="cb18-420"><a href="#cb18-420" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **QA data** <span class="pp">|</span> <span class="in">`/lillyce/qa/diabetes/bnma/obesity/data/shared/weight/cwm_wl_nont2d_qa_YYYYMMDD.xlsx`</span> <span class="pp">|</span></span>
+<span id="cb18-421"><a href="#cb18-421" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Programs** (per run) <span class="pp">|</span> <span class="in">`/lillyce/qa/diabetes/bnma/obesity/programs/YYYYMMDD_&lt;slug&gt;/`</span> <span class="pp">|</span></span>
+<span id="cb18-422"><a href="#cb18-422" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Output** (per run) <span class="pp">|</span> <span class="in">`/lillyce/qa/diabetes/bnma/obesity/output/shared/YYYYMMDD_&lt;slug&gt;/`</span> <span class="pp">|</span></span>
+<span id="cb18-423"><a href="#cb18-423" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Skill file** (global) <span class="pp">|</span> <span class="in">`~/.claude/skills/cmh-ci/SKILL.md`</span> <span class="pp">|</span></span>
+<span id="cb18-424"><a href="#cb18-424" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Skill file** (project) <span class="pp">|</span> <span class="in">`&lt;project&gt;/.claude/skills/cmh-ci/SKILL.md`</span> <span class="pp">|</span></span>
+<span id="cb18-425"><a href="#cb18-425" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-426"><a href="#cb18-426" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-427"><a href="#cb18-427" aria-hidden="true" tabindex="-1"></a><span class="fu">## Statistical Models</span></span>
+<span id="cb18-428"><a href="#cb18-428" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-429"><a href="#cb18-429" aria-hidden="true" tabindex="-1"></a>The BNMA uses JAGS (Just Another Gibbs Sampler) to fit Bayesian hierarchical models. Understanding what's being fitted helps interpret the forest plots and decide between random- and fixed-effects.</span>
+<span id="cb18-430"><a href="#cb18-430" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-431"><a href="#cb18-431" aria-hidden="true" tabindex="-1"></a><span class="fu">### The BATMAN data structure</span></span>
+<span id="cb18-432"><a href="#cb18-432" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-433"><a href="#cb18-433" aria-hidden="true" tabindex="-1"></a>Before fitting, the skill converts the tabular PRD/QA data into **BATMAN matrices** — the input format JAGS expects:</span>
+<span id="cb18-434"><a href="#cb18-434" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-435"><a href="#cb18-435" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Symbol <span class="pp">|</span> Dimension <span class="pp">|</span> Meaning <span class="pp">|</span></span>
+<span id="cb18-436"><a href="#cb18-436" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|</span></span>
+<span id="cb18-437"><a href="#cb18-437" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> $y_{ij}$ <span class="pp">|</span> $ns \times \max(n_a)$ <span class="pp">|</span> Observed effect (% weight change) for study $i$, arm $j$ <span class="pp">|</span></span>
+<span id="cb18-438"><a href="#cb18-438" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> $se_{ij}$ <span class="pp">|</span> $ns \times \max(n_a)$ <span class="pp">|</span> Standard error of $y_{ij}$ <span class="pp">|</span></span>
+<span id="cb18-439"><a href="#cb18-439" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> $trt_{ij}$ <span class="pp">|</span> $ns \times \max(n_a)$ <span class="pp">|</span> Treatment index for study $i$, arm $j$ (1 = placebo) <span class="pp">|</span></span>
+<span id="cb18-440"><a href="#cb18-440" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> $n_a<span class="co">[</span><span class="ot">i</span><span class="co">]</span>$ <span class="pp">|</span> $ns$ <span class="pp">|</span> Number of arms in study $i$ <span class="pp">|</span></span>
+<span id="cb18-441"><a href="#cb18-441" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> $ns$ <span class="pp">|</span> scalar <span class="pp">|</span> Total number of studies <span class="pp">|</span></span>
+<span id="cb18-442"><a href="#cb18-442" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> $M$ <span class="pp">|</span> scalar <span class="pp">|</span> Total number of treatments (including placebo) <span class="pp">|</span></span>
+<span id="cb18-443"><a href="#cb18-443" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-444"><a href="#cb18-444" aria-hidden="true" tabindex="-1"></a><span class="fu">### Random-effects model (default)</span></span>
+<span id="cb18-445"><a href="#cb18-445" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-446"><a href="#cb18-446" aria-hidden="true" tabindex="-1"></a>The default model (<span class="in">`model_random.txt`</span>) is a contrast-based random-effects NMA. In statistical notation:</span>
+<span id="cb18-447"><a href="#cb18-447" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-448"><a href="#cb18-448" aria-hidden="true" tabindex="-1"></a>**Likelihood:**</span>
+<span id="cb18-449"><a href="#cb18-449" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb18-450"><a href="#cb18-450" aria-hidden="true" tabindex="-1"></a>y_{ij} \sim \mathcal{N}(\eta_{ij}, \; se_{ij}^2)</span>
+<span id="cb18-451"><a href="#cb18-451" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb18-452"><a href="#cb18-452" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-453"><a href="#cb18-453" aria-hidden="true" tabindex="-1"></a>where $\eta_{ij}$ is the true underlying effect for study $i$, arm $j$.</span>
+<span id="cb18-454"><a href="#cb18-454" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-455"><a href="#cb18-455" aria-hidden="true" tabindex="-1"></a>**Study-level baseline:**</span>
+<span id="cb18-456"><a href="#cb18-456" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb18-457"><a href="#cb18-457" aria-hidden="true" tabindex="-1"></a>\phi_i \sim \mathcal{N}(0, \; 10^4) \qquad \text{(vague prior)}</span>
+<span id="cb18-458"><a href="#cb18-458" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb18-459"><a href="#cb18-459" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-460"><a href="#cb18-460" aria-hidden="true" tabindex="-1"></a>**Treatment effects (random):**</span>
+<span id="cb18-461"><a href="#cb18-461" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb18-462"><a href="#cb18-462" aria-hidden="true" tabindex="-1"></a>\eta_{ij} = \phi_i + \delta_{ij}</span>
+<span id="cb18-463"><a href="#cb18-463" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb18-464"><a href="#cb18-464" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb18-465"><a href="#cb18-465" aria-hidden="true" tabindex="-1"></a>\delta_{i1} = 0 \qquad \text{(reference arm)}</span>
+<span id="cb18-466"><a href="#cb18-466" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb18-467"><a href="#cb18-467" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb18-468"><a href="#cb18-468" aria-hidden="true" tabindex="-1"></a>\delta_{ij} \sim \mathcal{N}<span class="sc">\!</span>\Big(\big(d_{t_{ij}} - d_{t_{i1}}\big) + sw_{ij}, \;\; \tau^2 \cdot \tfrac{2(j-1)}{j}\Big) \quad \text{for } j \geq 2</span>
+<span id="cb18-469"><a href="#cb18-469" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb18-470"><a href="#cb18-470" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-471"><a href="#cb18-471" aria-hidden="true" tabindex="-1"></a>where:</span>
+<span id="cb18-472"><a href="#cb18-472" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-473"><a href="#cb18-473" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>$d_k$ is the overall treatment effect for treatment $k$ relative to placebo ($d_1 = 0$)</span>
+<span id="cb18-474"><a href="#cb18-474" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>$sw_{ij}$ is the multi-arm correction term (Higgins &amp; Whitehead, 1996)</span>
+<span id="cb18-475"><a href="#cb18-475" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>$\tau^2 = 1/\sigma^2$ is the between-study precision</span>
+<span id="cb18-476"><a href="#cb18-476" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-477"><a href="#cb18-477" aria-hidden="true" tabindex="-1"></a>**Priors on treatment effects and heterogeneity:**</span>
+<span id="cb18-478"><a href="#cb18-478" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb18-479"><a href="#cb18-479" aria-hidden="true" tabindex="-1"></a>d_k \sim \mathcal{N}(0, \; 10^4) \quad \text{for } k = 2, \ldots, M</span>
+<span id="cb18-480"><a href="#cb18-480" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb18-481"><a href="#cb18-481" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb18-482"><a href="#cb18-482" aria-hidden="true" tabindex="-1"></a>\sigma \sim \text{Uniform}(0, \; 8)</span>
+<span id="cb18-483"><a href="#cb18-483" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb18-484"><a href="#cb18-484" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-485"><a href="#cb18-485" aria-hidden="true" tabindex="-1"></a>:::{.callout-note}</span>
+<span id="cb18-486"><a href="#cb18-486" aria-hidden="true" tabindex="-1"></a>The $\sigma$ parameter captures **between-study heterogeneity** — how much the treatment effect varies across studies beyond what's explained by sampling error. A larger $\sigma$ means wider credible intervals on the forest plot.</span>
+<span id="cb18-487"><a href="#cb18-487" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb18-488"><a href="#cb18-488" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-489"><a href="#cb18-489" aria-hidden="true" tabindex="-1"></a><span class="fu">### Fixed-effect model</span></span>
+<span id="cb18-490"><a href="#cb18-490" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-491"><a href="#cb18-491" aria-hidden="true" tabindex="-1"></a>The fixed-effect model (<span class="in">`model_fixed.txt`</span>) is identical except that the treatment contrasts are **deterministic** rather than stochastic:</span>
+<span id="cb18-492"><a href="#cb18-492" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-493"><a href="#cb18-493" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb18-494"><a href="#cb18-494" aria-hidden="true" tabindex="-1"></a>\delta_{ij} = \big(d_{t_{ij}} - d_{t_{i1}}\big) + sw_{ij} \quad \text{(no random component)}</span>
+<span id="cb18-495"><a href="#cb18-495" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb18-496"><a href="#cb18-496" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-497"><a href="#cb18-497" aria-hidden="true" tabindex="-1"></a>This removes the between-study heterogeneity parameter $\sigma$ from the estimation. In practice:</span>
+<span id="cb18-498"><a href="#cb18-498" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-499"><a href="#cb18-499" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Tighter credible intervals** (no heterogeneity inflation)</span>
+<span id="cb18-500"><a href="#cb18-500" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Appropriate for star networks** where $\sigma$ cannot be estimated (every non-placebo treatment appears in only one study)</span>
+<span id="cb18-501"><a href="#cb18-501" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>The $\sigma$ and $\tau^2$ declarations remain in the JAGS code for structural symmetry but are not used in the likelihood</span>
+<span id="cb18-502"><a href="#cb18-502" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-503"><a href="#cb18-503" aria-hidden="true" tabindex="-1"></a><span class="fu">### Simultaneous models (for absolute effects)</span></span>
+<span id="cb18-504"><a href="#cb18-504" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-505"><a href="#cb18-505" aria-hidden="true" tabindex="-1"></a>The absolute-effect forest plot requires estimating the **placebo response** in addition to the treatment contrasts. This uses a pooled-baseline variant:</span>
+<span id="cb18-506"><a href="#cb18-506" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-507"><a href="#cb18-507" aria-hidden="true" tabindex="-1"></a>**Pooled baseline (replaces the flat prior on $\phi_i$):**</span>
+<span id="cb18-508"><a href="#cb18-508" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb18-509"><a href="#cb18-509" aria-hidden="true" tabindex="-1"></a>\phi_i \sim \mathcal{N}(m, \; \tau^2_m)</span>
+<span id="cb18-510"><a href="#cb18-510" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb18-511"><a href="#cb18-511" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb18-512"><a href="#cb18-512" aria-hidden="true" tabindex="-1"></a>m \sim \mathcal{N}(0, \; 10^4), \quad \sigma_m \sim \text{Uniform}(0, \; 8)</span>
+<span id="cb18-513"><a href="#cb18-513" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb18-514"><a href="#cb18-514" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb18-515"><a href="#cb18-515" aria-hidden="true" tabindex="-1"></a>\mu_{\text{new}} \sim \mathcal{N}(m, \; \sigma_m^2) \qquad \text{(predicted placebo for a new study)}</span>
+<span id="cb18-516"><a href="#cb18-516" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb18-517"><a href="#cb18-517" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-518"><a href="#cb18-518" aria-hidden="true" tabindex="-1"></a>The absolute effect for treatment $k$ is then:</span>
+<span id="cb18-519"><a href="#cb18-519" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-520"><a href="#cb18-520" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb18-521"><a href="#cb18-521" aria-hidden="true" tabindex="-1"></a>\text{Absolute}_k = \mu_{\text{new}} + d_k</span>
+<span id="cb18-522"><a href="#cb18-522" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb18-523"><a href="#cb18-523" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-524"><a href="#cb18-524" aria-hidden="true" tabindex="-1"></a>This is what the absolute forest plot displays — the estimated total weight change (not just relative to placebo).</span>
+<span id="cb18-525"><a href="#cb18-525" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-526"><a href="#cb18-526" aria-hidden="true" tabindex="-1"></a><span class="fu">### Pooled-placebo meta-analysis</span></span>
+<span id="cb18-527"><a href="#cb18-527" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-528"><a href="#cb18-528" aria-hidden="true" tabindex="-1"></a>A separate, simpler model estimates the pooled placebo response from placebo arms only:</span>
+<span id="cb18-529"><a href="#cb18-529" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-530"><a href="#cb18-530" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb18-531"><a href="#cb18-531" aria-hidden="true" tabindex="-1"></a>y^{\text{pbo}}_i \sim \mathcal{N}\!\big(\mu_{s_i}, \; se^{\text{pbo}}_i{}^2\big)</span>
+<span id="cb18-532"><a href="#cb18-532" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb18-533"><a href="#cb18-533" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb18-534"><a href="#cb18-534" aria-hidden="true" tabindex="-1"></a>\mu_i \sim \mathcal{N}(m, \; 1/\sigma_m^2)</span>
+<span id="cb18-535"><a href="#cb18-535" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb18-536"><a href="#cb18-536" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb18-537"><a href="#cb18-537" aria-hidden="true" tabindex="-1"></a>\mu_{\text{new}} \sim \mathcal{N}(m, \; 1/\sigma_m^2)</span>
+<span id="cb18-538"><a href="#cb18-538" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb18-539"><a href="#cb18-539" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-540"><a href="#cb18-540" aria-hidden="true" tabindex="-1"></a>This produces the baseline $\mu_{\text{new}}$ that gets added to each $d_k$ for the absolute forest plot.</span>
+<span id="cb18-541"><a href="#cb18-541" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-542"><a href="#cb18-542" aria-hidden="true" tabindex="-1"></a><span class="fu">### Model selection summary</span></span>
+<span id="cb18-543"><a href="#cb18-543" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-544"><a href="#cb18-544" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Model <span class="pp">|</span> When to use <span class="pp">|</span> Forest plot <span class="pp">|</span></span>
+<span id="cb18-545"><a href="#cb18-545" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|</span></span>
+<span id="cb18-546"><a href="#cb18-546" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`model_random.txt`</span> <span class="pp">|</span> Default — multiple studies per treatment, heterogeneity estimable <span class="pp">|</span> Relative (placebo-adjusted) <span class="pp">|</span></span>
+<span id="cb18-547"><a href="#cb18-547" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`model_fixed.txt`</span> <span class="pp">|</span> Star networks, or sensitivity analysis <span class="pp">|</span> Relative (tighter CIs) <span class="pp">|</span></span>
+<span id="cb18-548"><a href="#cb18-548" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`model_simultaneous.txt`</span> <span class="pp">|</span> Need absolute effects with heterogeneity <span class="pp">|</span> Absolute <span class="pp">|</span></span>
+<span id="cb18-549"><a href="#cb18-549" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`model_simultaneous_fixed.txt`</span> <span class="pp">|</span> Absolute effects on a star network <span class="pp">|</span> Absolute (tighter CIs) <span class="pp">|</span></span>
+<span id="cb18-550"><a href="#cb18-550" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`model_placebo_random.txt`</span> <span class="pp">|</span> Always runs alongside — estimates pooled placebo <span class="pp">|</span> Absolute baseline <span class="pp">|</span></span>
+<span id="cb18-551"><a href="#cb18-551" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-552"><a href="#cb18-552" aria-hidden="true" tabindex="-1"></a><span class="fu">### MCMC settings</span></span>
+<span id="cb18-553"><a href="#cb18-553" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-554"><a href="#cb18-554" aria-hidden="true" tabindex="-1"></a>The default MCMC configuration matches the production <span class="in">`EliLillyCo/CMH.BNMA`</span> app:</span>
+<span id="cb18-555"><a href="#cb18-555" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-556"><a href="#cb18-556" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Parameter <span class="pp">|</span> Value <span class="pp">|</span> Purpose <span class="pp">|</span></span>
+<span id="cb18-557"><a href="#cb18-557" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|</span></span>
+<span id="cb18-558"><a href="#cb18-558" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`n.adapt`</span> <span class="pp">|</span> 10,000 <span class="pp">|</span> Adaptation phase (tuning samplers) <span class="pp">|</span></span>
+<span id="cb18-559"><a href="#cb18-559" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Burn-in <span class="pp">|</span> 10,000 <span class="pp">|</span> Discarded initial samples <span class="pp">|</span></span>
+<span id="cb18-560"><a href="#cb18-560" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Iterations <span class="pp">|</span> 20,000 <span class="pp">|</span> Posterior samples retained <span class="pp">|</span></span>
+<span id="cb18-561"><a href="#cb18-561" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Thinning <span class="pp">|</span> 10 <span class="pp">|</span> Keep every 10th sample (reduces autocorrelation) <span class="pp">|</span></span>
+<span id="cb18-562"><a href="#cb18-562" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Chains <span class="pp">|</span> 3 <span class="pp">|</span> Independent MCMC chains <span class="pp">|</span></span>
+<span id="cb18-563"><a href="#cb18-563" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Effective samples** | **6,000** <span class="pp">|</span> 20,000 / 10 thinning × 3 chains <span class="pp">|</span></span>
+<span id="cb18-564"><a href="#cb18-564" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-565"><a href="#cb18-565" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-566"><a href="#cb18-566" aria-hidden="true" tabindex="-1"></a><span class="fu">## FAQ / Troubleshooting</span></span>
+<span id="cb18-567"><a href="#cb18-567" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-568"><a href="#cb18-568" aria-hidden="true" tabindex="-1"></a><span class="fu">### "R or JAGS not found"</span></span>
+<span id="cb18-569"><a href="#cb18-569" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-570"><a href="#cb18-570" aria-hidden="true" tabindex="-1"></a>The skill loads modules automatically (<span class="in">`module load R/4.4.2 jags`</span>). If this fails, check that the modules are available on your cluster node:</span>
+<span id="cb18-571"><a href="#cb18-571" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-572"><a href="#cb18-572" aria-hidden="true" tabindex="-1"></a><span class="in">```bash</span></span>
+<span id="cb18-573"><a href="#cb18-573" aria-hidden="true" tabindex="-1"></a><span class="ex">module</span> avail R</span>
+<span id="cb18-574"><a href="#cb18-574" aria-hidden="true" tabindex="-1"></a><span class="ex">module</span> avail jags</span>
+<span id="cb18-575"><a href="#cb18-575" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb18-576"><a href="#cb18-576" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-577"><a href="#cb18-577" aria-hidden="true" tabindex="-1"></a>If you're on a login node where modules aren't available, submit via <span class="in">`srun`</span> or connect to a compute node first.</span>
+<span id="cb18-578"><a href="#cb18-578" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-579"><a href="#cb18-579" aria-hidden="true" tabindex="-1"></a><span class="fu">### "Star network detected — what does this mean?"</span></span>
+<span id="cb18-580"><a href="#cb18-580" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-581"><a href="#cb18-581" aria-hidden="true" tabindex="-1"></a>A star network means every non-placebo treatment comes from exactly one study. In this topology, the between-study heterogeneity parameter (σ) cannot be estimated — the model relies entirely on its prior, which inflates the credible intervals. Switching to **fixed-effect** removes σ from the model and gives tighter, more interpretable intervals.</span>
+<span id="cb18-582"><a href="#cb18-582" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-583"><a href="#cb18-583" aria-hidden="true" tabindex="-1"></a><span class="fu">### "The skill takes too long"</span></span>
+<span id="cb18-584"><a href="#cb18-584" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-585"><a href="#cb18-585" aria-hidden="true" tabindex="-1"></a>The JAGS MCMC fit is the bottleneck (~3–5 minutes for a typical 7-study, 15-treatment network). This is inherent to Bayesian estimation and matches the production <span class="in">`CMH.BNMA`</span> app's runtime. Everything else (data loading, plotting, HTML render) takes seconds.</span>
+<span id="cb18-586"><a href="#cb18-586" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-587"><a href="#cb18-587" aria-hidden="true" tabindex="-1"></a><span class="fu">### "Can I edit the .Rmd and re-render?"</span></span>
+<span id="cb18-588"><a href="#cb18-588" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-589"><a href="#cb18-589" aria-hidden="true" tabindex="-1"></a>Yes — that's the point. The <span class="in">`.Rmd`</span> is a fully self-contained R script with hardcoded paths from the original run. Open it in RStudio, modify what you need (different studies, different model, different plot styling), and re-run the chunks. To regenerate the HTML:</span>
+<span id="cb18-590"><a href="#cb18-590" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-591"><a href="#cb18-591" aria-hidden="true" tabindex="-1"></a><span class="in">```bash</span></span>
+<span id="cb18-592"><a href="#cb18-592" aria-hidden="true" tabindex="-1"></a><span class="ex">module</span> load R/4.4.2 <span class="dv">2</span><span class="op">&gt;</span>/dev/null</span>
+<span id="cb18-593"><a href="#cb18-593" aria-hidden="true" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">'rmarkdown::render("report.Rmd", output_format = "html_document")'</span></span>
+<span id="cb18-594"><a href="#cb18-594" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb18-595"><a href="#cb18-595" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-596"><a href="#cb18-596" aria-hidden="true" tabindex="-1"></a><span class="fu">### "Where did my QA file go?"</span></span>
+<span id="cb18-597"><a href="#cb18-597" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-598"><a href="#cb18-598" aria-hidden="true" tabindex="-1"></a>When you append new data, the QA file is **renamed** to reflect today's date (e.g. <span class="in">`_qa_20260827.xlsx`</span> → <span class="in">`_qa_20260901.xlsx`</span>). There's always exactly one file — look for the most recent date in the directory:</span>
+<span id="cb18-599"><a href="#cb18-599" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-600"><a href="#cb18-600" aria-hidden="true" tabindex="-1"></a><span class="in">```bash</span></span>
+<span id="cb18-601"><a href="#cb18-601" aria-hidden="true" tabindex="-1"></a><span class="fu">ls</span> <span class="at">-lt</span> /lillyce/qa/diabetes/bnma/obesity/data/shared/weight/cwm_wl_nont2d_qa_<span class="pp">*</span>.xlsx</span>
+<span id="cb18-602"><a href="#cb18-602" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+</code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
+</div></div></div></div></div>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
