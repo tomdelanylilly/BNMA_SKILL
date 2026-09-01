@@ -151,6 +151,8 @@ flowchart LR
 
 Every `/cmh-ci` invocation starts with a landing page explaining the seven steps. Nothing is read, written, or assumed until you confirm.
 
+![The landing page's own step-by-step summary](images/pngs/landing.png){#fig-landing}
+
 ## Step 1: Introducing the data and selecting studies
 
 The skill locates the most recently dated PRD extract, reads both the
@@ -178,6 +180,8 @@ Sheet: Observed | Rows: 42
 
 You then pick which studies to include — by name, by compound, or confirm the full list.
 
+![Confirmed study selection, echoed back with phase/route/treatment before anything runs](images/pngs/Subset.png){#fig-subset}
+
 ## Step 2: Deciding whether to add outside data
 
 The skill asks explicitly whether any additional, non-PRD/QA data — a
@@ -185,20 +189,25 @@ press release, a new readout, hand-digitized data, another workbook, or
 a link to a publication — should be folded in before fitting. Answering
 no is a valid outcome: the skill skips straight to model configuration.
 
+![The Step 2 prompt](images/pngs/additional.png){#fig-additional}
+
+The example below continues with a real "yes" — adding a press release
+about a new study (`triumph-3`) to three studies already selected in
+Step 1.
+
 ## Steps 3–4: Converting and merging outside data
 
 When outside data is supplied — especially a link — the skill extracts
 study data directly from the source, flags any population/scope mismatch
 explicitly (e.g. a T2D study against a non-T2D dataset), and asks whether
-each extracted study is Observed or Predicted rather than inferring it. The
-mapped rows are shown back in the QA schema for confirmation:
+each extracted study is Observed or Predicted rather than inferring it.
 
-```
-study_name  | treatment       | compound | phase   | pchg_wl_ee | se_wl_ee
-------------|-----------------|----------|---------|------------|---------
-new-trial-1 | drug-x 10 mg   | drug-x   | phase 2 | -8.3       | 1.2
-new-trial-1 | placebo         | placebo  | phase 2 | -1.7       | 0.9
-```
+![Fetching study data directly from an attached press release link](images/pngs/web_fetch.png){#fig-webfetch}
+
+The mapped rows are shown back in the QA schema for confirmation — here,
+the real rows extracted from that press release for `triumph-3`:
+
+![Mapped rows shown for confirmation before anything is merged](images/pngs/preview_rows.png){#fig-previewrows}
 
 Once confirmed, rows are appended to the QA workbook, and the QA file is
 renamed so the date reflects when data was last added:
@@ -222,6 +231,8 @@ itself a complete outcome. Only on confirmation does it create working
 folders and write a manifest recording exactly which studies are included.
 A study in the manifest that doesn't match the data (a typo, or a study
 renamed upstream) is a hard stop, not a silent omission.
+
+![Manifest confirmed with all four studies -- the three from Step 1 plus the press-release addition](images/pngs/manifest.png){#fig-manifest}
 
 ## Step 6: Choosing a modelling approach
 
@@ -261,7 +272,11 @@ Rscript /tmp/$USER/cmh_ci_lib/run_bnma_pipeline.R \
   --plot-out-absolute <output_folder>/forest_plot_absolute.png
 ```
 
-Both forest plots are displayed immediately in the terminal.
+Both forest plots are displayed immediately in the terminal, alongside a
+plain-language chat summary. Continuing the worked example above (the
+three Step 1 studies plus the `triumph-3` press-release addition):
+
+![The skill's own chat summary immediately after fitting](images/pngs/summary.png){#fig-summary}
 
 
 # Data
