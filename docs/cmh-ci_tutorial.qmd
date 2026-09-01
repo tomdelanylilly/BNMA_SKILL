@@ -5,12 +5,14 @@ author: "CMH Competitive Intelligence Team"
 date: "2026-09-01"
 toc: true
 toc-depth: 3
+toc-location: left
 number-sections: true
+smooth-scroll: true
 format:
   html:
     theme: cosmo
-    code-fold: true
-    code-tools: true
+    anchor-sections: true
+    fig-cap-location: bottom
 ---
 
 # Introduction
