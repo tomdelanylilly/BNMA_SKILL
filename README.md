@@ -32,41 +32,46 @@ current-state findings, and the skill architecture.
 ## What's included
 
 - `SKILL.md` — the skill itself: the full step-by-step workflow (introduce
-  the PRD dataset → ask which studies → review the subset → optionally
-  augment with custom data → confirm run intent → build the model input →
-  collect modelling preferences → fit → forest plot → driver script) *and*
-  every deterministic script/model file it calls, embedded verbatim in its
-  own appendices rather than kept as separate files:
+  the PRD dataset, list studies, pick which to include with a naming/route
+  pooling-risk QA gate on the selection → ask whether non-PRD data should
+  be added → convert it to the QA schema → merge it in → confirm run
+  intent, create folders, write the manifest → collect modelling
+  preferences → fit and produce both forest plots plus a re-runnable
+  `.Rmd`/rendered `.html` report) *and* every deterministic script/model
+  file it calls, embedded verbatim in its own appendices rather than kept
+  as separate files:
   - **Appendix A** — the JAGS model specs (`model_random.txt` /
     `model_fixed.txt` / `model_simultaneous.txt` /
     `model_simultaneous_fixed.txt` / `model_placebo_random.txt`), selected
     per run by the manifest's `model_type`.
-  - **Appendix B** — the R scripts behind each pipeline stage
-    (`lib_common.R`'s shared helpers, `load_merge_data.R`,
-    `append_to_qa.R`, `check_naming_pooling.R`, `build_batman_data.R`,
+  - **Appendix B** — the R scripts behind the pipeline: `run_bnma_pipeline.R`
+    (B1) — one consolidated script covering data load/merge, the
+    naming/pooling QA check, BATMAN construction, the JAGS fit, and both
+    forest plots — and `append_to_qa.R` (B2), the promote-to-QA path. The
+    per-stage scripts this used to call as separate files (`lib_common.R`,
+    `load_merge_data.R`, `check_naming_pooling.R`, `build_batman_data.R`,
     `fit_bnma_model.R`, `fit_pooled_placebo_model.R`, `make_forest_plot.R`,
-    `make_placebo_forest_plot.R`, `named_contrast.R`).
-  - **Appendix D** — the shell wrappers (`_resolve_rscript.sh`, `run_r.sh`,
-    `run_with_jags.sh`) that resolve `Rscript`/JAGS portably;
-    `run_with_jags.sh` loads the `jags` environment module first (`rjags`
-    fails to link without it).
+    `make_placebo_forest_plot.R`, `named_contrast.R`) were retired and
+    inlined into `run_bnma_pipeline.R`. There's no separate shell-wrapper
+    appendix either anymore — the `run_r.sh`/`run_with_jags.sh` wrappers
+    were dropped; `module load R jags` now runs inline before the
+    `Rscript` call itself.
 
   During a session, the skill materializes whichever of these it needs into
   a real file (a session lib dir, then `programs/<slug>/lib/` once that
   folder exists) before invoking it — nothing needs to pre-exist on disk
   beyond `SKILL.md` itself.
-- `compound_registry.yaml` — persisted naming-QA decisions, so a resolved
-  compound-name pair is never re-flagged.
 - `.claude-plugin/marketplace.json` — marketplace manifest for the
   plugin-install path. Currently **not** the supported install method for
   this branch's flat layout (its `plugins/bnma` source path predates the
   flatten and no longer exists) — see Install below for what actually works
   today.
 
-There is no bundled test fixture / `tests/` directory anymore — that was
-part of the pre-consolidation, separate-script-files layout and wasn't
-carried over into the embedded-in-`SKILL.md` design (see Verify your setup
-below).
+There is no bundled test fixture / `tests/` directory, and no
+`compound_registry.yaml` either — naming/pooling decisions are resolved
+live each run via the manifest's `compound_relabels`/`treatment_relabels`
+fields, not persisted to a lookup file across runs (see Verify your setup
+below for the missing test fixture).
 
 ## Prerequisites
 
@@ -86,11 +91,12 @@ flatten commit removed. Until that's fixed, install as a personal skill
 instead:
 
 1. Clone https://github.com/tomdelanylilly/BNMA_SKILL (private repo —
-   request access if you can't see it), and check out the `cmh-ci` branch.
-2. Copy the repo into your own `.claude/skills/cmh-ci/` folder — only
-   `SKILL.md` and `compound_registry.yaml` are actually needed at runtime;
-   `README.md`/`DESIGN.md`/etc. are documentation, not required for the
-   skill to load.
+   request access if you can't see it), and check out the `cmh-ci_v3`
+   branch.
+2. Copy the repo's `SKILL.md` (and, optionally, `CLAUDE.md` for the
+   always-loaded pointer) into your own `.claude/skills/cmh-ci/` folder —
+   that's the only file actually needed at runtime; `README.md`/
+   `DESIGN.md`/etc. are documentation, not required for the skill to load.
 3. `/cmh-ci` is then available in any Claude Code session.
 
 ### Verify your setup
@@ -111,8 +117,8 @@ verification run needed.
 ### Updating
 
 There's no `/plugin marketplace update` for a personal skill install —
-`git pull` (or re-clone) this repo and re-copy `SKILL.md` and
-`compound_registry.yaml` into `~/.claude/skills/cmh-ci/` to pick up changes.
+`git pull` (or re-clone) this repo and re-copy `SKILL.md` (and `CLAUDE.md`)
+into `~/.claude/skills/cmh-ci/` to pick up changes.
 
 ## Using it
 
@@ -123,53 +129,42 @@ weight-loss forest plot"). From there:
 1. **Point it at your data** — an exact PRD file path, a folder to search
    (defaults to your project's own working directory if you give nothing),
    or a standalone workbook that isn't in the QA/PRD schema (it adapts those
-   automatically rather than silently misreading them). Given a folder, it
-   searches for PRD files specifically (a newer, not-yet-promoted QA file is
-   a later concern — step 4 — not this one) and lists every candidate with
-   modified dates for an explicit pick, rather than guessing the newest or
-   best-named match. Once picked, it always introduces what's actually in
-   the data first — studies, compounds, phases, evidence tiers — before
-   asking you to decide anything. If you're just exploring, it stays
-   conversational here; no folders or manifest until you say you want to
-   move toward a run. It also runs a naming/route pooling-risk QA check
-   automatically at this point — no stop here, the results feed into the
-   next step.
-2. **Which studies are you interested in** — name specific studies (e.g.
+   automatically rather than silently misreading them). It always
+   introduces what's actually in the data first — every study, compound,
+   phase, and evidence tier from both the Observed and Prediction sheets —
+   before asking you to decide anything. If you're just exploring, it stays
+   conversational here; nothing else happens until you say what you want.
+2. **Which studies do you want to include** — name specific studies (e.g.
    "ATTAIN-1 vs. SURMOUNT-4") and/or compounds up front if you already know
-   what you want; either gets resolved first. Then endpoint, route,
-   evidence tier, region — each a short question with a stated default,
-   answered one at a time rather than as one big form.
-3. **Review the subset** — every naming/pooling flag and every study (with
-   phase 1/2 and no-placebo-arm studies always called out individually) in
-   one grouped message with a stated default per item. A study you named
-   in step 2 shows up here too, with "include, per your request" as the
-   stated reason — nothing skips this review. Reply with just what you
-   want to change; everything else proceeds on the shown default/proposal.
-4. **A follow-up confirms the subset is sufficient** and offers to bring in
-   custom/external data not yet in QA/PRD.
-5. **Convert the new data into the QA schema** (only if step 4 said yes) —
+   what you want; either gets pre-resolved and proposed as the include
+   list. Once you pick, it echoes the confirmed selection with phase,
+   route, and compound stated plainly right in the confirmation — no
+   separate naming/route round-trip for the routine case. A genuine
+   anomaly a phase/route/compound line wouldn't surface on its own (two
+   studies that are actually the same trial at different follow-up points,
+   a real spelling inconsistency, the same study appearing in both sheets)
+   still gets its own explicit call-out before proceeding.
+3. **Anything else to add** — a press release, new readout, hand-digitized
+   data, or another workbook not yet in the QA/PRD schema. Saying no here
+   is a complete outcome — reviewing or updating the data without fitting
+   anything is a valid session.
+4. **Convert the new data into the QA schema** (only if step 3 said yes) —
    pasted rows, a file, or a subset of another workbook, shown for
-   confirmation.
-6. **Merge it with the selected subset** — new data defaults to a
-   temporary, project-only addition (not written to the shared QA file
-   unless you explicitly ask to promote it). Loops back to step 4 until
-   the subset is confirmed sufficient.
-7. **Confirms whether you actually want a BNMA run** — your goal for this
-   session might just have been reviewing the data or getting it into QA,
-   and that's a complete outcome. Only if you say yes does it move on.
-8. It proposes working folders (rooted under the QA tier, not wherever the
-   PRD file happened to be found) and an optional project CLAUDE.md, writes
-   a YAML manifest recording every decision, and builds the model input
-   (the BATMAN data structure).
-9. **Collect modelling preferences** — heterogeneity and effect type
-   (placebo-adjusted vs. absolute), asked *after* the real network
-   structure from step 8 is known, so the recommendation is stated directly
-   rather than corrected after the fact.
-10. It fits the model via JAGS, renders the forest plot with a traceable
-    footnote (source data, source program, contributing studies), and
-    writes a driver script next to the manifest that reproduces the whole
-    run from scratch — re-running it later just reloads the cached JAGS
-    samples unless you delete them.
+   confirmation before anything is written.
+5. **Merge it with the selected subset and reload** (only if step 3 said
+   yes) — loops back to step 3 ("anything else?") until you say the subset
+   is sufficient.
+6. **Confirm you actually want a BNMA run** — your goal for this session
+   might just have been reviewing the data or getting it into QA. Only if
+   you say yes does it create the QA-rooted working folders and write the
+   YAML manifest recording every decision made so far.
+7. **Collect modelling preferences** — heterogeneity (random/fixed) and
+   route/evidence filters, asked *after* the real network structure is
+   known, so any recommendation is stated directly rather than corrected
+   after the fact. It then fits the model via JAGS and produces both
+   forest plots (placebo-adjusted and absolute), a re-runnable `.Rmd` with
+   real code chunks, and a rendered `.html` report — the permanent audit
+   trail for the run.
 
 See `SKILL.md` for the full step-by-step detail, including exactly what each
 manifest field controls.
@@ -181,7 +176,7 @@ superseded, step numbering — load/merge through a real JAGS fit and forest
 plot render) against a synthetic fixture during this skill's earlier,
 separate-script-files version — that fixture wasn't carried over into the
 embedded-in-`SKILL.md` layout (see What's included above), and the step
-numbers don't correspond to the current Step 1–10 structure described above
+numbers don't correspond to the current Step 1–7 structure described above
 (see DESIGN.md's design-iteration history for the renumbering). Since then,
 run against real datasets, which caught and fixed a genuine star-network
 CI-inflation bug (see `model_simultaneous_fixed.txt`'s own header comment in
