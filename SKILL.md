@@ -697,31 +697,6 @@ gets both files:
 - `.Rmd` — the re-runnable script (open in RStudio, run chunks)
 - `.html` — a pre-rendered readable report to share immediately
 
-## What this skill does NOT do
-
-- No `/cmh-ci-explain` command — the landing page is shown on every
-  `/cmh-ci` invocation instead
-- No region, route, or evidence questions (dropped — always "both")
-- No relative-vs-absolute question (Step 6) — every run always produces
-  both plots, in one invocation (Step 7's `--effect both`)
-- No model-fitting preview before design decisions
-- No re-asking Step 6's `model_type` choice once made, and no post-hoc
-  network-based recommendation for it either — the statistician's answer
-  is used as-is
-- No `study_selection_manifest.yaml`, `samples.rds`, or
-  `placebo_samples.rds` in the programs folder — the manifest and MCMC
-  caches all stay in `/tmp` scratch; only the `.Rmd` and `.html` persist
-  there, and the report summarizes just the included studies, not a full
-  true/false dump
-- No requirement to enumerate every study in the merged data with an
-  explicit `include: true/false` — the manifest is just the set of
-  studies wanted (`include: true`); anything unlisted is excluded
-  automatically, no decision ledger to fill out
-- No automated post-fit diagnostics (matches EliLillyCo/CMH.BNMA)
-- No placebo QC plot (removed — only the two forest plots are produced)
-- No compound_registry.yaml persistence
-- No Project CLAUDE.md generation
-
 ---
 
 ## Appendix A — JAGS Models (reference documentation)
@@ -880,13 +855,9 @@ one `Rscript` invocation (see Step 7).
 ```r
 #!/usr/bin/env Rscript
 # /cmh-ci pipeline: load+merge -> build BATMAN -> fit JAGS model [-> fit
-# pooled-placebo model] -> render forest plot. One file, one mode -- no
-# explore/build-preview modes (dead weight against the actual Steps 1-7
-# flow, which already explores via inline R at Step 1 -- see SKILL.md's
-# Appendix B intro) and no separate plotting script (the forest plot
-# renders in this same process via --plot, removing a second R-startup +
-# package-load between fit and plot). The placebo QC plot is gone
-# entirely -- this script produces exactly the two forest plots.
+# pooled-placebo model] -> render forest plot. One file, one mode (see
+# SKILL.md's Appendix B intro for why: no explore/build-preview modes, no
+# separate plotting script, no placebo QC plot).
 #
 # Usage (single invocation, everything in one process -- Step 7's default,
 # which fits the JAGS model once and renders BOTH forest plots):
@@ -907,9 +878,8 @@ one `Rscript` invocation (see Step 7).
 #     --contrast "treat1|||treat2"
 #
 # Needs rjags -- `module load jags` in the same shell before this runs
-# (see SKILL.md Step 7's inline `module load`; the old
-# run_r.sh/run_with_jags.sh wrapper scripts were dropped for the same
-# reason as the modes above).
+# (see SKILL.md Step 7's inline `module load`; no run_r.sh/run_with_jags.sh
+# wrapper needed).
 
 # R truncates warning/error message text at options("warning.length")
 # (default 1000 chars, max 8170) -- a long study-name list in an error
@@ -1004,19 +974,10 @@ recast_numeric_cols <- function(df) {
 # --------------------------------------------------------------------------
 # Embedded JAGS model text (formerly Appendix A's standalone .txt files),
 # passed to jags.model() via textConnection() at fit time -- no file ever
-# materialized for these. The four network models are compositions along
-# exactly two axes (see Appendix A's table), so they're built here from ONE
-# shared likelihood body plus two toggles instead of four near-identical
-# hand-maintained strings: `pooled_baseline` picks the phi prior (flat vs.
-# hierarchical dnorm(m, tau2_m), which also brings m/sigma_m/mu_new), and
-# `fixed_delta` picks the delta[i,j] line (stochastic ~dnorm vs.
-# deterministic <-). JAGS is declarative, so the tau2d-before-delta line
-# order is valid for both variants. The fixed-delta variants keep the
-# dead-but-present sigma/tau2 declarations for structural symmetry, exactly
-# as the original standalone model_fixed.txt did. This construction also
-# makes model_simultaneous_fixed.txt -- historically described only as
-# "A3's baseline + A2's delta block", never spelled out -- correct by
-# construction rather than hand-assembled (the gap Appendix A notes).
+# materialized for these. See Appendix A ("The five models, and how they
+# relate") for why the four network models are built from one shared
+# likelihood body plus the pooled_baseline/fixed_delta toggles below,
+# rather than as four hand-maintained strings.
 # --------------------------------------------------------------------------
 NETWORK_MODEL_BODY <- '
     for(i in 1:ns){
@@ -1211,13 +1172,10 @@ merged <- merged %>%
   recast_numeric_cols()
 
 # --------------------------------------------------------------------------
-# De-duplicate repeat entries for the same (study_name, treatment) -- e.g.
-# a study appended to QA more than once across separate /cmh-ci runs (the
-# skill never deletes prior QA rows, so this is expected, not corruption).
-# Keep the most recently entered row by time_entry (yyyymmdd) and say so;
-# older duplicates are left untouched in the QA file itself, they just
-# don't feed this fit. A missing/unparseable time_entry sorts last, so a
-# dated row always wins over an undated one.
+# De-duplicate repeat (study_name, treatment) rows from repeat QA appends
+# across /cmh-ci runs (see Step 4's dedup-by-time_entry note). Keep the
+# most recent row by time_entry (yyyymmdd); a missing/unparseable
+# time_entry sorts last, so a dated row always wins over an undated one.
 # --------------------------------------------------------------------------
 if ("time_entry" %in% names(merged)) {
   dup_keys <- merged %>% count(study_name, treatment) %>% filter(n > 1)
@@ -1236,16 +1194,12 @@ if ("time_entry" %in% names(merged)) {
 
 # --------------------------------------------------------------------------
 # Disambiguate a study_name that exists in BOTH the Observed and Prediction
-# sheets -- e.g. "momentum" is a real different-tier duplicate (a completed
-# readout and a separately-derived projection that happen to share a name),
-# not the same rows twice. Left alone, the manifest and every downstream
-# filter key purely on study_name, so approving one tier's "momentum"
-# silently pulls the OTHER tier's "momentum" into the same fit too --
-# exactly the kind of duplication this skill exists to catch before it
-# reaches a model, not after a full MCMC run (see Step 1's naming/route
-# note on genuine anomalies). Do this before the manifest's include filter
-# below, so "I picked the Observed one" means only the Observed one --
-# the two tiers are separately nameable, separately includable.
+# sheets (see Step 1's naming/route note on genuine anomalies, e.g.
+# "momentum") -- left alone, the manifest and every downstream filter key
+# purely on study_name, so approving one tier silently pulls in the other
+# tier's same-named study too. Do this before the manifest's include
+# filter below, so "I picked the Observed one" means only the Observed
+# one -- the two tiers are separately nameable, separately includable.
 # --------------------------------------------------------------------------
 cross_tier <- merged %>% distinct(study_name, source_sheet) %>% count(study_name) %>% filter(n > 1) %>% pull(study_name)
 if (length(cross_tier) > 0) {
@@ -1411,14 +1365,10 @@ if (route_filter != "both" || !is.null(manifest$compound_filter)) {
 }
 
 # --------------------------------------------------------------------------
-# The manifest only needs entries for studies actually wanted (include:
-# true) -- there is no requirement to enumerate every study in the merged
-# data. Anything not listed is excluded by default, with no explicit
-# false entry and no gate forcing one. The one thing still checked: a
-# listed study that doesn't match anything in this run's data at all
-# (a typo, or a name that changed upstream) is a hard stop, not a silent
-# no-op -- that's the one way an included study could otherwise vanish
-# without anyone noticing.
+# Manifest include: true is the whole thing (see Step 5) -- no explicit
+# false entries, no enumeration gate. One hard stop: a listed study that
+# matches nothing in this run's data (a typo, or a name that changed
+# upstream) is a hard stop, not a silent no-op.
 # --------------------------------------------------------------------------
 included_studies <- vapply(Filter(function(s) isTRUE(s$include), manifest$studies), function(s) s$study_name, character(1))
 if (length(included_studies) == 0) {
