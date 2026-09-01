@@ -1,0 +1,151 @@
+---
+title: "/cmh-ci: A Guided Bayesian Network Meta-Analysis Skill for Cardiometabolic Health Competitive Intelligence"
+subtitle: "A tutorial for using the /cmh-ci Claude Code skill"
+toc: true
+toc-depth: 3
+number-sections: true
+format:
+  html:
+    theme: cosmo
+---
+
+# Introduction
+
+Bayesian network meta-analyses of weight-loss and related endpoints across
+the GLP-1/GIP/amylin competitive landscape are a recurring analytical need
+within Cardiometabolic Health. These analyses pool evidence across many
+studies and compounds into a single, comparable forest plot of relative and
+absolute treatment effects, and they need to be run — and re-run — as new
+studies and data extracts become available. This document introduces
+`/cmh-ci`, a Claude Code skill built to guide a statistician through that
+process end-to-end: from a raw PRD/QA data extract, through study
+selection, to a fitted Bayesian network meta-analysis (BNMA) and a
+reportable result.
+
+## How `/cmh-ci` works, at a glance
+
+Every session opens with a landing page (@fig-landing-page) that explains
+this workflow before touching any data. From there, the skill runs in
+seven steps:
+
+```
+1 ─ Read the PRD/QA data; list every study, compound, phase, and
+    evidence tier.
+2 ─ You pick the studies and compounds to include.
+3 ─ The selected subset is presented for review — studies,
+    compounds, treatments, phases — before anything runs.
+    Naming overlaps or inconsistencies get a call-out.
+4 ─ You say whether outside data (press release, publication link,
+    digitized slide, another workbook) goes into the BNMA.
+5 ─ Any outside data is mapped to the QA schema and merged — you
+    confirm the rows.
+6 ─ You choose random- or fixed-effects for the BNMA.
+7 ─ Fit, then output: a placebo-adjusted forest plot, an
+    absolute forest plot, a re-runnable .Rmd, and an .html
+    report.
+```
+
+Stopping after any step is a valid outcome — reviewing or updating the
+data without fitting a model is a complete session on its own.
+
+![`/cmh-ci` landing page](images/landing-page.png){#fig-landing-page}
+
+<!-- TODO: swap in the real landing-page screenshot once attached -->
+
+# Problem Statement
+
+Before this skill existed, these analyses were produced by running a
+hand-edited R script against a landscape dataset. The set of studies to
+include, exclude, or pool together lived as a manually maintained
+exclusion vector inside the script itself, often accumulating
+commented-out lines with no record of why a given study was in or out.
+Changing which studies, compounds, or evidence to consider meant editing
+that vector directly — a manual step with no structured review before a
+model was ever fit.
+
+That difficulty is compounded by the shape of the underlying data itself.
+Studies live across two tiers — a curated, periodically refreshed PRD
+(production) extract, and a QA (working) tier where new or not-yet-promoted
+data is actually added — and within a single workbook, evidence is further
+split across separate Observed and Prediction sheets, each with its own
+studies, phases, and evidence type. Filenames are dated, and a newer
+extract can land at any time; treatment and compound names are not always
+spelled or split identically across rows, and the same underlying study
+can occasionally appear, differently dosed, in both the Observed and
+Prediction tiers. None of this is really about how to run a Bayesian
+network meta-analysis — it's the substantial amount of context a
+statistician has to resolve correctly just to know what they're actually
+feeding into one.
+
+`/cmh-ci` exists to close that gap. Rather than assuming the user already
+knows how to locate the right file, reconcile naming across tiers, and
+assemble a correct model input by hand, it guides them through the entire
+process — introducing what's actually in the data, selecting and
+confirming a study subset, optionally incorporating outside data, and
+fitting the model — as a structured, end-to-end conversation rather than a
+script they have to already understand and edit themselves.
+
+# Methods
+
+<!--
+  One subsection per workflow step, prose explainer (no code), followed
+  by a subsection on the underlying statistical model. Numbers below
+  match SKILL.md's own Step 1-7 numbering.
+-->
+
+## Step 1: Introducing the data and selecting studies
+
+<!-- TODO -->
+
+## Step 2: Deciding whether to add outside data
+
+<!-- TODO -->
+
+## Step 3: Converting outside data into the QA schema
+
+<!-- TODO -->
+
+## Step 4: Merging outside data
+
+<!-- TODO -->
+
+## Step 5: Confirming the run and building the model input
+
+<!-- TODO -->
+
+## Step 6: Choosing a modelling approach
+
+<!-- TODO -->
+
+## Step 7: Fitting the model and producing outputs
+
+<!-- TODO -->
+
+## The underlying model
+
+<!-- TODO: pending decision -- prose-only, or light typeset math (φ, δ
+     notation matching the one-pager's badge)? -->
+
+# Results
+
+<!-- TODO: pending decision -- reference specific numbers from the two
+     real plots below, or keep the narrative general/structural? -->
+
+::: {#fig-forest-plots layout-ncol="2"}
+![Placebo-adjusted (relative) forest plot](images/forest_plot_relative.png){#fig-relative}
+
+![Absolute forest plot](images/forest_plot_absolute.png){#fig-absolute}
+
+Relative and absolute forest plots from a `/cmh-ci` run on the
+`cwm_wl_nont2d` dataset (2026-08-28).
+:::
+
+<!-- TODO: Key findings callout, e.g.
+::: {.callout-note title="Key findings"}
+...
+:::
+-->
+
+# Summary
+
+<!-- TODO -->
