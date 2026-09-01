@@ -138,11 +138,13 @@ weight-loss forest plot"). From there:
    "ATTAIN-1 vs. SURMOUNT-4") and/or compounds up front if you already know
    what you want; either gets pre-resolved and proposed as the include
    list. Once you pick, it echoes the confirmed selection with phase,
-   route, and compound stated plainly right in the confirmation — no
-   separate naming/route round-trip for the routine case. A genuine
-   anomaly a phase/route/compound line wouldn't surface on its own (two
-   studies that are actually the same trial at different follow-up points,
-   a real spelling inconsistency, the same study appearing in both sheets)
+   route, and treatment stated plainly right in the confirmation (the
+   treatment strings already name the compound, so there's no separate
+   compound field repeating it) — no separate naming/route round-trip for
+   the routine case. A genuine anomaly a phase/route/treatment line
+   wouldn't surface on its own (two studies that are actually the same
+   trial at different follow-up points, a real spelling inconsistency,
+   the same study appearing in both sheets)
    still gets its own explicit call-out before proceeding.
 3. **Anything else to add** — a press release, new readout, hand-digitized
    data, or another workbook not yet in the QA/PRD schema. Saying no here

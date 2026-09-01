@@ -203,8 +203,7 @@ for (s in sheets[!tolower(sheets) %in% c("summary","revision history")]) {
       route_str <- if (nzchar(studies$routes[i])) paste0(", ", studies$routes[i]) else ""
       cat("  ", i, ". ", studies$study_name[i],
           " (", studies$phase[i], route_str, ", ", tolower(s), ")",
-          " -- ", studies$compounds[i], "\n", sep="")
-      cat("       ", studies$treatments[i], "\n")
+          " -- ", studies$treatments[i], "\n", sep="")
     }
     per_sheet[[s]] <- studies %>% mutate(sheet = s)
   }
@@ -266,11 +265,11 @@ for you. Then ask:
 Here's what's in the PRD (cwm_wl_nont2d):
 
   OBSERVED (N studies):
-    1. <study_name> (<phase>, <route>) — <compound>: <treatments>
+    1. <study_name> (<phase>, <route>) — <treatments>
     2. ...
 
   PREDICTION (M studies):
-    1. <study_name> (<phase>, <route>) — <compound>: <treatments>
+    1. <study_name> (<phase>, <route>) — <treatments>
     2. ...
 
   Naming/pooling anomalies (same study_name, or same-compound
@@ -282,26 +281,30 @@ Here's what's in the PRD (cwm_wl_nont2d):
 ```
 
 **Both sheets get the identical per-study numbered format** — `N. <study_name>
-(<phase>, <route>) — <compound>: <treatments>`, one line per study. Never
-collapse the Prediction list into a summary paragraph (a compound-name
-roundup like "includes amycretin, cagrilintide, ...") just because it's
-the second sheet — a Prediction study is exactly as eligible for selection
-as an Observed one, and hiding its phase/treatments behind a name-only
-mention makes it too easy to pick the wrong study by accident.
+(<phase>, <route>) — <treatments>`, one line per study; the treatment
+strings already name the compound (e.g. "orforglipron 36mg qd"), so a
+separate `<compound>` field would just repeat that name — this used to be
+shown as its own segment plus a colon, which mostly duplicated the
+treatments that followed it. Never collapse the Prediction list into a
+summary paragraph (a compound-name roundup like "includes amycretin,
+cagrilintide, ...") just because it's the second sheet — a Prediction
+study is exactly as eligible for selection as an Observed one, and hiding
+its phase/treatments behind a name-only mention makes it too easy to pick
+the wrong study by accident.
 
 If the user already named specific treatments/studies in their prompt,
 pre-resolve those and propose them as the include list.
 
 **Once the user picks studies, echo the confirmed selection in this same
-format** — phase, route, and compound stated plainly per study, right in
+format** — phase, route, and treatment stated plainly per study, right in
 the confirmation itself, not as a separate question. Mixing routes (oral
 + injectable) or phases across the selection is a legitimate modeling
 choice, not something to gate on — an oral/injectable combined analysis
 is a completely normal thing to want. State what's in the selection;
 don't ask permission for it. The same goes for compound naming: if it's
-spelled consistently, this line already shows that — there's no separate
-naming/route round-trip needed for the routine case, and skipping it is
-real time saved over the course of a session.
+spelled consistently, the treatment strings already show that — there's
+no separate naming/route round-trip needed for the routine case, and
+skipping it is real time saved over the course of a session.
 
 The naming/pooling anomalies block above already covers the two
 automatable cases — an exact `study_name` collision across tiers (e.g.
