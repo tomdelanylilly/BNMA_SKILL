@@ -480,3 +480,87 @@ exposed:
    text that more accurately previews what the corresponding step
    actually does.
 
+## Ninth design iteration: removing redundant prose (2026-09-01)
+
+A pass over the whole file to find text stated in two or more places that
+could drift out of sync surfaced a consistent pattern: "What this skill
+does NOT do" (a standalone section near the end of the numbered steps)
+re-explained, in compressed form, facts already stated in full in Steps
+5–7 and Appendix B — and it had already started drifting (its
+programs-folder bullet omitted a detail Step 7's own version still had).
+Separately, several of the embedded R scripts' own comments fully
+re-derived design rationale the surrounding SKILL.md prose already
+covers, instead of pointing back to it.
+
+1. **The "What this skill does NOT do" section was deleted outright.**
+   Every substantive bullet was a paraphrase of something Steps 5–7 or
+   Appendix B already say in full; the two genuinely unique bullets (a
+   note that `/cmh-ci-explain` was replaced by the always-shown landing
+   page, and "no Project CLAUDE.md generation") were historical footnotes
+   with no effect on current behavior, safe to drop rather than relocate.
+2. **Five R-script comments were trimmed to short pointers** instead of
+   full restatements: the four-network-model "two axes" comment now
+   points at Appendix A instead of re-deriving its table; the manifest
+   `include: true` comment now points at Step 5; the cross-tier
+   "momentum" disambiguation comment now points at Step 1 (dropping the
+   duplicated example); the `time_entry` dedup comment now points at Step
+   4; and `run_bnma_pipeline.R`'s own header comment now points at the
+   Appendix B intro instead of re-explaining the 9-scripts-to-2
+   consolidation history. In every case the actual usage examples and any
+   implementation detail the prose didn't already cover were kept —
+   only the restated narrative was cut.
+
+Deliberately left alone: the workflow enumerated three times (the ASCII
+diagram, the "do not skip steps" paragraph, and the landing page's own
+verbatim block) — each serves a different display purpose, and the
+landing page is explicitly fixed, print-verbatim text, so collapsing them
+risked more than it saved. Also left alone: the intentionally duplicated
+`%||%`/`parse_args()` helpers between `run_bnma_pipeline.R` and
+`append_to_qa.R` — real functional code, and the file already explains
+why B2 keeps its own copy rather than sourcing a third file.
+
+## Tenth design iteration: Step 1 efficiency — deterministic naming
+check and dropping the redundant compound field (2026-09-01)
+
+Step 1's PRD introduction was reported as slow. Investigating surfaced
+two independent costs, only one of which was worth fixing:
+
+1. **Emitting the full per-study list is a roughly fixed cost** tied to
+   how many studies exist and how much detail Step 1 insists on showing
+   per study — not something to optimize away without trading off the
+   transparency Step 1 is built around (never collapsing the Prediction
+   sheet into a summary paragraph, per the existing rule a few lines
+   above). Left alone.
+2. **The naming/pooling anomaly detection — exact `study_name` collisions
+   across tiers, and same-compound near-duplicate names across tiers
+   (e.g. "maritide" vs. "maritide_ph2") — was pure unassisted reasoning**,
+   done by reading the entire printed study list and comparing every name
+   against every other name from scratch, every single time Step 1 runs.
+   This was the genuinely variable, expensive part.
+
+**Fix:** the R script itself now computes both checks deterministically
+before printing anything — an exact collision via `count(study_name)`,
+and a same-compound near-duplicate via base R's `adist()` (Levenshtein
+distance ≤ 5; no new package). It prints a "Naming/pooling anomalies"
+block directly, restricted to cross-tier pairs so legitimate same-tier
+subgroup splits (e.g. "(bmi<35)" vs. "(bmi>=35)") never get falsely
+flagged. Step 1's own instructions now say to relay that block, not
+re-derive it — the model's job shrinks from an open-ended pairwise
+comparison to confirming a short, pre-computed list. What the heuristic
+deliberately doesn't catch (a same-tier trial-and-its-extension pair)
+still needs a human look; Step 1 says so explicitly rather than
+implying full coverage. Verified against synthetic fixtures covering
+exact duplicates, near duplicates, no anomalies, and a single-study edge
+case before shipping.
+
+**Separately, a real duplication was found in the display format
+itself:** each study line showed both a comma-joined `compound` list and
+a `treatment` list right after it — e.g. "ct-996, placebo: ct-996;
+placebo" — even though treatment strings already name the compound (a
+dose/frequency string like "orforglipron 36mg qd" makes the compound
+clear on its own). The standalone `<compound>:` segment was dropped from
+both the R script's print loop and the confirmation-echo format; compound
+values are still computed and carried internally (the anomaly pre-pass
+above still needs them), just no longer surfaced as a separate,
+redundant field in the visible list.
+
