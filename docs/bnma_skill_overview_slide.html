@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
+<html lang="en"><head>
+<meta charset="UTF-8">
 <title>/cmh-ci — Explore &amp; Guided BNMA for Cardiometabolic Health Competitive Intelligence</title>
+
 <style>
   :root {
     color-scheme: light;
@@ -91,10 +91,10 @@
     border: 1px solid var(--border);
     border-radius: 14px;
     box-shadow: 0 1px 3px rgba(11,11,11,0.06), 0 12px 32px rgba(11,11,11,0.10);
-    padding: 40px 52px 28px;
+    padding: 26px 52px 16px;
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: 8px;
     overflow: hidden;
   }
 
@@ -104,123 +104,63 @@
     font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
     color: var(--brand-navy);
   }
-  h1 { margin: 4px 0 2px; font-size: 28px; font-weight: 700; letter-spacing: -0.01em; }
-  .subhead { margin: 0; font-size: 14.5px; color: var(--text-secondary); max-width: 640px; line-height: 1.45; }
+  h1 { margin: 3px 0 2px; font-size: 23px; font-weight: 700; letter-spacing: -0.01em; }
+  .subhead { margin: 0; font-size: 12.5px; color: var(--text-secondary); max-width: 640px; line-height: 1.4; }
   .badge {
     flex-shrink: 0;
-    max-width: 260px;
-    font-size: 11px; font-weight: 600; color: var(--text-secondary);
+    max-width: 300px;
     border: 1px solid var(--border); border-radius: 8px;
-    padding: 6px 10px; text-align: right; line-height: 1.5;
+    padding: 12px 16px; text-align: left;
   }
-  .badge b { display: block; color: var(--text-primary); font-size: 12.5px; }
-  .badge .detail {
-    display: block; font-size: 10px; font-weight: 400; color: var(--text-muted);
-    margin-top: 5px; line-height: 1.5; text-align: right;
+  .badge-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+    color: var(--text-muted); margin: 0 0 4px;
   }
-  .badge .detail b { display: inline; font-size: 10px; color: var(--text-secondary); }
+  .badge-title { font-size: 13px; font-weight: 700; color: var(--text-primary); margin: 0 0 2px; }
+  .badge-sub { font-size: 11px; color: var(--text-secondary); margin: 0 0 10px; line-height: 1.4; }
+  .badge-list { list-style: none; margin: 0; padding: 10px 0 0; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 7px; }
+  .badge-list li { font-size: 10.5px; color: var(--text-secondary); line-height: 1.45; padding-left: 12px; position: relative; }
+  .badge-list li::before { content: "•"; position: absolute; left: 0; color: var(--text-muted); }
+  .badge-list b { color: var(--text-primary); font-weight: 600; }
 
   /* ---------- main grid ---------- */
-  .grid { flex: 1; display: grid; grid-template-columns: 290px 1fr 330px; grid-template-rows: 1fr; gap: 22px; min-height: 0; }
+  .grid { flex: 1; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
 
   .panel-title {
-    font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
-    color: var(--text-muted); margin: 0 0 10px;
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+    color: var(--text-muted); margin: 0 0 6px; text-align: center;
   }
 
-  /* ---------- problem column ---------- */
-  .problem-col { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow: hidden; }
-  .incident {
+  /* ---------- workflow timeline ---------- */
+  .workflow-strip { display: flex; align-items: stretch; width: 100%; }
+  .wf-step {
+    flex: 1; display: flex; flex-direction: column; gap: 6px;
+    padding: 0 14px; border-left: 1px solid var(--gridline);
+  }
+  .wf-step:first-child { border-left: none; padding-left: 2px; }
+  .wf-step-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+  .wf-index { font-size: 24px; font-weight: 300; color: var(--brand-navy); line-height: 1; letter-spacing: -0.01em; }
+  .wf-title { font-size: 12px; font-weight: 700; color: var(--text-primary); line-height: 1.3; }
+
+  /* ---------- deliverables ---------- */
+  .deliverables { flex-shrink: 0; display: flex; flex-direction: column; gap: 10px; }
+  .deliverable-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .deliverable {
     background: var(--surface-2);
     border-radius: 10px;
-    padding: 8px 11px;
-    display: flex; gap: 9px; align-items: flex-start;
+    padding: 6px 14px;
+    display: flex; align-items: center; gap: 12px;
   }
-  .status-dot {
-    flex-shrink: 0; width: 16px; height: 16px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 10px; font-weight: 800; color: #fff; margin-top: 1px;
+  .deliverable-ext {
+    flex-shrink: 0; width: 34px; height: 34px; border-radius: 8px;
+    background: var(--series-1); color: #fff; font-size: 10px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center; letter-spacing: 0.02em;
   }
-  .status-dot.critical { background: var(--critical); }
-  .status-dot.warning   { background: var(--warning); color: #3a2c00; }
-  .incident-text { font-size: 12px; line-height: 1.35; color: var(--text-primary); }
-  .incident-text b { display: block; font-size: 12px; margin-bottom: 1px; }
-  .incident-text span.muted { color: var(--text-secondary); font-size: 11.5px; }
+  .deliverable-ext.rmd { background: var(--series-3); }
+  .deliverable-name { font-size: 13px; font-weight: 700; color: var(--text-primary); line-height: 1.3; }
+  .deliverable-desc { font-size: 11px; color: var(--text-secondary); margin-top: 1px; line-height: 1.3; }
 
-  /* ---------- workflow column ---------- */
-  .workflow-col { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
-  .steps { flex: 1; display: flex; flex-direction: column; gap: 6px; justify-content: center; }
-  .step-row { display: flex; align-items: center; gap: 10px; }
-  .step-num {
-    flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%;
-    background: var(--series-1); color: #fff; font-size: 11px; font-weight: 700;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .step-body {
-    flex: 1;
-    background: var(--surface-2);
-    border-radius: 8px;
-    padding: 7px 12px;
-    font-size: 12.5px;
-    color: var(--text-primary);
-    display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  }
-  .step-body .tag {
-    font-size: 10px; font-weight: 700; color: var(--text-muted); white-space: nowrap;
-  }
-  .step-connector {
-    width: 1px; height: 6px; background: var(--baseline); margin-left: 11px;
-  }
-
-  /* ---------- forest plot mock ---------- */
-  .forest-col { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
-  .forest-card {
-    flex: 1;
-    background: var(--surface-2);
-    border-radius: 10px;
-    padding: 12px 14px 10px;
-    display: flex; flex-direction: column;
-  }
-  .forest-title { font-size: 11.5px; font-weight: 700; color: var(--text-primary); margin: 0 0 2px; }
-  .forest-sub { font-size: 10.5px; color: var(--text-muted); margin: 0 0 8px; }
-  .forest-plot { flex: 1; display: flex; flex-direction: column; gap: 5px; position: relative; }
-  .forest-zero-line {
-    position: absolute; top: 0; bottom: 16px; left: var(--zero-x, 46%);
-    width: 1px; background: var(--baseline);
-    background-image: linear-gradient(var(--baseline) 60%, transparent 40%);
-    background-size: 1px 6px;
-  }
-  .forest-row { display: grid; grid-template-columns: 116px 1fr 48px; align-items: center; gap: 6px; font-size: 10px; }
-  .forest-label { color: var(--text-secondary); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .forest-label sup { font-size: 8px; color: var(--text-muted); }
-  .forest-track { position: relative; height: 14px; }
-  .forest-ci {
-    position: absolute; top: 50%; height: 2px; background: currentColor;
-    transform: translateY(-50%); border-radius: 1px;
-  }
-  .forest-dot {
-    position: absolute; top: 50%; width: 9px; height: 9px; border-radius: 50%;
-    background: currentColor; transform: translate(-50%, -50%);
-    box-shadow: 0 0 0 2px var(--surface-2);
-  }
-  .forest-value { font-size: 10px; color: var(--text-secondary); text-align: left; font-variant-numeric: tabular-nums; }
-  .forest-legend { display: flex; gap: 12px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); flex-wrap: wrap; }
-  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--text-secondary); }
-  .legend-swatch { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-  .legend-note { font-size: 9.5px; color: var(--text-muted); margin-top: 4px; }
-
-  /* ---------- footer stat tiles ---------- */
-  .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
-  .stat-tile {
-    background: var(--surface-2);
-    border-radius: 10px;
-    padding: 10px 14px;
-  }
-  .stat-value { font-size: 18px; font-weight: 700; color: var(--text-primary); line-height: 1.2; }
-  .stat-label { font-size: 11px; color: var(--text-secondary); margin-top: 2px; line-height: 1.35; }
-  .stat-tile.good .stat-value::before { content: "✓ "; color: var(--good); }
-
-  .footer-note { font-size: 10px; color: var(--text-muted); text-align: right; }
+  .footer-note { font-size: 10px; color: var(--text-muted); text-align: right; flex-shrink: 0; margin: 0; }
 </style>
 </head>
 <body>
@@ -238,231 +178,161 @@
       <div class="kicker">Claude Code Skill · Cardiometabolic Health Competitive Intelligence</div>
       <h1>/cmh-ci — explore the PRD/QA landscape, then a guided BNMA, never a hardcoded script</h1>
       <p class="subhead">
-        Introduces what's actually in the data first — a complete outcome on
-        its own if that's all you need — and, only when the goal is a full
-        analysis, turns study selection from a silent, hand-edited R vector
-        into a forced, traceable decision at every step — so a low-dose
-        Phase&nbsp;2 study or a naming mismatch can't quietly skew a
-        competitive-landscape result again.
+        Explores the PRD/QA landscape, then walks through a guided BNMA —
+        turning study selection into a forced, traceable decision instead of
+        a silent, hand-edited script.
       </p>
     </div>
     <div class="badge">
-      Model basis<br /><b>Real production BNMA</b>
-      confirmed against the actual CMH Shiny app
-      <span class="detail">
-        <b>model_random.txt</b>: φ[i]~N(0, 0.0001) study baseline,
-        δ[i,j] random treatment effect, σ~Unif(0,8)<br />
-        MCMC: adapt 10k · burn-in 10k · sample 20k (thin 10) · 3 chains<br />
-        Chain 1 inits φ/d to exactly 0; chains 2–3 draw from the same
-        vague N(0, SD=100) prior<br />
-        Matches <b>EliLillyCo/CMH.BNMA</b>'s own documented spec verbatim
-        (confirmed 2026-08-20)
-      </span>
+      <p class="badge-label">Model basis</p>
+      <p class="badge-title">Real production BNMA</p>
+      <p class="badge-sub">Confirmed against the actual CMH Shiny app</p>
+      <ul class="badge-list">
+        <li><b>model_random.txt</b>: φ[i]~N(0, 0.0001) baseline, δ[i,j]~Unif(0,8) effect</li>
+        <li>MCMC: 10k adapt · 10k burn-in · 20k sample (thin 10) · 3 chains</li>
+        <li>Matches <b>EliLillyCo/CMH.BNMA</b>'s documented spec verbatim (confirmed 2026-08-20)</li>
+      </ul>
     </div>
   </div>
 
   <!-- MAIN GRID -->
   <div class="grid">
 
-    <!-- PROBLEM COLUMN -->
-    <div class="problem-col">
-      <p class="panel-title">What kept going wrong</p>
-
-      <div class="incident">
-        <div class="status-dot critical">!</div>
-        <div class="incident-text">
-          <b>A silent inclusion skewed a result</b>
-          <span class="muted">A low-dose Phase 2 study entered a semaglutide analysis with no one deciding to include it.</span>
-        </div>
-      </div>
-
-      <div class="incident">
-        <div class="status-dot warning">!</div>
-        <div class="incident-text">
-          <b>Naming drift broke scripts</b>
-          <span class="muted">A compound-name change silently split one arm into two, unnoticed until the fit looked wrong.</span>
-        </div>
-      </div>
-
-      <div class="incident">
-        <div class="status-dot warning">!</div>
-        <div class="incident-text">
-          <b>No audit trail</b>
-          <span class="muted">Study choices lived as a commented-out vector inside a script — not reviewable, not reproducible.</span>
-        </div>
-      </div>
-
-      <div class="incident">
-        <div class="status-dot critical">!</div>
-        <div class="incident-text">
-          <b>The model itself was wrong</b>
-          <span class="muted">Hierarchical baseline + the wrong heterogeneity prior — confirmed against the real tool's own source.</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- WORKFLOW COLUMN -->
-    <div class="workflow-col">
+    <!-- WORKFLOW STRIP -->
+    <div>
       <p class="panel-title">How /cmh-ci forces the decision</p>
-      <div class="steps">
+      <div class="workflow-strip">
 
-        <div class="step-row">
-          <div class="step-num">1</div>
-          <div class="step-body">Introduce the PRD dataset — every study, compound, phase &amp; tier — and pick which to include <span class="tag">Step 1</span></div>
+        <div class="wf-step">
+          <div class="wf-step-top">
+            <div class="wf-index">01</div>
+            <svg width="22" height="19" viewBox="0 0 36 32" fill="none">
+              <path d="M2 4h9l3 3h20v21H2V4z" fill="#1e5aa8"></path>
+              <path d="M2 10h32l-3 18H5L2 10z" fill="#5b9bd5"></path>
+            </svg>
+          </div>
+          <div class="wf-title">Explore PRD data</div>
         </div>
-        <div class="step-connector"></div>
 
-        <div class="step-row">
-          <div class="step-num">2</div>
-          <div class="step-body">Confirm the selection — phase/route/compound stated plainly, naming &amp; route-pooling QA gate on any genuine anomaly <span class="tag">Step 1</span></div>
+        <div class="wf-step">
+          <div class="wf-step-top">
+            <div class="wf-index">02</div>
+            <svg width="20" height="20" viewBox="0 0 56 56" fill="none">
+              <rect x="3" y="3" width="50" height="50" stroke="#e0302a" stroke-width="3"></rect>
+              <rect x="8" y="8" width="40" height="40" stroke="#e0302a" stroke-width="2"></rect>
+              <path d="M13 28l8 9 19 -19" stroke="#e0302a" stroke-width="3" fill="none"></path>
+              <path d="M13 32l8 9 19 -19" stroke="#e0302a" stroke-width="2" fill="none"></path>
+            </svg>
+          </div>
+          <div class="wf-title">Confirm selection</div>
         </div>
-        <div class="step-connector"></div>
 
-        <div class="step-row">
-          <div class="step-num">3</div>
-          <div class="step-body">Ask whether additional, non-PRD data should be added <span class="tag">Step 2</span></div>
+        <div class="wf-step">
+          <div class="wf-step-top">
+            <div class="wf-index">03</div>
+            <svg width="20" height="20" viewBox="0 0 48 48">
+              <rect x="2" y="2" width="44" height="44" rx="7" fill="#1c7c3e"></rect>
+              <rect x="7" y="7" width="34" height="34" rx="3" fill="none" stroke="#eafaf0" stroke-width="1.5"></rect>
+              <line x1="7" y1="18" x2="41" y2="18" stroke="#eafaf0" stroke-width="1.5"></line>
+              <line x1="7" y1="30" x2="41" y2="30" stroke="#eafaf0" stroke-width="1.5"></line>
+              <line x1="18" y1="7" x2="18" y2="41" stroke="#eafaf0" stroke-width="1.5"></line>
+              <line x1="30" y1="7" x2="30" y2="41" stroke="#eafaf0" stroke-width="1.5"></line>
+            </svg>
+          </div>
+          <div class="wf-title">Add outside data?</div>
         </div>
-        <div class="step-connector"></div>
 
-        <div class="step-row">
-          <div class="step-num">4</div>
-          <div class="step-body">Convert &amp; merge any additional data into the QA schema <span class="tag">Step 3-4</span></div>
+        <div class="wf-step">
+          <div class="wf-step-top">
+            <div class="wf-index">04</div>
+            <svg width="20" height="20" viewBox="0 0 48 48">
+              <ellipse cx="24" cy="12" rx="18" ry="8" fill="#1e5aa8"></ellipse>
+              <path d="M6 12v10c0 4.4 8.06 8 18 8s18-3.6 18-8V12" fill="#5b9bd5"></path>
+              <ellipse cx="24" cy="22" rx="18" ry="8" fill="#5b9bd5"></ellipse>
+              <path d="M6 22v12c0 4.4 8.06 8 18 8s18-3.6 18-8V22" fill="#8cb8e0"></path>
+              <ellipse cx="24" cy="34" rx="18" ry="8" fill="#8cb8e0"></ellipse>
+            </svg>
+          </div>
+          <div class="wf-title">Merge to QA schema</div>
         </div>
-        <div class="step-connector"></div>
-
-        <div class="step-row">
-          <div class="step-num">5</div>
-          <div class="step-body">Confirm the BNMA run itself, create folders, write the manifest <span class="tag">Step 5</span></div>
+        <div class="wf-step">
+          <div class="wf-step-top">
+            <div class="wf-index">05</div>
+            <svg width="18" height="20" viewBox="0 0 48 48">
+              <rect x="8" y="6" width="32" height="38" rx="4" fill="#eb6834"></rect>
+              <rect x="16" y="2" width="16" height="8" rx="2" fill="#c94f1f"></rect>
+              <line x1="14" y1="18" x2="34" y2="18" stroke="#fff" stroke-width="2"></line>
+              <line x1="14" y1="26" x2="34" y2="26" stroke="#fff" stroke-width="2"></line>
+              <line x1="14" y1="34" x2="28" y2="34" stroke="#fff" stroke-width="2"></line>
+            </svg>
+          </div>
+          <div class="wf-title">Confirm run &amp; manifest</div>
         </div>
-        <div class="step-connector"></div>
-
-        <div class="step-row">
-          <div class="step-num">6</div>
-          <div class="step-body">Collect modelling preferences — heterogeneity, route, evidence — informed by the real network <span class="tag">Step 6</span></div>
+        <div class="wf-step">
+          <div class="wf-step-top">
+            <div class="wf-index">06</div>
+            <svg width="20" height="20" viewBox="0 0 48 48">
+              <line x1="6" y1="12" x2="42" y2="12" stroke="#8a8f97" stroke-width="3"></line>
+              <circle cx="28" cy="12" r="5" fill="#0d366b"></circle>
+              <line x1="6" y1="24" x2="42" y2="24" stroke="#8a8f97" stroke-width="3"></line>
+              <circle cx="16" cy="24" r="5" fill="#0d366b"></circle>
+              <line x1="6" y1="36" x2="42" y2="36" stroke="#8a8f97" stroke-width="3"></line>
+              <circle cx="32" cy="36" r="5" fill="#0d366b"></circle>
+            </svg>
+          </div>
+          <div class="wf-title">Set model prefs</div>
         </div>
-        <div class="step-connector"></div>
-
-        <div class="step-row">
-          <div class="step-num">7</div>
-          <div class="step-body">BATMAN + JAGS fit, both forest plots, plus a re-runnable .Rmd &amp; rendered .html report <span class="tag">Step 7</span></div>
+        <div class="wf-step">
+          <div class="wf-step-top">
+            <div class="wf-index">07</div>
+            <svg width="20" height="20" viewBox="0 0 48 48">
+              <rect x="6" y="28" width="8" height="14" fill="#1baf7a"></rect>
+              <rect x="20" y="18" width="8" height="24" fill="#159463"></rect>
+              <rect x="34" y="8" width="8" height="34" fill="#0d7a4d"></rect>
+            </svg>
+          </div>
+          <div class="wf-title">Fit + report</div>
         </div>
 
       </div>
     </div>
 
-    <!-- FOREST PLOT MOCK -->
-    <div class="forest-col">
-      <div class="forest-card">
-        <p class="forest-title">Every plotted arm marked by evidence type</p>
-        <p class="forest-sub">Illustrative — % body weight change, placebo-adjusted</p>
+    <!-- DELIVERABLES -->
+    <div class="deliverables">
+      <p class="panel-title">What comes out of a run</p>
+      <div class="deliverable-row">
 
-        <div class="forest-plot" id="forestPlot" style="--zero-x: 40%;">
-          <div class="forest-zero-line"></div>
-          <!-- rows injected as static markup below -->
+        <div class="deliverable">
+          <div class="deliverable-ext">PNG</div>
+          <div>
+            <div class="deliverable-name">Absolute-effect BNMA</div>
+            <div class="deliverable-desc">Forest plot, absolute scale</div>
+          </div>
         </div>
 
-        <div class="forest-legend" id="forestLegend"></div>
-        <p class="legend-note">ᵒ observed &nbsp;·&nbsp; ᵖ projection — same superscript convention as the real plot output</p>
+        <div class="deliverable">
+          <div class="deliverable-ext">PNG</div>
+          <div>
+            <div class="deliverable-name">Relative-effect BNMA</div>
+            <div class="deliverable-desc">Forest plot, relative scale</div>
+          </div>
+        </div>
+
+        <div class="deliverable">
+          <div class="deliverable-ext rmd">Rmd</div>
+          <div>
+            <div class="deliverable-name">Analysis report</div>
+            <div class="deliverable-desc">Re-runnable .Rmd + rendered .html</div>
+          </div>
+        </div>
+
       </div>
     </div>
 
-  </div>
-
-  <!-- STAT ROW -->
-  <div class="stat-row">
-    <div class="stat-tile good">
-      <div class="stat-value">0</div>
-      <div class="stat-label">Hardcoded study vectors — replaced by a written, reasoned manifest</div>
-    </div>
-    <div class="stat-tile good">
-      <div class="stat-value">2</div>
-      <div class="stat-label">Real model variants supported — random-effect (default) &amp; fixed-effect</div>
-    </div>
-    <div class="stat-tile good">
-      <div class="stat-value">4</div>
-      <div class="stat-label">Explicit gates before a fit ever runs — naming, scope, selection, manifest</div>
-    </div>
-    <div class="stat-tile good">
-      <div class="stat-value">2</div>
-      <div class="stat-label">Files per run — a re-runnable .Rmd and a rendered .html — not a chat transcript</div>
-    </div>
   </div>
 
   <p class="footer-note">.claude/skills/cmh-ci — cardiometabolic health competitive-intelligence QA/PRD dataset explorer + BNMA · mockup for team review, not a live result</p>
 
 </div>
 
-<script>
-  // Illustrative data only -- directionally consistent with real fits this
-  // session produced, not a literal result. Fixed categorical color order
-  // (blue, orange, aqua, yellow, magenta) assigned by compound identity.
-  const rows = [
-    { label: "Placebo",                 sup: "o,p", mean: 0,     lo: 0,     hi: 0,     slot: 1 },
-    { label: "Semaglutide 2.4mg",       sup: "o",   mean: -14.1, lo: -16.1, hi: -11.8, slot: 1 },
-    { label: "CagriSema 2.4+2.4",       sup: "o",   mean: -17.6, lo: -22.7, hi: -12.5, slot: 2 },
-    { label: "Tirzepatide 15mg",        sup: "o",   mean: -20.2, lo: -23.0, hi: -17.1, slot: 3 },
-    { label: "Retatrutide 12mg",        sup: "p",   mean: -26.4, lo: -31.8, hi: -20.9, slot: 4 },
-    { label: "Eloralintide 9mg",        sup: "p",   mean: -14.2, lo: -18.8, hi: -9.6,  slot: 5 },
-  ];
-
-  const seriesVar = n => `var(--series-${n})`;
-  const min = -34, max = 4; // fixed scale so 0 lines up with --zero-x
-  const pct = v => ((v - min) / (max - min)) * 100;
-  const zeroPct = pct(0);
-  document.getElementById("forestPlot").style.setProperty("--zero-x", zeroPct + "%");
-
-  const plot = document.getElementById("forestPlot");
-  rows.forEach(r => {
-    const row = document.createElement("div");
-    row.className = "forest-row";
-    row.style.color = seriesVar(r.slot);
-
-    const label = document.createElement("div");
-    label.className = "forest-label";
-    label.innerHTML = r.label + `<sup>${r.sup}</sup>`;
-
-    const track = document.createElement("div");
-    track.className = "forest-track";
-
-    const ci = document.createElement("div");
-    ci.className = "forest-ci";
-    const loP = pct(r.lo), hiP = pct(r.hi);
-    ci.style.left = loP + "%";
-    ci.style.width = Math.max(hiP - loP, 0.5) + "%";
-
-    const dot = document.createElement("div");
-    dot.className = "forest-dot";
-    dot.style.left = pct(r.mean) + "%";
-
-    track.appendChild(ci);
-    track.appendChild(dot);
-
-    const value = document.createElement("div");
-    value.className = "forest-value";
-    value.textContent = r.mean === 0 ? "0" : r.mean.toFixed(1);
-
-    row.appendChild(label);
-    row.appendChild(track);
-    row.appendChild(value);
-    plot.appendChild(row);
-  });
-
-  // legend by compound (fixed order, matches series slots used above)
-  const legendItems = [
-    { name: "Semaglutide",   slot: 1 },
-    { name: "CagriSema",     slot: 2 },
-    { name: "Tirzepatide",   slot: 3 },
-    { name: "Retatrutide",   slot: 4 },
-    { name: "Eloralintide",  slot: 5 },
-  ];
-  const legend = document.getElementById("forestLegend");
-  legendItems.forEach(it => {
-    const el = document.createElement("div");
-    el.className = "legend-item";
-    el.innerHTML = `<span class="legend-swatch" style="background:${seriesVar(it.slot)}"></span>${it.name}`;
-    legend.appendChild(el);
-  });
-</script>
-
-</body>
-</html>
+</body></html>
