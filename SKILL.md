@@ -722,8 +722,16 @@ RStudio:
   studies. Hardcoded paths from this run.
 - **Chunk 3: Build BATMAN** — construct JAGS data matrices (`y`, `se`,
   `trt`, `na`, `ns`, `M`).
-- **Chunk 4: Fit model** — JAGS model definition (inline), `jags.model()`,
-  `update()` burn-in, `coda.samples()`.
+- **Chunk 4: Fit model** — the actual seeded-inits construction copied in
+  from Appendix B1 (`base_seed` derived from `args$seed`, the
+  `draw_from_vague_prior()` helper, and the `inits.list` built with
+  `.RNG.seed`/`.RNG.name = "base::Wichmann-Hill"` per chain), then the
+  JAGS model definition (inline), `jags.model()` called with that
+  `inits.list`, `update()` burn-in, `coda.samples()`. Without the seeded
+  inits, `jags.model()` falls back to unseeded random starting values —
+  a re-run would still fit fine, but wouldn't reproduce the *same*
+  posterior draws (see Appendix B1's own seeding code for why chain 1
+  gets zero inits and chains 2-3 draw from the vague prior).
 - **Chunk 5: Results** — extract posteriors, build result table, fit
   pooled-placebo model for absolute effects.
 - **Chunk 6: Forest plots** — the actual `render_forest()` plotting code
