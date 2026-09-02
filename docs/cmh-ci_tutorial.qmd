@@ -1,5 +1,5 @@
 ---
-title: "/cmh-ci: A Guided Bayesian Network Meta-Analysis Skill for Cardiometabolic Health Competitive Intelligence"
+title: "/cmh-ci: A Guided Bayesian Network Meta-Analysis Skill for Weight Loss in Cardiometabolic Health Competitive Intelligence"
 subtitle: "Tutorial and reference for the /cmh-ci Claude Code skill"
 author: "CMH Competitive Intelligence Team"
 date: "2026-09-01"
@@ -41,47 +41,6 @@ This document introduces `/cmh-ci`, a Claude Code skill built to guide a
 statistician through that process end-to-end: from a raw PRD/QA data
 extract, through study selection, to a fitted BNMA and a reportable result.
 
-## The problem `/cmh-ci` solves
-
-Before this skill existed, these analyses were produced by running a
-hand-edited R script against a landscape dataset. The set of studies to
-include, exclude, or pool together lived as a manually maintained
-exclusion vector inside the script itself, often accumulating
-commented-out lines with no record of why a given study was in or out.
-Changing which studies, compounds, or evidence to consider meant editing
-that vector directly — a manual step with no structured review before a
-model was ever fit.
-
-That difficulty is compounded by the shape of the underlying data itself.
-Studies live across two tiers — a curated, periodically refreshed PRD
-(production) extract, and a QA (working) tier where new or not-yet-promoted
-data is actually added — and within a single workbook, evidence is further
-split across separate Observed and Prediction sheets, each with its own
-studies, phases, and evidence type. Filenames are dated, and a newer
-extract can land at any time; treatment and compound names are not always
-spelled or split identically across rows, and the same underlying study
-can occasionally appear, differently dosed, in both the Observed and
-Prediction tiers.
-
-`/cmh-ci` exists to close that gap. Rather than assuming the user already
-knows how to locate the right file, reconcile naming across tiers, and
-assemble a correct model input by hand, it guides them through the entire
-process as a structured, end-to-end conversation.
-
-
-## What `/cmh-ci` produces
-
-Every completed run outputs four deliverables:
-
-- **Placebo-adjusted (relative) forest plot** — the standard competitive landscape view
-- **Absolute forest plot** — estimated total weight change per treatment
-- **Re-runnable `.Rmd`** — open in RStudio, run chunk-by-chunk to reproduce or modify
-- **Pre-rendered `.html` report** — shareable immediately, no R needed to read
-
-:::{.callout-tip}
-You don't have to run the full analysis. Stopping after reviewing the data (Step 1) or after adding new data to QA are both valid, complete sessions.
-:::
-
 
 # Prerequisites
 
@@ -100,17 +59,29 @@ That's it. R (4.4.2), JAGS (4.3.2), and all R packages (`rjags`, `coda`, `dplyr`
 
 ## Setup options
 
-**Option A: Global install** (works from any folder) — place the skill at:
+**Option A: Global install** (works from any folder, in any session) — place the skill at:
 ```
 ~/.claude/skills/cmh-ci/SKILL.md
 ```
 
-**Option B: Project-level** (works for everyone in that folder):
+**Option B: Project-level** (works for anyone whose session starts inside that folder):
 ```
-/lillyce/qa/diabetes/bnma/obesity/
+/lillyce/qa/diabetes/bnma/obesity/data/shared/
 ├── .claude/skills/cmh-ci/SKILL.md
 └── CLAUDE.md    ← optional 5-line pointer
 ```
+
+A project-level install only applies when your session's working
+directory is inside that specific folder — if you start sessions from
+different places, use the global install (Option A) instead.
+
+:::{.callout-warning}
+Don't place a project-level copy under `/lillyce/prd/...`. Files created
+there can get locked by a compliance/retention mechanism shortly after
+creation — even the file's own owner can no longer edit or delete it
+afterward. PRD is meant to be a curated, semi-annual read tier anyway;
+QA is the live working copy this skill is designed to write into.
+:::
 
 The optional `CLAUDE.md` pointer lets users know the skill exists:
 
@@ -126,8 +97,8 @@ absolute), a re-runnable .Rmd, and an .html report.
 ## Starting a session
 
 ```bash
-cd /lillyce/qa/diabetes/bnma/obesity   # or your working directory
-claude                                  # launch Claude Code
+cd /lillyce/qa/diabetes/bnma/obesity/data/shared   # or your own working directory
+claude                                               # launch Claude Code
 ```
 
 Then type `/cmh-ci`.
