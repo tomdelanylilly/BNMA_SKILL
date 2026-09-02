@@ -89,7 +89,11 @@ a BNMA on this subset?", a naming/route/cross-tier anomaly resolution, any
 of it — raise it through the harness's own question tool so it renders as
 a proper prompt, not free text they have to type a reply to. This applies
 everywhere in Steps 1 through 6, without exception; it's a presentation
-convention, not something each step needs to repeat.
+convention, not something each step needs to repeat. **The one exception
+is the landing page's own proceed/no-proceed line below** — that stays
+plain text, printed as part of the fixed verbatim banner (see "Print the
+block below verbatim" just after it); wrapping it in the question tool
+would restyle a block this section already says not to restyle.
 
 ## Landing page — shown before anything is touched
 
@@ -147,6 +151,9 @@ data without fitting is a complete session.
 - **"No" or anything non-affirmative/ambiguous** → end the turn without
   touching anything. Nothing carries over from this page, since nothing
   was touched.
+- **This prompt is plain text, not the structured question tool** — it's
+  part of the fixed banner printed verbatim above, unlike every
+  discrete-choice question from Step 1 onward.
 
 Operator notes (not printed on the page above):
 - Deeper "why" for any step — the incident history behind it — lives in
