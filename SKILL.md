@@ -726,8 +726,15 @@ RStudio:
   `update()` burn-in, `coda.samples()`.
 - **Chunk 5: Results** — extract posteriors, build result table, fit
   pooled-placebo model for absolute effects.
-- **Chunk 6: Forest plots** — render both relative and absolute forest
-  plots, save PNGs.
+- **Chunk 6: Forest plots** — the actual `render_forest()` plotting code
+  copied in from Appendix B1 (compound-color mapping, `geom_pointrange`,
+  plot sizing, `ggsave`), called once per effect
+  (`render_forest("relative", ...)`, `render_forest("absolute", ...)`) —
+  not a reference or pointer to `run_bnma_pipeline.R` itself. That script
+  only ever exists in `/tmp` scratch for the duration of the session (see
+  "no separate copy of `run_bnma_pipeline.R`" below); it isn't there for
+  the user to point at once the session ends, so this chunk needs to be
+  genuinely self-contained the same way Chunks 1-5 already are.
 
 Each chunk is self-contained enough that a user can re-run from any
 chunk if the earlier objects are in the workspace. Chunks default to
