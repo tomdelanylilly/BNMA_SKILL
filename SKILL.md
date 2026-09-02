@@ -716,10 +716,16 @@ embedded script. It has real R code chunks a user can step through in
 RStudio:
 
 - **Chunk 1: Setup** — `library()` calls (rjags, dplyr, readxl,
-  ggplot2, coda, openxlsx), path definitions (PRD, QA, output folder),
+  ggplot2, coda, openxlsx), path definitions (output folder and the PRD
+  path hardcoded from this run — PRD is never renamed, so that path stays
+  valid indefinitely; the QA path resolved *by pattern*, same
+  `ls -t .../cwm_wl_nont2d_qa_*.xlsx | head -1` approach Step 1 uses for
+  PRD, since a later append can rename the exact QA file this run read —
+  hardcoding it would break a re-run once that happens, even though the
+  underlying rows for this run's included studies haven't changed),
   config variables (MCMC params, included studies, model type).
 - **Chunk 2: Data load** — read PRD/QA, merge, filter to included
-  studies. Hardcoded paths from this run.
+  studies.
 - **Chunk 3: Build BATMAN** — construct JAGS data matrices (`y`, `se`,
   `trt`, `na`, `ns`, `M`).
 - **Chunk 4: Fit model** — the actual seeded-inits construction copied in
