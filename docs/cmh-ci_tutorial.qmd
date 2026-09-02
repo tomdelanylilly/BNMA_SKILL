@@ -57,48 +57,24 @@ That's it. R (4.4.2), JAGS (4.3.2), and all R packages (`rjags`, `coda`, `dplyr`
 
 # Getting Started
 
-## Setup options
+## Setup
 
-**Option A: Global install** (works from any folder, in any session) — place the skill at:
-```
-~/.claude/skills/cmh-ci/SKILL.md
-```
+The skill is already deployed in the shared QA data directory:
 
-**Option B: Project-level** (works for anyone whose session starts inside that folder):
 ```
 /lillyce/qa/diabetes/bnma/obesity/data/shared/
-├── .claude/skills/cmh-ci/SKILL.md
-└── CLAUDE.md    ← optional 5-line pointer
+└── .claude/skills/cmh-ci/
+    ├── SKILL.md     ← the skill definition
+    └── CLAUDE.md    ← project-level pointer
 ```
 
-A project-level install only applies when your session's working
-directory is inside that specific folder — if you start sessions from
-different places, use the global install (Option A) instead.
-
-:::{.callout-warning}
-Don't place a project-level copy under `/lillyce/prd/...`. Files created
-there can get locked by a compliance/retention mechanism shortly after
-creation — even the file's own owner can no longer edit or delete it
-afterward. PRD is meant to be a curated, semi-annual read tier anyway;
-QA is the live working copy this skill is designed to write into.
-:::
-
-The optional `CLAUDE.md` pointer lets users know the skill exists:
-
-```markdown
-# CMH Competitive Intelligence — BNMA
-
-Type `/cmh-ci` to run a Bayesian network meta-analysis on the PRD/QA
-weight-loss dataset. It walks you through study selection, optional new
-data, model fitting, and outputs both forest plots (placebo-adjusted +
-absolute), a re-runnable .Rmd, and an .html report.
-```
+Any Claude Code session launched from within `/lillyce/qa/diabetes/bnma/obesity/data/shared/` (or a subdirectory) will pick it up automatically — no install step needed.
 
 ## Starting a session
 
 ```bash
-cd /lillyce/qa/diabetes/bnma/obesity/data/shared   # or your own working directory
-claude                                               # launch Claude Code
+cd /lillyce/qa/diabetes/bnma/obesity/data/shared   # or a subdirectory
+claude                                              # launch Claude Code
 ```
 
 Then type `/cmh-ci`.
@@ -498,8 +474,7 @@ At Step 6, choose **fixed-effect**. Or edit `model_type` in an existing
 | QA data | `/lillyce/qa/diabetes/bnma/obesity/data/shared/weight/cwm_wl_nont2d_qa_YYYYMMDD.xlsx` |
 | Programs (per run) | `/lillyce/qa/diabetes/bnma/obesity/programs/YYYYMMDD_<slug>/` |
 | Output (per run) | `/lillyce/qa/diabetes/bnma/obesity/output/shared/YYYYMMDD_<slug>/` |
-| Skill (global) | `~/.claude/skills/cmh-ci/SKILL.md` |
-| Skill (project) | `<project>/.claude/skills/cmh-ci/SKILL.md` |
+| Skill (deployed) | `/lillyce/qa/diabetes/bnma/obesity/data/shared/.claude/skills/cmh-ci/SKILL.md` |
 
 
 # FAQ
