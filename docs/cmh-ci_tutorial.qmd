@@ -90,7 +90,7 @@ flowchart LR
     C -->|yes| D["Append to QA"]
     C -->|no| E["Configure\n& fit model"]
     D --> E
-    E --> F["Forest plots\n+ .Rmd + .html"]
+    E --> F["Forest plots\n+ script + report"]
 
     style A fill:#4A90D9,color:#fff
     style F fill:#2ECC71,color:#fff
@@ -203,8 +203,9 @@ final for this run.
 
 The model is fit once via JAGS, and both forest plots are produced from
 that same fit in a single pass — no separate R processes, no re-reading
-data. Alongside the plots, the skill writes a re-runnable `.Rmd` report
-and renders it to `.html`.
+data. Alongside the plots, the skill writes a standalone runnable script
+(`report.R`) and a narrative report (`report.Rmd`), rendering the latter
+to `.html`.
 
 ```bash
 # What's happening under the hood:
@@ -396,45 +397,65 @@ Relative and absolute forest plots from a `/cmh-ci` run on the
 
 These figures come from one specific run; a different study selection or
 data extract would produce different results. What doesn't change is the
-set of outputs every run produces — the two plots plus the `.Rmd`/`.html`
-pair that records exactly how these numbers were produced.
+set of outputs every run produces — the two plots plus `report.R` and the
+`report.Rmd`/`.html` pair that records exactly how these numbers were
+produced.
 
 
 # Understanding the Outputs
 
-## The .Rmd report
+## report.R — the standalone script
 
-The `.Rmd` is not just documentation — **it is the re-runnable analysis
-script**. It contains six R code chunks:
+`report.R` is the actual reproduction mechanism — plain, sequential R
+code with no chunk markers, runnable top to bottom with one `Rscript`
+call. No RStudio, no chunk-by-chunk stepping required, though you can
+still open it and read or step through it manually in any editor. It
+covers everything the fit needed:
 
-| Chunk | What it does |
+| Section | What it does |
 |---|---|
-| **1. Setup** | Load libraries, define paths, config variables |
-| **2. Data load** | Read PRD/QA, merge, filter to included studies |
-| **3. Build BATMAN** | Construct JAGS matrices ($y$, $se$, $trt$, $n_a$, $ns$, $M$) |
-| **4. Fit model** | JAGS model definition, `jags.model()`, burn-in, `coda.samples()` |
-| **5. Results** | Extract posteriors, build result table, fit pooled-placebo |
-| **6. Forest plots** | Render both relative and absolute, save PNGs |
+| **Setup** | Load libraries, define paths (PRD hardcoded, QA resolved by pattern), config variables |
+| **Data load** | Read PRD/QA, merge, filter to included studies |
+| **Build BATMAN** | Construct JAGS matrices ($y$, $se$, $trt$, $n_a$, $ns$, $M$) |
+| **Fit model** | Seeded inits, JAGS model definition, `jags.model()`, burn-in, `coda.samples()` |
+| **Results** | Extract posteriors, build result table, fit pooled-placebo |
+| **Forest plots** | Render both relative and absolute, save PNGs |
 
-To re-run an analysis: open `report.Rmd` in RStudio, ensure
-`module load R/4.4.2 jags` is active, and run chunks sequentially
-(Ctrl+Shift+Enter). Edit paths or study lists as needed, then re-run.
+To re-run an analysis:
+
+```bash
+module load R/4.4.2 jags 2>/dev/null
+Rscript report.R
+```
 
 :::{.callout-tip}
-Each chunk is self-contained enough to re-run from any point if the earlier objects are in your workspace. Want to re-render plots with different styling? Jump straight to Chunk 6.
+The fit is seeded (see Methods' "Fit model" step), so re-running `report.R`
+unmodified reproduces the exact same posterior draws and plots — not
+just a statistically similar result. Edit paths, study lists, or model
+settings first if you want a genuinely different run.
 :::
 
-## The .html report
+## report.Rmd — the narrative report
 
-The `.html` is a pre-rendered readable version — shareable by email or on
-SharePoint, no R needed. It contains the data provenance, study list,
-design choices, all six code chunks (displayed but not executed), and
-links to the output plots.
+`report.Rmd` has no code — the runnable form is `report.R` above. It's
+what you open cold, months later, to answer "how was this produced, and
+can I reproduce it": a short per-step workflow summary, the exact data
+provenance (PRD/QA paths, any supplemental data merged in, `se_fallback`
+and other manifest-recorded adjustments), which studies were included,
+the design choices (`model_type`, filters), and links to the two output
+plots plus a pointer to `report.R`.
 
-Both files live in the programs folder:
+## report.html
+
+The `.html` is `report.Rmd` rendered — shareable by email or on
+SharePoint, no R needed. Since `report.Rmd` has no code to run, this
+renders in seconds.
+
+All three files live in the programs folder:
 
 ```
 /lillyce/qa/diabetes/bnma/obesity/programs/YYYYMMDD_<slug>/
+  ├── report.R
   ├── report.Rmd
   └── report.html
 ```
@@ -456,14 +477,14 @@ appends and renames the QA file. Then fit the BNMA or stop there.
 
 ### "Re-run last month's analysis with updated data"
 
-Open the previous run's `report.Rmd` in RStudio. Update file paths in
-Chunk 1 if they've changed, then run all chunks. Or run `/cmh-ci` fresh —
-it picks up the latest PRD and QA files automatically.
+Open the previous run's `report.R`, update file paths near the top if
+they've changed, and run it (`Rscript report.R`). Or run `/cmh-ci`
+fresh — it picks up the latest PRD and QA files automatically.
 
 ### "Switch from random-effects to fixed-effects"
 
-At Step 6, choose **fixed-effect**. Or edit `model_type` in an existing
-`report.Rmd` and re-run from Chunk 4.
+At Step 6, choose **fixed-effect**. Or edit `model_type` (and the model
+file it selects) in an existing `report.R` and re-run it.
 
 
 # File Locations
@@ -498,9 +519,18 @@ The JAGS MCMC fit is the bottleneck (~3–5 min for a typical network). This
 matches the production `CMH.BNMA` app's runtime. Everything else takes
 seconds.
 
-### "Can I edit the .Rmd and re-render?"
+### "Can I edit report.R and re-run?"
 
-Yes — that's the point. Modify what you need, re-run chunks, then:
+Yes — that's the point. Modify what you need (paths, study list, model
+settings), then:
+
+```bash
+module load R/4.4.2 jags 2>/dev/null
+Rscript report.R
+```
+
+If you also changed something worth reflecting in the narrative (e.g. why
+you re-ran it), edit `report.Rmd` and re-render its `.html`:
 
 ```bash
 module load R/4.4.2
@@ -530,7 +560,7 @@ between placebo-adjusted/absolute and random-/fixed-effects variants —
 matches Lilly's production `CMH.BNMA` application verbatim, so a result
 produced this way is not a new or separate model, just a guided,
 auditable path to the same one. Every completed run leaves behind the
-same deliverables: the forest plots themselves, and a re-runnable
-`.Rmd`/`.html` report pair that records exactly which data and which
-decisions produced them — the audit trail the earlier, hand-edited-script
-workflow never had.
+same deliverables: the forest plots themselves, a standalone `report.R`
+that reproduces them exactly, and a `report.Rmd`/`.html` narrative pair
+that records exactly which data and which decisions produced them — the
+audit trail the earlier, hand-edited-script workflow never had.

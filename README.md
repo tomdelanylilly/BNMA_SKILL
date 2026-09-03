@@ -40,8 +40,9 @@ using the skill rather than developing it.
   pooling-risk QA gate on the selection → ask whether non-PRD data should
   be added → convert it to the QA schema → merge it in → confirm run
   intent, create folders, write the manifest → collect modelling
-  preferences → fit and produce both forest plots plus a re-runnable
-  `.Rmd`/rendered `.html` report) *and* every deterministic script/model
+  preferences → fit and produce both forest plots plus a standalone
+  re-runnable script and a narrative `.Rmd`/rendered `.html` report)
+  *and* every deterministic script/model
   file it calls, embedded verbatim in its own appendices rather than kept
   as separate files:
   - **Appendix A** — the JAGS model specs (`model_random.txt` /
@@ -160,9 +161,10 @@ weight-loss forest plot"). From there:
    route/evidence filters, asked *after* the real network structure is
    known, so any recommendation is stated directly rather than corrected
    after the fact. It then fits the model via JAGS and produces both
-   forest plots (placebo-adjusted and absolute), a re-runnable `.Rmd` with
-   real code chunks, and a rendered `.html` report — the permanent audit
-   trail for the run.
+   forest plots (placebo-adjusted and absolute), a standalone `report.R`
+   (plain, runnable top to bottom with one `Rscript` call — no RStudio or
+   chunk-stepping needed), and a narrative `report.Rmd`/rendered `.html` —
+   the permanent audit trail for the run.
 
 See `SKILL.md` for the full step-by-step detail, including exactly what each
 manifest field controls.

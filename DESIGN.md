@@ -564,3 +564,45 @@ values are still computed and carried internally (the anomaly pre-pass
 above still needs them), just no longer surfaced as a separate,
 redundant field in the visible list.
 
+## Eleventh design iteration: splitting the report deliverable again,
+and a real forest-plot rendering bug (2026-09-03)
+
+1. **The per-run report splits into two files again — but not back to
+   the pre-Eighth-iteration design.** The Eighth iteration's `.Rmd` (real
+   code chunks, `eval=FALSE`, run interactively in RStudio) worked but
+   asked something of the reader every other artifact this skill
+   produces doesn't: open RStudio and step through chunks by hand just
+   to reproduce a result. Feedback was direct — the actual reproduction
+   mechanism should be a plain script, runnable top to bottom with one
+   `Rscript` call, and the `.Rmd` should be what a reader opens to
+   understand what happened, not what they execute. So `report.R` now
+   carries everything Chunks 1–6 held (the seeded inits, the
+   pattern-resolved QA path, the real `render_forest()` code — all of
+   Ninth/Tenth iteration's fixes carry forward unchanged, just relocated
+   out of chunk markers into plain sequential code), and `report.Rmd`
+   drops its chunks entirely: a short per-step workflow summary plus the
+   same provenance/design-choices/results sections it already had.
+   `report.html` is faster to render than ever, since there's now no
+   code in the `.Rmd` to skip executing — it never had much to run
+   anyway (chunks defaulted to `eval=FALSE`), but now there's nothing to
+   reason about at all.
+2. **A genuine rendering bug, not a design gap this time.** Real forest
+   plots showed dashed zero-reference lines running visibly through
+   several CI labels — any label whose mean sat close to zero, which is
+   common (a lot of studied doses aren't statistically distinguishable
+   from placebo). Root cause: `geom_text()` has no background, so
+   whatever's drawn underneath — here, `geom_hline(yintercept = 0)` —
+   shows through the glyphs. A separate, rarer failure mode was also
+   closed: the CI label for the single most extreme point in a plot,
+   centered exactly on that point by default, could have its leading
+   character (often the minus sign) clipped at the panel edge if the
+   axis expansion wasn't wide enough to fit half the label's width
+   past the data range. Fixed by switching to `geom_label()` (opaque
+   white fill masks the line), widening `scale_y_continuous()`'s
+   expansion, and setting `coord_flip(clip = "off")` so an overflowing
+   label is never hard-clipped regardless of exact width. Verified
+   against a synthetic 26-row plot matching the real dataset's scale —
+   the biggest deliverable this skill produces, and the one users
+   actually screenshot into decks, so illegible labels were a real
+   problem, not a cosmetic one.
+
