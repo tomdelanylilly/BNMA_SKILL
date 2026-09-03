@@ -5456,7 +5456,8 @@ window.Quarto = {
   <li><a href="#getting-started" id="toc-getting-started" class="nav-link" data-scroll-target="#getting-started"><span class="header-section-number">3</span> Getting Started</a>
   <ul class="collapse">
   <li><a href="#setup" id="toc-setup" class="nav-link" data-scroll-target="#setup"><span class="header-section-number">3.1</span> Setup</a></li>
-  <li><a href="#starting-a-session" id="toc-starting-a-session" class="nav-link" data-scroll-target="#starting-a-session"><span class="header-section-number">3.2</span> Starting a session</a></li>
+  <li><a href="#where-you-run-this" id="toc-where-you-run-this" class="nav-link" data-scroll-target="#where-you-run-this"><span class="header-section-number">3.2</span> Where you run this</a></li>
+  <li><a href="#starting-a-session" id="toc-starting-a-session" class="nav-link" data-scroll-target="#starting-a-session"><span class="header-section-number">3.3</span> Starting a session</a></li>
   </ul></li>
   <li><a href="#the-workflow" id="toc-the-workflow" class="nav-link" data-scroll-target="#the-workflow"><span class="header-section-number">4</span> The Workflow</a>
   <ul class="collapse">
@@ -5551,6 +5552,10 @@ window.Quarto = {
 <h1 data-number="2"><span class="header-section-number">2</span> Prerequisites</h1>
 <p>You’re working on the Lilly HPC cluster, so the heavy dependencies (R, JAGS, and all required R packages) are already installed — nothing to set up. The skill loads them automatically via <code>module load</code> when it runs.</p>
 <table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
 <thead>
 <tr class="header">
 <th>What you need</th>
@@ -5563,8 +5568,8 @@ window.Quarto = {
 <td>The CLI — <code>claude --version</code> to confirm</td>
 </tr>
 <tr class="even">
-<td><strong>HPC cluster session</strong></td>
-<td>SSH’d in or on a compute node</td>
+<td><strong>A terminal on the HPC cluster</strong></td>
+<td>Posit Workbench (Positron, RStudio, or VS Code) or a direct SSH session — see “Where you run this” below</td>
 </tr>
 <tr class="odd">
 <td><strong>Data access</strong></td>
@@ -5585,8 +5590,17 @@ window.Quarto = {
     └── CLAUDE.md    ← project-level pointer</code></pre>
 <p>Any Claude Code session launched from within <code>/lillyce/qa/diabetes/bnma/obesity/data/shared/</code> (or a subdirectory) will pick it up automatically — no install step needed.</p>
 </section>
-<section id="starting-a-session" class="level2" data-number="3.2">
-<h2 data-number="3.2" class="anchored" data-anchor-id="starting-a-session"><span class="header-section-number">3.2</span> Starting a session</h2>
+<section id="where-you-run-this" class="level2" data-number="3.2">
+<h2 data-number="3.2" class="anchored" data-anchor-id="where-you-run-this"><span class="header-section-number">3.2</span> Where you run this</h2>
+<p>Posit Workbench hosts three IDEs — <strong>Positron</strong>, <strong>RStudio</strong>, and <strong>VS Code</strong> — and Claude Code works the same way in all of them:</p>
+<ul>
+<li><strong>Terminal (main route)</strong> — open the built-in terminal pane in whichever app you’re using and run <code>claude</code> there, same as the commands below.</li>
+<li><strong>Extension</strong> — some of these apps may have a Claude Code extension available, giving you a dedicated panel instead of a plain terminal. Check your app’s extension/plugin marketplace first; fall back to the terminal if there isn’t one installed.</li>
+</ul>
+<p>Either way, once <code>claude</code> is running, everything from here on — starting a session, typing <code>/cmh-ci</code>, answering its questions — is identical.</p>
+</section>
+<section id="starting-a-session" class="level2" data-number="3.3">
+<h2 data-number="3.3" class="anchored" data-anchor-id="starting-a-session"><span class="header-section-number">3.3</span> Starting a session</h2>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> /lillyce/qa/diabetes/bnma/obesity/data/shared   <span class="co"># or a subdirectory</span></span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">claude</span>                                              <span class="co"># launch Claude Code</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Then type <code>/cmh-ci</code>.</p>
