@@ -160,6 +160,27 @@
   .deliverable-name { font-size: 13px; font-weight: 700; color: var(--text-primary); line-height: 1.3; }
   .deliverable-desc { font-size: 11px; color: var(--text-secondary); margin-top: 1px; line-height: 1.3; }
 
+  /* ---------- example questions ---------- */
+  .questions { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 8px; min-height: 0; }
+  .question-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .question-card {
+    background: var(--surface-2);
+    border-radius: 10px;
+    padding: 10px 14px;
+    display: flex; gap: 10px; align-items: flex-start;
+  }
+  .question-mark {
+    flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%;
+    background: var(--series-4); color: #fff; font-size: 13px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .question-body { min-width: 0; }
+  .question-text { font-size: 12px; color: var(--text-primary); line-height: 1.35; }
+  .question-step {
+    font-size: 9.5px; font-weight: 700; color: var(--text-muted); margin-top: 4px;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+
   .footer-note { font-size: 10px; color: var(--text-muted); text-align: right; flex-shrink: 0; margin: 0; }
 </style>
 </head>
@@ -323,6 +344,62 @@
           <div>
             <div class="deliverable-name">Analysis report</div>
             <div class="deliverable-desc">Re-runnable .Rmd + rendered .html</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- EXAMPLE QUESTIONS -->
+    <div class="questions">
+      <p class="panel-title">What /cmh-ci actually asks you</p>
+      <div class="question-grid">
+
+        <div class="question-card">
+          <div class="question-mark">?</div>
+          <div class="question-body">
+            <div class="question-text">"Which studies do you want to include?"</div>
+            <div class="question-step">Step 1 · Selection</div>
+          </div>
+        </div>
+
+        <div class="question-card">
+          <div class="question-mark">?</div>
+          <div class="question-body">
+            <div class="question-text">"Do you have any additional data to add before fitting — a press release, new readout, or another workbook?"</div>
+            <div class="question-step">Step 2 · Outside data</div>
+          </div>
+        </div>
+
+        <div class="question-card">
+          <div class="question-mark">?</div>
+          <div class="question-body">
+            <div class="question-text">"Is this extracted data Observed or Predicted?"</div>
+            <div class="question-step">Step 3 · Data type</div>
+          </div>
+        </div>
+
+        <div class="question-card">
+          <div class="question-mark">?</div>
+          <div class="question-body">
+            <div class="question-text">"Ready to run a BNMA on this subset?"</div>
+            <div class="question-step">Step 5 · Run confirm</div>
+          </div>
+        </div>
+
+        <div class="question-card">
+          <div class="question-mark">?</div>
+          <div class="question-body">
+            <div class="question-text">"Heterogeneity: random-effects (default) or fixed-effect?"</div>
+            <div class="question-step">Step 6 · Model prefs</div>
+          </div>
+        </div>
+
+        <div class="question-card">
+          <div class="question-mark">?</div>
+          <div class="question-body">
+            <div class="question-text">"Full star network detected — recommend fixed-effect. Proceed?"</div>
+            <div class="question-step">Step 6 · Anomaly</div>
           </div>
         </div>
 
