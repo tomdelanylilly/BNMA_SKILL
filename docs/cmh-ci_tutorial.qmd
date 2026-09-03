@@ -49,7 +49,7 @@ You're working on the Lilly HPC cluster, so the heavy dependencies (R, JAGS, and
 | What you need | Notes |
 |---|---|
 | **Claude Code** | The CLI — `claude --version` to confirm |
-| **A terminal on the HPC cluster** | Posit Workbench (Positron, RStudio, or VS Code) or a direct SSH session — see "Where you run this" below |
+| **HPC cluster session** | SSH'd in or on a compute node |
 | **Data access** | Read access to `/lillyce/prd/` and `/lillyce/qa/` |
 
 That's it. R (4.4.2), JAGS (4.3.2), and all R packages (`rjags`, `coda`, `dplyr`, `readxl`, `ggplot2`, `openxlsx`, `rmarkdown`) are available cluster-wide via modules and the shared R library.
@@ -65,19 +65,10 @@ The skill is already deployed in the shared QA data directory:
 /lillyce/qa/diabetes/bnma/obesity/data/shared/
 └── .claude/skills/cmh-ci/
     ├── SKILL.md     ← the skill definition
-    └── CLAUDE.md    ← project-level pointer
+    └── CLAUDE.md    ← project-level config (PRD write guard, execution style)
 ```
 
 Any Claude Code session launched from within `/lillyce/qa/diabetes/bnma/obesity/data/shared/` (or a subdirectory) will pick it up automatically — no install step needed.
-
-## Where you run this
-
-Posit Workbench hosts three IDEs — **Positron**, **RStudio**, and **VS Code** — and Claude Code works the same way in all of them:
-
-- **Terminal (main route)** — open the built-in terminal pane in whichever app you're using and run `claude` there, same as the commands below.
-- **Extension** — some of these apps may have a Claude Code extension available, giving you a dedicated panel instead of a plain terminal. Check your app's extension/plugin marketplace first; fall back to the terminal if there isn't one installed.
-
-Either way, once `claude` is running, everything from here on — starting a session, typing `/cmh-ci`, answering its questions — is identical.
 
 ## Starting a session
 
