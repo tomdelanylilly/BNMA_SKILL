@@ -128,8 +128,8 @@ unnoticed across runs.
 From the PRD/QA weight-loss dataset to a fitted BNMA. This skill reads
 the data, has you select studies and settle any conflicts, folds in any
 outside data you supply, fits the model, and returns both forest plots
-(placebo-adjusted and absolute), a re-runnable .Rmd, and an .html
-report.
+(placebo-adjusted and absolute), a standalone re-runnable script, and a
+narrative report (with an .html render).
 
 It runs in steps. Each step needs one decision from you — nothing is
 assumed silently.
@@ -146,8 +146,8 @@ assumed silently.
         confirm the rows.
     6 ─ You choose random- or fixed-effects for the BNMA.
     7 ─ Fit, then output: a placebo-adjusted forest plot, an
-        absolute forest plot, a re-runnable .Rmd, and an .html
-        report.
+        absolute forest plot, a standalone re-runnable script, and a
+        narrative report.
 
 Stopping after any step is a valid outcome — reviewing or updating the
 data without fitting is a complete session.
@@ -681,66 +681,64 @@ reuses `--cache`, so nothing refits.)
 `--cache`/`--placebo-cache` point at the same `/tmp` scratch dir the script
 itself is materialized into — never the programs folder. They only exist to
 let a `--contrast` follow-up or a re-plot skip re-running MCMC within the
-same session; they are not part of the audit trail (the script + RMD
-report are what make the run reproducible, not the raw posterior draws)
-and must not be copied into `programs/YYYYMMDD_<slug>/`.
+same session; they are not part of the audit trail (`report.R` +
+`report.Rmd` are what make the run reproducible, not the raw posterior
+draws) and must not be copied into `programs/YYYYMMDD_<slug>/`.
 
 **Display both plots** (Read tool) immediately.
 
-**Then write the per-run RMD report and render to HTML** — see "RMD
-report" below.
+**Then write `report.R` and `report.Rmd`, and render the latter to
+HTML** — see "report.R — the standalone runnable script" and
+"report.Rmd — the narrative report" below.
 
 Save outputs:
 - Both forest plots →
   `/lillyce/qa/diabetes/bnma/obesity/output/shared/YYYYMMDD_<slug>/forest_plot_relative.png`
   and `.../forest_plot_absolute.png`
-- **The per-run RMD report + HTML** →
-  `/lillyce/qa/diabetes/bnma/obesity/programs/YYYYMMDD_<slug>/report.Rmd`
-  and `.../report.html`
-  — the `.Rmd` is the re-runnable script (chunks for RStudio), the
-  `.html` is the pre-rendered readable report. Together they are the
-  permanent audit trail, and the only things this step writes to the
-  programs folder.
+- **The per-run script, report, and HTML render** →
+  `/lillyce/qa/diabetes/bnma/obesity/programs/YYYYMMDD_<slug>/report.R`,
+  `.../report.Rmd`, and `.../report.html`
+  — `report.R` is the standalone re-runnable script (plain sequential R,
+  runs top to bottom with one `Rscript` call, no RStudio or chunk-stepping
+  needed); `report.Rmd` is the narrative report (workflow, provenance,
+  design choices, results — no code); `report.html` is `report.Rmd`
+  rendered. Together they are the permanent audit trail, and the only
+  things this step writes to the programs folder.
 
-The programs folder holds **only the RMD report and its HTML render** —
-no `study_selection_manifest.yaml`, no separate copy of
+The programs folder holds **only these three files** — no
+`study_selection_manifest.yaml`, no separate copy of
 `run_bnma_pipeline.R`, and no `samples.rds`/`placebo_samples.rds`
 either. The manifest stays in
 `/tmp` scratch (`/tmp/$(whoami)/cmh_ci_lib/study_selection_manifest.yaml`,
 written in Step 5) — `run_bnma_pipeline.R` still needs it as an input, but
 the manifest itself is no longer kept as a deliverable; its substance
-(the studies included) carries forward into the RMD report instead, which
+(the studies included) carries forward into `report.Rmd` instead, which
 is what actually persists in the programs folder.
 
-### RMD report
+### report.R — the standalone runnable script
 
-Generate a fresh `report.Rmd` every run (never accumulated across runs),
-written to the same run's programs folder. Pull its content from the
-manifest written in Step 5/6 rather than re-deriving anything. This is
-the thing a user opens cold, months later, to answer "how was this
-produced, and can I reproduce it" — so while study selection stays a
-summary (see below), the provenance and reproduction sections must be
-literal, not summarized.
+Generate a fresh `report.R` every run (never accumulated across runs),
+written to the same run's programs folder. This is the actual
+reproduction mechanism — plain sequential R, no chunk markers, runnable
+top to bottom with a single `Rscript report.R` call. No RStudio, no
+chunk-by-chunk stepping required, though it can still be opened and read
+or stepped through manually in any editor. It contains the same real
+code this skill already fits and plots with, hardcoded to this run:
 
-**The .Rmd is the re-runnable script** — not a wrapper around an
-embedded script. It has real R code chunks a user can step through in
-RStudio:
-
-- **Chunk 1: Setup** — `library()` calls (rjags, dplyr, readxl,
-  ggplot2, coda, openxlsx), path definitions (output folder and the PRD
-  path hardcoded from this run — PRD is never renamed, so that path stays
-  valid indefinitely; the QA path resolved *by pattern*, same
+- **Setup** — `library()` calls (rjags, dplyr, readxl, ggplot2, coda,
+  openxlsx), path definitions (output folder and the PRD path hardcoded
+  from this run — PRD is never renamed, so that path stays valid
+  indefinitely; the QA path resolved *by pattern*, same
   `ls -t .../cwm_wl_nont2d_qa_*.xlsx | head -1` approach Step 1 uses for
   PRD, since a later append can rename the exact QA file this run read —
   hardcoding it would break a re-run once that happens, even though the
   underlying rows for this run's included studies haven't changed),
   config variables (MCMC params, included studies, model type).
-- **Chunk 2: Data load** — read PRD/QA, merge, filter to included
-  studies.
-- **Chunk 3: Build BATMAN** — construct JAGS data matrices (`y`, `se`,
-  `trt`, `na`, `ns`, `M`).
-- **Chunk 4: Fit model** — the actual seeded-inits construction copied in
-  from Appendix B1 (`base_seed` derived from `args$seed`, the
+- **Data load** — read PRD/QA, merge, filter to included studies.
+- **Build BATMAN** — construct JAGS data matrices (`y`, `se`, `trt`,
+  `na`, `ns`, `M`).
+- **Fit model** — the actual seeded-inits construction copied in from
+  Appendix B1 (`base_seed` derived from `args$seed`, the
   `draw_from_vague_prior()` helper, and the `inits.list` built with
   `.RNG.seed`/`.RNG.name = "base::Wichmann-Hill"` per chain), then the
   JAGS model definition (inline), `jags.model()` called with that
@@ -749,25 +747,31 @@ RStudio:
   a re-run would still fit fine, but wouldn't reproduce the *same*
   posterior draws (see Appendix B1's own seeding code for why chain 1
   gets zero inits and chains 2-3 draw from the vague prior).
-- **Chunk 5: Results** — extract posteriors, build result table, fit
+- **Results** — extract posteriors, build result table, fit
   pooled-placebo model for absolute effects.
-- **Chunk 6: Forest plots** — the actual `render_forest()` plotting code
-  copied in from Appendix B1 (compound-color mapping, `geom_pointrange`,
+- **Forest plots** — the actual `render_forest()` plotting code copied in
+  from Appendix B1 (compound-color mapping, `geom_label`/`geom_pointrange`,
   plot sizing, `ggsave`), called once per effect
   (`render_forest("relative", ...)`, `render_forest("absolute", ...)`) —
   not a reference or pointer to `run_bnma_pipeline.R` itself. That script
   only ever exists in `/tmp` scratch for the duration of the session (see
   "no separate copy of `run_bnma_pipeline.R`" below); it isn't there for
-  the user to point at once the session ends, so this chunk needs to be
-  genuinely self-contained the same way Chunks 1-5 already are.
+  the user to point at once the session ends, so `report.R` needs to be
+  genuinely self-contained the same way every section above already is.
 
-Each chunk is self-contained enough that a user can re-run from any
-chunk if the earlier objects are in the workspace. Chunks default to
-`eval=FALSE` so the HTML render (below) is fast — the user runs them
-interactively in RStudio, not via `knit`.
+### report.Rmd — the narrative report
 
-The report also contains these narrative sections (outside chunks):
+Generate a fresh `report.Rmd` every run too, written to the same
+programs folder. This is the thing a user opens cold, months later, to
+answer "how was this produced, and can I reproduce it" — but unlike
+`report.R`, **it has no code chunks**; the runnable form lives entirely
+in `report.R` above. Pull its content from the manifest written in
+Step 5/6 rather than re-deriving anything, and keep every section
+literal, not summarized, except study selection (see below).
 
+- **General workflow** — a very short description of each step (1–7),
+  matching the landing page's own workflow-at-a-glance summary, so a
+  reader gets the shape of the session without re-reading `SKILL.md`.
 - **How the data was produced** — the exact PRD and QA file paths this
   run read (`source_data.prd`/`.qa` from the manifest); any supplemental
   data merged in via Step 2/3 this run, with its source (link/file), the
@@ -784,19 +788,22 @@ The report also contains these narrative sections (outside chunks):
 - **Design choices** — `model_type` (random vs. fixed effects),
   `route_filter`, `evidence_filter`.
 - **Results** — links to the two output plots (relative-effect and
-  absolute-effect) in this run's output folder.
+  absolute-effect) in this run's output folder, and a pointer to
+  `report.R` for reproducing them.
 
-**Render to HTML immediately after writing the .Rmd** — in the same
+**Render to HTML immediately after writing both files** — in the same
 shell that ran the fit, not a separate R session:
 ```bash
 module load R/4.4.2 2>/dev/null
 Rscript -e 'rmarkdown::render("<programs_folder>/report.Rmd", output_format = "html_document", quiet = TRUE)'
 ```
-This is fast (seconds) because every chunk is `eval=FALSE` — it renders
-the narrative and code documentation, doesn't re-run JAGS. The user
-gets both files:
-- `.Rmd` — the re-runnable script (open in RStudio, run chunks)
-- `.html` — a pre-rendered readable report to share immediately
+This is fast (seconds) — `report.Rmd` has no code to execute, only the
+narrative sections above. The user ends up with three files:
+- `report.R` — the standalone re-runnable script (run directly, no
+  RStudio or chunk-stepping needed)
+- `report.Rmd` — the narrative report (workflow, provenance, design
+  choices, results)
+- `report.html` — `report.Rmd` rendered, shareable immediately
 
 ---
 
@@ -1830,11 +1837,17 @@ pforest <- ggplot(
 ) +
   geom_pointrange(aes(col = compound), size = 0.5) +
   geom_hline(yintercept = 0, linewidth = 1, linetype = 2) +
-  geom_text(aes(y = mean, label = Label), position = position_nudge(x = 0.32), vjust = 0, size = 4.2, color = "black", show.legend = FALSE) +
+  # geom_label (not geom_text) -- a mean near 0 places the label right on
+  # top of the dashed zero-line, and a plain-text layer has no background
+  # to mask it, so the line visibly runs through the digits. label's
+  # solid fill covers that. Wider y-expansion + clip="off" so a long CI
+  # label centered on the most extreme point never gets cut off at the
+  # panel edge either.
+  geom_label(aes(y = mean, label = Label), position = position_nudge(x = 0.32), vjust = 0, size = 4.2, color = "black", fill = "white", show.legend = FALSE) +
   scale_color_manual(values = compound_colors, name = "Compound") +
-  scale_y_continuous(expand = expansion(mult = c(0.08, 0.08))) +
+  scale_y_continuous(expand = expansion(mult = c(0.15, 0.15))) +
   scale_x_discrete(expand = expansion(add = c(0.6, 0.6))) +
-  coord_flip() +
+  coord_flip(clip = "off") +
   xlab("") + ylab(ylab_text) +
   ggtitle(title_text) +
   theme_bw() +
