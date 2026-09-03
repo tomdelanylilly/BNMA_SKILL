@@ -27,7 +27,11 @@ no DIC/consistency check) — matching the real production
 `EliLillyCo/CMH.BNMA` app's own behavior.
 
 See [DESIGN.md](DESIGN.md) for the full design rationale — problem statement,
-current-state findings, and the skill architecture.
+current-state findings, and the skill architecture. See
+[docs/cmh-ci_tutorial.qmd](docs/cmh-ci_tutorial.qmd) (render with
+`quarto render`, or read `docs/cmh-ci_tutorial.html` directly) for a
+walkthrough with real screenshots and worked examples, aimed at someone
+using the skill rather than developing it.
 
 ## What's included
 
@@ -61,11 +65,6 @@ current-state findings, and the skill architecture.
   a real file (a session lib dir, then `programs/<slug>/lib/` once that
   folder exists) before invoking it — nothing needs to pre-exist on disk
   beyond `SKILL.md` itself.
-- `.claude-plugin/marketplace.json` — marketplace manifest for the
-  plugin-install path. Currently **not** the supported install method for
-  this repo's flat layout (its `plugins/bnma` source path predates the
-  flatten and no longer exists) — see Install below for what actually works
-  today.
 
 There is no bundled test fixture / `tests/` directory, and no
 `compound_registry.yaml` either — naming/pooling decisions are resolved
