@@ -85,20 +85,17 @@ HPC/Positron environment needs, before first use:
 
 ## Install
 
-The plugin-marketplace path (`/plugin marketplace add` / `/plugin install`)
-isn't wired up for this repo's flat layout — the marketplace
-manifest still points at a nested `plugins/bnma/` path this repo's
-flatten commit removed. Until that's fixed, install as a personal skill
-instead:
+The skill is already deployed for shared use — no install step needed:
 
-1. Clone https://github.com/tomdelanylilly/BNMA_SKILL (private repo —
-   request access if you can't see it) — `main` has everything, no
-   branch switch needed.
-2. Copy the repo's `SKILL.md` (and, optionally, `CLAUDE.md` for the
-   always-loaded pointer) into your own `.claude/skills/cmh-ci/` folder —
-   that's the only file actually needed at runtime; `README.md`/
-   `DESIGN.md`/etc. are documentation, not required for the skill to load.
-3. `/cmh-ci` is then available in any Claude Code session.
+```
+/lillyce/qa/diabetes/bnma/obesity/data/shared/
+└── .claude/skills/cmh-ci/
+    ├── SKILL.md
+    └── CLAUDE.md
+```
+
+Any Claude Code session launched from within that folder (or a
+subdirectory) picks it up automatically. `/cmh-ci` is then available.
 
 ### Verify your setup
 
@@ -117,9 +114,8 @@ verification run needed.
 
 ### Updating
 
-There's no `/plugin marketplace update` for a personal skill install —
-`git pull` (or re-clone) this repo and re-copy `SKILL.md` (and `CLAUDE.md`)
-into `~/.claude/skills/cmh-ci/` to pick up changes.
+`git pull` this repo and re-copy `SKILL.md` (and `CLAUDE.md`) into the QA
+path above to pick up changes.
 
 ## Using it
 
