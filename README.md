@@ -63,7 +63,7 @@ current-state findings, and the skill architecture.
   beyond `SKILL.md` itself.
 - `.claude-plugin/marketplace.json` — marketplace manifest for the
   plugin-install path. Currently **not** the supported install method for
-  this branch's flat layout (its `plugins/bnma` source path predates the
+  this repo's flat layout (its `plugins/bnma` source path predates the
   flatten and no longer exists) — see Install below for what actually works
   today.
 
@@ -78,21 +78,22 @@ below for the missing test fixture).
 This skill does **not** bundle R, JAGS, or any R package — your own
 HPC/Positron environment needs, before first use:
 - `module load R` and `module load jags` on `PATH` (or `Rscript` directly on
-  `PATH` — the materialized `_resolve_rscript.sh` tries both, in that order)
+  `PATH`) — `run_bnma_pipeline.R` invocations load these inline (see Step 7);
+  there's no wrapper script to resolve them for you
 - R packages: `dplyr`, `readxl`, `writexl`, `ggplot2`, `ggtext`, `coda`,
   `yaml`, `jsonlite`, `rjags`
 
 ## Install
 
 The plugin-marketplace path (`/plugin marketplace add` / `/plugin install`)
-isn't wired up for this branch's flat repo layout — the marketplace
-manifest still points at a nested `plugins/bnma/` path this branch's
+isn't wired up for this repo's flat layout — the marketplace
+manifest still points at a nested `plugins/bnma/` path this repo's
 flatten commit removed. Until that's fixed, install as a personal skill
 instead:
 
 1. Clone https://github.com/tomdelanylilly/BNMA_SKILL (private repo —
-   request access if you can't see it), and check out the `cmh-ci_v3`
-   branch.
+   request access if you can't see it) — `main` has everything, no
+   branch switch needed.
 2. Copy the repo's `SKILL.md` (and, optionally, `CLAUDE.md` for the
    always-loaded pointer) into your own `.claude/skills/cmh-ci/` folder —
    that's the only file actually needed at runtime; `README.md`/
