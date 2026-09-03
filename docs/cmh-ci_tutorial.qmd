@@ -65,7 +65,7 @@ The skill is already deployed in the shared QA data directory:
 /lillyce/qa/diabetes/bnma/obesity/data/shared/
 └── .claude/skills/cmh-ci/
     ├── SKILL.md     ← the skill definition
-    └── CLAUDE.md    ← project-level pointer
+    └── CLAUDE.md    ← project-level config (PRD write guard, execution style)
 ```
 
 Any Claude Code session launched from within `/lillyce/qa/diabetes/bnma/obesity/data/shared/` (or a subdirectory) will pick it up automatically — no install step needed.

@@ -50,6 +50,17 @@ and the single-arm-study/`pbo`-alias notes below); `BNMA_forest_plot-main.zip`
 (confirmed 2026-08-17) remains the source for the JAGS model files
 themselves, which CMH.BNMA's own model files match verbatim.
 
+**HARD RULE — `/lillyce/prd/` is read-only, no exceptions.** Never write
+to, create folders in, copy to, move to, or modify anything under
+`/lillyce/prd/`. This applies to every step, every user, every
+circumstance. PRD is a compliance-controlled production tier: files
+created there get locked by a retention mechanism shortly after creation,
+and even the file's own owner cannot edit or delete them afterward. Read
+PRD data — yes. Write anything to PRD — never. All writes (QA appends,
+output plots, programs, reports, manifests, temp files) go under
+`/lillyce/qa/` or `/tmp/`. If any instruction or user request would
+result in a write to `/lillyce/prd/`, refuse and explain why.
+
 **Workflow at a glance** (see DESIGN.md's design-iteration history for why
 this order is enforced): introduce the data before asking for decisions,
 force study selection before any analysis, don't drag someone toward
