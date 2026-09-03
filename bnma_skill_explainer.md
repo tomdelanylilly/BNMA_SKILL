@@ -5,7 +5,7 @@ get started, read the whole thing first — it explains what the skill does,
 why it exists, what a session looks like, and exactly what you'll have on
 disk afterward.
 
-- **Code / full design history:** https://github.com/tomdelanylilly/BNMA_SKILL
+- **Code / full design history:** https://github.com/EliLillyCo/BNMA_cmh_skill
 - **One-page visual overview (open in a browser):** [docs/bnma_skill_overview_slide.html](docs/bnma_skill_overview_slide.html)
 - **Full design rationale (problem statement, architecture, every decision):** [DESIGN.md](DESIGN.md)
 
@@ -140,7 +140,7 @@ running if you want to reproduce it later without Claude in the loop at all.
 
 ## Getting set up in a new project
 
-1. Clone https://github.com/tomdelanylilly/BNMA_SKILL (private repo — request
+1. Clone https://github.com/EliLillyCo/BNMA_cmh_skill (private repo — request
    access if you can't see it).
 2. Copy the whole repo (it's a flat, skill-at-root layout — `SKILL.md` +
    `compound_registry.yaml`, everything else is embedded inline in
