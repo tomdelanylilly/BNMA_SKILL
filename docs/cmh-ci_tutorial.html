@@ -5455,7 +5455,7 @@ window.Quarto = {
   <li><a href="#prerequisites" id="toc-prerequisites" class="nav-link" data-scroll-target="#prerequisites"><span class="header-section-number">2</span> Prerequisites</a></li>
   <li><a href="#getting-started" id="toc-getting-started" class="nav-link" data-scroll-target="#getting-started"><span class="header-section-number">3</span> Getting Started</a>
   <ul class="collapse">
-  <li><a href="#setup-options" id="toc-setup-options" class="nav-link" data-scroll-target="#setup-options"><span class="header-section-number">3.1</span> Setup options</a></li>
+  <li><a href="#setup" id="toc-setup" class="nav-link" data-scroll-target="#setup"><span class="header-section-number">3.1</span> Setup</a></li>
   <li><a href="#starting-a-session" id="toc-starting-a-session" class="nav-link" data-scroll-target="#starting-a-session"><span class="header-section-number">3.2</span> Starting a session</a></li>
   </ul></li>
   <li><a href="#the-workflow" id="toc-the-workflow" class="nav-link" data-scroll-target="#the-workflow"><span class="header-section-number">4</span> The Workflow</a>
@@ -5576,40 +5576,19 @@ window.Quarto = {
 </section>
 <section id="getting-started" class="level1" data-number="3">
 <h1 data-number="3"><span class="header-section-number">3</span> Getting Started</h1>
-<section id="setup-options" class="level2" data-number="3.1">
-<h2 data-number="3.1" class="anchored" data-anchor-id="setup-options"><span class="header-section-number">3.1</span> Setup options</h2>
-<p><strong>Option A: Global install</strong> (works from any folder, in any session) — place the skill at:</p>
-<pre><code>~/.claude/skills/cmh-ci/SKILL.md</code></pre>
-<p><strong>Option B: Project-level</strong> (works for anyone whose session starts inside that folder):</p>
+<section id="setup" class="level2" data-number="3.1">
+<h2 data-number="3.1" class="anchored" data-anchor-id="setup"><span class="header-section-number">3.1</span> Setup</h2>
+<p>The skill is already deployed in the shared QA data directory:</p>
 <pre><code>/lillyce/qa/diabetes/bnma/obesity/data/shared/
-├── .claude/skills/cmh-ci/SKILL.md
-└── CLAUDE.md    ← optional 5-line pointer</code></pre>
-<p>A project-level install only applies when your session’s working directory is inside that specific folder — if you start sessions from different places, use the global install (Option A) instead.</p>
-<div class="callout callout-style-default callout-warning callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-Warning
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>Don’t place a project-level copy under <code>/lillyce/prd/...</code>. Files created there can get locked by a compliance/retention mechanism shortly after creation — even the file’s own owner can no longer edit or delete it afterward. PRD is meant to be a curated, semi-annual read tier anyway; QA is the live working copy this skill is designed to write into.</p>
-</div>
-</div>
-<p>The optional <code>CLAUDE.md</code> pointer lets users know the skill exists:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu"># CMH Competitive Intelligence — BNMA</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>Type <span class="in">`/cmh-ci`</span> to run a Bayesian network meta-analysis on the PRD/QA</span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>weight-loss dataset. It walks you through study selection, optional new</span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>data, model fitting, and outputs both forest plots (placebo-adjusted +</span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>absolute), a re-runnable .Rmd, and an .html report.</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+└── .claude/skills/cmh-ci/
+    ├── SKILL.md     ← the skill definition
+    └── CLAUDE.md    ← project-level pointer</code></pre>
+<p>Any Claude Code session launched from within <code>/lillyce/qa/diabetes/bnma/obesity/data/shared/</code> (or a subdirectory) will pick it up automatically — no install step needed.</p>
 </section>
 <section id="starting-a-session" class="level2" data-number="3.2">
 <h2 data-number="3.2" class="anchored" data-anchor-id="starting-a-session"><span class="header-section-number">3.2</span> Starting a session</h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> /lillyce/qa/diabetes/bnma/obesity/data/shared   <span class="co"># or your own working directory</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ex">claude</span>                                               <span class="co"># launch Claude Code</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> /lillyce/qa/diabetes/bnma/obesity/data/shared   <span class="co"># or a subdirectory</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">claude</span>                                              <span class="co"># launch Claude Code</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Then type <code>/cmh-ci</code>.</p>
 </section>
 </section>
@@ -5767,16 +5746,16 @@ Figure 6: Manifest confirmed with all four studies – the three from Step 1 pl
 <section id="step-7-fitting-the-model-and-producing-outputs" class="level2" data-number="4.6">
 <h2 data-number="4.6" class="anchored" data-anchor-id="step-7-fitting-the-model-and-producing-outputs"><span class="header-section-number">4.6</span> Step 7: Fitting the model and producing outputs</h2>
 <p>The model is fit once via JAGS, and both forest plots are produced from that same fit in a single pass — no separate R processes, no re-reading data. Alongside the plots, the skill writes a re-runnable <code>.Rmd</code> report and renders it to <code>.html</code>.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># What&#39;s happening under the hood:</span></span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="ex">module</span> load R/4.4.2 jags <span class="dv">2</span><span class="op">&gt;</span>/dev/null</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="ex">Rscript</span> /tmp/<span class="va">$USER</span>/cmh_ci_lib/run_bnma_pipeline.R <span class="dt">\</span></span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">--prd</span> <span class="op">&lt;</span>prd_path<span class="op">&gt;</span> --qa <span class="op">&lt;</span>qa_path<span class="op">&gt;</span> <span class="dt">\</span></span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">--manifest</span> <span class="op">&lt;</span>manifest.yaml<span class="op">&gt;</span> --model model_random.txt <span class="dt">\</span></span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">--cache</span> /tmp/<span class="va">$USER</span>/cmh_ci_lib/samples.rds <span class="dt">\</span></span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">--fit-placebo</span> <span class="at">--placebo-cache</span> /tmp/<span class="va">$USER</span>/cmh_ci_lib/placebo_samples.rds <span class="dt">\</span></span>
-<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">--plot</span> <span class="at">--effect</span> both <span class="dt">\</span></span>
-<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">--plot-out</span> <span class="op">&lt;</span>output_folder<span class="op">&gt;</span>/forest_plot_relative.png <span class="dt">\</span></span>
-<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">--plot-out-absolute</span> <span class="op">&lt;</span>output_folder<span class="op">&gt;</span>/forest_plot_absolute.png</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># What&#39;s happening under the hood:</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="ex">module</span> load R/4.4.2 jags <span class="dv">2</span><span class="op">&gt;</span>/dev/null</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="ex">Rscript</span> /tmp/<span class="va">$USER</span>/cmh_ci_lib/run_bnma_pipeline.R <span class="dt">\</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">--prd</span> <span class="op">&lt;</span>prd_path<span class="op">&gt;</span> --qa <span class="op">&lt;</span>qa_path<span class="op">&gt;</span> <span class="dt">\</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">--manifest</span> <span class="op">&lt;</span>manifest.yaml<span class="op">&gt;</span> --model model_random.txt <span class="dt">\</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">--cache</span> /tmp/<span class="va">$USER</span>/cmh_ci_lib/samples.rds <span class="dt">\</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">--fit-placebo</span> <span class="at">--placebo-cache</span> /tmp/<span class="va">$USER</span>/cmh_ci_lib/placebo_samples.rds <span class="dt">\</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">--plot</span> <span class="at">--effect</span> both <span class="dt">\</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">--plot-out</span> <span class="op">&lt;</span>output_folder<span class="op">&gt;</span>/forest_plot_relative.png <span class="dt">\</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">--plot-out-absolute</span> <span class="op">&lt;</span>output_folder<span class="op">&gt;</span>/forest_plot_absolute.png</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Both forest plots are displayed immediately in the terminal, alongside a plain-language chat summary. Continuing the worked example above (the three Step 1 studies plus the <code>triumph-3</code> press-release addition):</p>
 <div id="fig-summary" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
 <figure class="quarto-float quarto-float-fig figure">
@@ -6236,12 +6215,8 @@ Tip
 <td><code>/lillyce/qa/diabetes/bnma/obesity/output/shared/YYYYMMDD_&lt;slug&gt;/</code></td>
 </tr>
 <tr class="odd">
-<td>Skill (global)</td>
-<td><code>~/.claude/skills/cmh-ci/SKILL.md</code></td>
-</tr>
-<tr class="even">
-<td>Skill (project)</td>
-<td><code>&lt;project&gt;/.claude/skills/cmh-ci/SKILL.md</code></td>
+<td>Skill (deployed)</td>
+<td><code>/lillyce/qa/diabetes/bnma/obesity/data/shared/.claude/skills/cmh-ci/SKILL.md</code></td>
 </tr>
 </tbody>
 </table>
@@ -6263,13 +6238,13 @@ Tip
 <section id="can-i-edit-the-.rmd-and-re-render" class="level3" data-number="11.0.4">
 <h3 data-number="11.0.4" class="anchored" data-anchor-id="can-i-edit-the-.rmd-and-re-render"><span class="header-section-number">11.0.4</span> “Can I edit the .Rmd and re-render?”</h3>
 <p>Yes — that’s the point. Modify what you need, re-run chunks, then:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ex">module</span> load R/4.4.2</span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">&#39;rmarkdown::render(&quot;report.Rmd&quot;, output_format = &quot;html_document&quot;)&#39;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">module</span> load R/4.4.2</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">&#39;rmarkdown::render(&quot;report.Rmd&quot;, output_format = &quot;html_document&quot;)&#39;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="where-did-my-qa-file-go" class="level3" data-number="11.0.5">
 <h3 data-number="11.0.5" class="anchored" data-anchor-id="where-did-my-qa-file-go"><span class="header-section-number">11.0.5</span> “Where did my QA file go?”</h3>
 <p>When you append new data, the QA file is <strong>renamed</strong> to today’s date. There’s always exactly one file:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ls</span> <span class="at">-lt</span> /lillyce/qa/diabetes/bnma/obesity/data/shared/weight/cwm_wl_nont2d_qa_<span class="pp">*</span>.xlsx</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ls</span> <span class="at">-lt</span> /lillyce/qa/diabetes/bnma/obesity/data/shared/weight/cwm_wl_nont2d_qa_<span class="pp">*</span>.xlsx</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 </section>
 <section id="summary" class="level1" data-number="12">
